@@ -1,2 +1,12 @@
 /* TimeHack — Custom overrides */
 /* Most styling is handled via TailwindCSS utilities in templates */
+
+@layer utilities {
+    .no-scrollbar::-webkit-scrollbar {
+        display: none;
+    }
+    .no-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+}

@@ -9,16 +9,15 @@ from app.models.category import Category
 class TimeLoggingService:
 
     @staticmethod
-    def start_timer(user_id: int, category_id: int = None, note: str = None, is_pomodoro: bool = False):
+    def start_timer(user_id: int, category_id: int = None, note: str = None, is_pomodoro: bool = False, todo_id: int = None):
         """Start a new running timer. Stops any existing running timer first."""
         # Stop any existing running entry
-        running = TimeEntry.query.filter_by(user_id=user_id, is_running=True).first()
-        if running:
-            running.stop()
+        TimeLoggingService.stop_timer(user_id)
 
         entry = TimeEntry(
             user_id=user_id,
             category_id=category_id,
+            todo_id=todo_id,
             start_time=datetime.now(timezone.utc),
             is_pomodoro=is_pomodoro,
             is_running=True,
@@ -35,6 +34,7 @@ class TimeLoggingService:
         if not entry:
             return None
         entry.stop()
+        # ĐÃ XÓA logic tự động hoàn thành Todo ở đây theo yêu cầu
         db.session.commit()
         return entry
 
@@ -45,7 +45,7 @@ class TimeLoggingService:
 
     @staticmethod
     def add_manual_entry(user_id: int, start_time, end_time, category_id=None,
-                         note=None, is_pomodoro=False):
+                         note=None, is_pomodoro=False, todo_id: int = None):
         """Add a retroactive/manual time entry."""
         if isinstance(start_time, str):
             start_time = datetime.fromisoformat(start_time)
@@ -58,6 +58,7 @@ class TimeLoggingService:
         entry = TimeEntry(
             user_id=user_id,
             category_id=category_id,
+            todo_id=todo_id,
             start_time=start_time,
             end_time=end_time,
             duration=duration,
@@ -65,6 +66,7 @@ class TimeLoggingService:
             is_pomodoro=is_pomodoro,
             is_running=False,
         )
+        # ĐÃ XÓA logic tự động hoàn thành Todo ở đây
         db.session.add(entry)
         db.session.commit()
         return entry
@@ -102,8 +104,7 @@ class TimeLoggingService:
 
     @staticmethod
     def check_overlap(user_id: int, start_time, end_time, exclude_id: int = None):
-        """Check if a time range overlaps with any existing entry for this user.
-        Returns the overlapping entry or None."""
+        """Check if a time range overlaps with any existing entry for this user."""
         query = TimeEntry.query.filter(
             TimeEntry.user_id == user_id,
             TimeEntry.is_running == False,  # noqa: E712
@@ -123,9 +124,11 @@ class TimeLoggingService:
 
         # Parse datetime strings if needed
         for field in ('start_time', 'end_time'):
-            if field in kwargs and isinstance(kwargs[field], str):
+            if field in kwargs and isinstance(kwargs[field], str) and kwargs[field]:
                 from datetime import datetime as dt
-                kwargs[field] = dt.fromisoformat(kwargs[field])
+                # Handle ISO strings from JS
+                val = kwargs[field].replace('Z', '')
+                kwargs[field] = dt.fromisoformat(val)
 
         for key, value in kwargs.items():
             if hasattr(entry, key) and value is not None:
@@ -135,16 +138,18 @@ class TimeLoggingService:
         if entry.start_time and entry.end_time:
             start = entry.start_time.replace(tzinfo=None) if entry.start_time.tzinfo else entry.start_time
             end = entry.end_time.replace(tzinfo=None) if entry.end_time.tzinfo else entry.end_time
+            
             if end <= start:
                 return None, 'Thời gian kết thúc phải sau thời gian bắt đầu.'
+            
             # Check overlap
             overlap = TimeLoggingService.check_overlap(user_id, start, end, exclude_id=entry_id)
             if overlap:
                 cat_name = overlap.category.name if overlap.category else 'Không phân loại'
-                return None, f'Trùng lịch với "{cat_name}" ({overlap.start_time.strftime("%H:%M")}-{overlap.end_time.strftime("%H:%M")}).'
+                return None, f'Trùng lịch với "{cat_name}" ({overlap.start_time.strftime("%H:%M")}).'
+            
             delta = end - start
             entry.duration = max(1, int(delta.total_seconds() / 60))
 
         db.session.commit()
         return entry, None
-

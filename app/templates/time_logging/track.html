@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+{% block title %}Track{% endblock %}
+
+{% block content %}
+<div class="flex flex-col items-center justify-center min-h-[65vh] space-y-6 py-4">
+
+    <!-- ── Minimalist Typography Timer ──────────────── -->
+    <div class="flex flex-col items-center text-center">
+        {% if running_entry %}
+            <span class="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-500 animate-pulse mb-2">
+                Đang theo dõi...
+            </span>
+        {% else %}
+            <span class="text-[10px] font-black uppercase tracking-[0.3em] text-slate-300 mb-2">
+                Sẵn sàng
+            </span>
+        {% endif %}
+
+        <div id="timer-display" class="text-[5rem] sm:text-8xl font-black tabular-nums tracking-tighter text-slate-800 leading-none">
+            00:00:00
+        </div>
+
+        <div id="timer-status" class="text-xs font-bold text-slate-400 mt-4 h-4 uppercase tracking-widest">
+            {{ running_entry.category.name if (running_entry and running_entry.category) else (running_entry.todo.content if (running_entry and running_entry.todo) else '') }}
+        </div>
+    </div>
+
+    <!-- ── Compact Control Container ────────────────── -->
+    <div class="w-full space-y-4">
+        
+        <!-- Input Group (Frosted Card) -->
+        <div id="track-form" class="{% if running_entry %}hidden{% endif %} bg-white/60 backdrop-blur-xl rounded-[2.5rem] p-5 shadow-sm border border-white/80 space-y-3">
+            
+            <!-- Todo Select -->
+            <div class="relative">
+                <select id="todo-select" onchange="onTodoChange()" class="w-full pl-10 pr-4 py-3.5 rounded-2xl bg-white/50 border border-slate-100 text-sm font-semibold text-primary outline-none focus:border-accent/30 transition-all appearance-none">
+                    <option value="">📝 Gắn với một Todo...</option>
+                    {% for todo in pending_todos %}
+                    <option value="{{ todo.id }}">{{ todo.content }}</option>
+                    {% endfor %}
+                </select>
+                <div class="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none">
+                    <i data-lucide="list-checks" class="w-4 h-4 text-slate-300"></i>
+                </div>
+            </div>
+
+            <!-- Category Select (Optional) -->
+            <div id="cat-select-wrapper" class="relative">
+                <select id="category-select" class="w-full pl-10 pr-4 py-3.5 rounded-2xl bg-white/50 border border-slate-100 text-sm font-semibold text-primary outline-none focus:border-accent/30 transition-all appearance-none">
+                    <option value="">🏷️ Phân loại hoạt động...</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat.id }}">{{ cat.name }}</option>
+                    {% endfor %}
+                </select>
+                <div class="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none">
+                    <i data-lucide="tag" class="w-4 h-4 text-slate-300"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Action Button (Pill Shape) -->
+        <button id="main-btn" onclick="handleMainAction()" class="w-full h-20 rounded-full bg-gradient-to-r {% if running_entry %}from-slate-800 to-slate-900{% else %}from-teal-400 to-emerald-500{% endif %} text-white font-black tracking-[0.2em] shadow-lg {% if not running_entry %}shadow-teal-500/30{% endif %} flex items-center justify-center gap-4 border-4 border-white active:scale-95 transition-all group">
+            <div class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center shadow-inner">
+                <i id="main-btn-icon" data-lucide="{{ 'square' if running_entry else 'play' }}" class="w-5 h-5 fill-current {% if not running_entry %}ml-0.5{% endif %}"></i>
+            </div>
+            <span id="main-btn-text">{{ 'DỪNG LẠI' if running_entry else 'BẮT ĐẦU' }}</span>
+        </button>
+
+        <!-- Manual Entry (Small link) -->
+        {% if not running_entry %}
+        <div class="text-center pt-2">
+            <button onclick="openManualModal()" class="text-[10px] font-black text-slate-300 uppercase tracking-widest hover:text-accent transition-colors">
+                + Ghi giờ thủ công
+            </button>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Manual Entry Modal (Unchanged Layout) -->
+<div id="manual-modal" class="hidden fixed inset-0 z-[100] flex items-end justify-center bg-primary/40 backdrop-blur-xl p-4">
+    <div class="bg-white rounded-[3rem] w-full max-w-md p-8 space-y-6 shadow-2xl animate-slide-up mb-20">
+        <div class="flex items-center justify-between"><h3 class="text-lg font-black uppercase tracking-widest">Thêm thủ công</h3><button onclick="closeManualModal()" class="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center active:scale-90 transition-all"><i data-lucide="x" class="w-5 h-5"></i></button></div>
+        <div class="space-y-6">
+            <div class="grid grid-cols-2 gap-4">
+                <div class="space-y-2"><label class="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-2">Bắt đầu</label><input type="time" id="manual-start-time" class="w-full p-4 bg-slate-50 rounded-2xl font-bold text-xl text-center outline-none border-none"></div>
+                <div class="space-y-2"><label class="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-2">Kết thúc</label><input type="time" id="manual-end-time" class="w-full p-4 bg-slate-50 rounded-2xl font-bold text-xl text-center outline-none border-none"></div>
+            </div>
+            <button onclick="submitManualEntry()" class="w-full py-5 bg-primary text-white rounded-full font-black uppercase tracking-widest shadow-lg active:scale-95 transition-all">Lưu bản ghi</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const CSRF = document.querySelector('meta[name="csrf-token"]').content;
+    let timerInterval = null;
+    let startTime = null;
+
+    // --- Core Logic: Start/Stop Fix ---
+    async function handleMainAction() {
+        const isRunning = "{{ 'true' if running_entry else 'false' }}" === "true";
+        
+        if (isRunning) {
+            try {
+                const res = await fetch('/tracker/api/stop', {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': CSRF }
+                });
+                if (res.ok) window.location.reload();
+                else {
+                    const err = await res.json();
+                    alert("Lỗi: " + (err.message || "Không rõ nguyên nhân"));
+                }
+            } catch(e) { console.error(e); }
+        } else {
+            const catSelect = document.getElementById('category-select');
+            const todoSelect = document.getElementById('todo-select');
+            
+            // Ép kiểu ID về Number hoặc null (Fix lỗi 500)
+            const catId = (catSelect && catSelect.value) ? parseInt(catSelect.value) : null;
+            const todoId = (todoSelect && todoSelect.value) ? parseInt(todoSelect.value) : null;
+
+            try {
+                const res = await fetch('/tracker/api/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+                    body: JSON.stringify({ 
+                        category_id: catId, 
+                        todo_id: todoId,
+                        note: '', 
+                        is_pomodoro: false 
+                    })
+                });
+                if (res.ok) window.location.reload();
+                else {
+                    const err = await res.json();
+                    alert("Lỗi start: " + (err.message || "Kiểm tra backend"));
+                }
+            } catch(e) { console.error(e); }
+        }
+    }
+
+    // --- Timer Update Logic ---
+    const initialRunning = {{ 'true' if running_entry else 'false' }};
+    if (initialRunning) {
+        const startStr = "{{ running_entry.start_time.isoformat() if running_entry else '' }}";
+        startTime = new Date(startStr.endsWith('Z') ? startStr : startStr + 'Z');
+        startTimerLoop();
+    }
+
+    function startTimerLoop() {
+        const display = document.getElementById('timer-display');
+        timerInterval = setInterval(() => {
+            const diff = Math.max(0, Math.floor((new Date() - startTime) / 1000));
+            const h = String(Math.floor(diff / 3600)).padStart(2, '0');
+            const m = String(Math.floor((diff % 3600) / 60)).padStart(2, '0');
+            const s = String(diff % 60).padStart(2, '0');
+            display.textContent = `${h}:${m}:${s}`;
+        }, 1000);
+    }
+
+    // --- Helper Functions ---
+    function onTodoChange() {
+        const todoId = document.getElementById('todo-select').value;
+        const catWrapper = document.getElementById('cat-select-wrapper');
+        if (todoId) {
+            catWrapper.classList.add('hidden');
+        } else {
+            catWrapper.classList.remove('hidden');
+        }
+    }
+
+    function openManualModal() { document.getElementById('manual-modal').classList.remove('hidden'); }
+    function closeManualModal() { document.getElementById('manual-modal').classList.add('hidden'); }
+    
+    async function submitManualEntry() {
+        const sd = new Date().toISOString().split('T')[0];
+        const st = document.getElementById('manual-start-time').value;
+        const et = document.getElementById('manual-end-time').value;
+        const catId = document.getElementById('category-select').value ? parseInt(document.getElementById('category-select').value) : null;
+        const todoId = document.getElementById('todo-select').value ? parseInt(document.getElementById('todo-select').value) : null;
+        
+        if (!st || !et) return;
+        
+        const res = await fetch('/tracker/api/manual', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+            body: JSON.stringify({ start_time: sd+'T'+st+':00', end_time: sd+'T'+et+':00', category_id: catId, todo_id: todoId })
+        });
+        if (res.ok) window.location.href = "{{ url_for('time_logging.dashboard') }}";
+    }
+</script>
+{% endblock %}

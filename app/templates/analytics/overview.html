@@ -1,191 +1,166 @@
 {% extends "base.html" %}
-{% block title %}Thống kê{% endblock %}
+{% block title %}Stats{% endblock %}
+
+{% block extra_head %}
+<style>
+    .heatmap-container { display: grid; grid-template-columns: repeat(53, 1fr); gap: 2px; }
+    .heatmap-day { width: 100%; aspect-ratio: 1; border-radius: 2px; }
+    @media (max-width: 640px) {
+        .heatmap-container { grid-template-columns: repeat(26, 1fr); }
+        .heatmap-day:nth-child(-n+189) { display: none; } /* Show only last ~6 months on mobile */
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="max-w-5xl mx-auto space-y-6">
+<div class="px-6 space-y-10">
 
-    <!-- ── Header ──────────────────────────────────────── -->
+    <!-- ── Header ──────────────────────────────────── -->
     <div class="flex items-center justify-between">
-        <div>
-            <h1 class="text-3xl font-extrabold text-slate-800 mb-1">Thống kê</h1>
-            <p class="text-sm font-semibold text-slate-500">Ngày {{ daily.date }}</p>
-        </div>
-        <div class="flex items-center gap-2">
-            <input type="date" id="date-picker" value="{{ daily.date }}"
-                class="px-4 py-2.5 rounded-2xl bg-white border-2 border-slate-100 text-sm font-bold text-slate-700 focus:outline-none focus:border-brand-400 focus:ring-4 focus:ring-brand-50 shadow-sm transition cursor-pointer"
-                onchange="window.location.href='/analytics?date='+this.value">
-        </div>
-    </div>
-
-    <!-- ── Summary Cards ───────────────────────────────── -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-5">
-        <div class="bg-white rounded-[2rem] p-6 shadow-soft border border-slate-100/50">
-            <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Đã log</div>
-            <div class="text-3xl font-black text-slate-700 mt-2">{{ format_duration(daily.total_logged) }}</div>
-            <div class="text-xs font-semibold text-slate-400 mt-2">/ 24h</div>
-        </div>
-        <div class="bg-white rounded-[2rem] p-6 shadow-soft border border-slate-100/50">
-            <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Nghỉ ngơi</div>
-            <div class="text-3xl font-black text-slate-400 mt-2">{{ format_duration(daily.unlogged) }}</div>
-            <div class="text-xs font-semibold text-slate-400 mt-2">Thời gian chưa log</div>
-        </div>
-        <div class="bg-white rounded-[2rem] p-6 shadow-soft border border-emerald-100/50 bg-gradient-to-b from-white to-amber-50/30">
-            <div class="text-[11px] font-bold text-amber-500 uppercase tracking-wider">🔥 Deep Work</div>
-            <div class="text-3xl font-black text-amber-500 mt-2">{{ format_duration(daily.pomodoro_minutes) }}</div>
-            <div class="text-xs font-semibold text-amber-600/60 mt-2 text-amber-500/70">{{ daily.pomodoro_count }} sessions</div>
-        </div>
-        <div class="bg-brand-500 rounded-[2rem] p-6 shadow-[0_10px_30px_rgba(244,63,94,0.3)] bg-gradient-to-br from-brand-400 to-rose-400 relative overflow-hidden">
-            <div class="absolute -right-4 -top-4 w-24 h-24 bg-white opacity-10 rounded-full blur-2xl"></div>
-            <div class="text-[11px] font-bold text-white/80 uppercase tracking-wider relative z-10">Hiệu suất</div>
-            {% set pct = ((daily.total_logged / 1440) * 100) | round(1) if daily.total_logged else 0 %}
-            <div class="text-3xl font-black text-white mt-2 relative z-10">{{ pct }}%</div>
-            <div class="text-xs font-semibold text-white/80 mt-2 relative z-10">Thời gian đã dùng</div>
-        </div>
-    </div>
-
-    <!-- ── Charts ──────────────────────────────────────── -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- Pie Chart: Daily breakdown -->
-        <div class="glass rounded-[2rem] shadow-soft p-8 bg-white border border-slate-100/50">
-            <h3 class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-6">Phân bổ trong ngày</h3>
-            <div class="relative" style="max-height: 300px;">
-                <canvas id="pie-chart"></canvas>
-            </div>
-        </div>
-
-        <!-- Bar Chart: Weekly overview -->
-        <div class="glass rounded-[2rem] shadow-soft p-8 bg-white border border-slate-100/50">
-            <h3 class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-6">7 ngày gần nhất</h3>
-            <div class="relative" style="max-height: 300px;">
-                <canvas id="bar-chart"></canvas>
+        <h1 class="text-2xl font-black tracking-tight text-primary uppercase">Thống kê</h1>
+        <div class="flex gap-2">
+            <a href="{{ url_for('analytics.export_data') }}" class="w-12 h-12 rounded-2xl bg-white border border-slate-100 flex items-center justify-center shadow-sm text-slate-400 hover:text-accent transition-colors premium-touch" title="Export CSV">
+                <i data-lucide="download" class="w-5 h-5"></i>
+            </a>
+            <div class="w-12 h-12 rounded-2xl bg-white border border-slate-100 flex items-center justify-center shadow-sm">
+                <i data-lucide="filter" class="w-5 h-5 text-slate-400"></i>
             </div>
         </div>
     </div>
 
-    <!-- ── Category Breakdown Table ────────────────────── -->
-    {% if daily.categories %}
-    <div class="glass rounded-[2rem] shadow-soft overflow-hidden bg-white border border-slate-100/50">
-        <div class="p-6 border-b border-slate-100">
-            <h3 class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Chi tiết theo danh mục</h3>
-        </div>
-        <table class="w-full text-left">
-            <thead>
-                <tr class="border-b border-slate-100 text-[11px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50/50">
-                    <th class="px-6 py-4">Danh mục</th>
-                    <th class="px-6 py-4 text-right">Thời gian</th>
-                    <th class="px-6 py-4 text-right">%</th>
-                    <th class="px-6 py-4">Biểu đồ</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-100">
-                {% for name, data in daily.categories.items() %}
-                {% set cat_pct = ((data.minutes / 1440) * 100) | round(1) %}
-                <tr class="hover:bg-slate-50/50 transition duration-200">
-                    <td class="px-6 py-4">
-                        <div class="flex items-center gap-3">
-                            <div class="w-3 h-3 rounded-full shadow-sm" style="background-color: {{ data.color }}"></div>
-                            <span class="text-sm font-extrabold text-slate-700">{{ name }}</span>
-                        </div>
-                    </td>
-                    <td class="px-6 py-4 text-right text-sm font-bold text-slate-600 timer-font">{{ format_duration(data.minutes) }}</td>
-                    <td class="px-6 py-4 text-right text-sm font-bold text-slate-400">{{ cat_pct }}%</td>
-                    <td class="px-6 py-4">
-                        <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden shadow-inner">
-                            <div class="h-2 rounded-full transition-all" style="width: {{ cat_pct }}%; background-color: {{ data.color }}"></div>
-                        </div>
-                    </td>
-                </tr>
+    <!-- ── Heatmap Card ────────────────────────────── -->
+    <div class="bg-primary rounded-[2.5rem] p-8 shadow-premium relative overflow-hidden">
+        <div class="absolute -right-10 -bottom-10 w-40 h-40 bg-accent/10 rounded-full blur-3xl"></div>
+        <div class="relative z-10 space-y-6">
+            <div class="flex items-center justify-between text-white">
+                <h3 class="text-xs font-black uppercase tracking-widest opacity-60">Chuỗi hoạt động (365 ngày)</h3>
+                <span class="text-[10px] font-bold opacity-40 italic">Mỗi ô đại diện cho 1 ngày</span>
+            </div>
+
+            <div class="heatmap-container">
+                {% for day in heatmap %}
+                    {% set level = 0 %}
+                    {% if day.total > 480 %}{% set level = 4 %}
+                    {% elif day.total > 240 %}{% set level = 3 %}
+                    {% elif day.total > 60 %}{% set level = 2 %}
+                    {% elif day.total > 0 %}{% set level = 1 %}
+                    {% endif %}
+                    
+                    <div class="heatmap-day transition-all duration-500 hover:scale-150 hover:z-20
+                        {% if level == 4 %}bg-accent shadow-[0_0_8px_rgba(0,168,150,0.4)]
+                        {% elif level == 3 %}bg-accent/70
+                        {% elif level == 2 %}bg-accent/40
+                        {% elif level == 1 %}bg-accent/20
+                        {% else %}bg-white/5{% endif %}"
+                        title="{{ day.date }}: {{ format_duration(day.total) }}"></div>
                 {% endfor %}
-            </tbody>
-        </table>
+            </div>
+
+            <div class="flex items-center justify-end gap-2 text-[8px] font-black text-white/40 uppercase tracking-widest">
+                <span>Less</span>
+                <div class="flex gap-1">
+                    <div class="w-2 h-2 rounded-sm bg-white/5"></div>
+                    <div class="w-2 h-2 rounded-sm bg-accent/20"></div>
+                    <div class="w-2 h-2 rounded-sm bg-accent/40"></div>
+                    <div class="w-2 h-2 rounded-sm bg-accent/70"></div>
+                    <div class="w-2 h-2 rounded-sm bg-accent"></div>
+                </div>
+                <span>More</span>
+            </div>
+        </div>
     </div>
-    {% endif %}
+
+    <!-- ── Weekly Bar Chart ────────────────────────── -->
+    <div class="bg-white rounded-[2.5rem] p-8 shadow-premium border border-slate-100 space-y-8">
+        <div class="flex items-center justify-between">
+            <h3 class="text-xs font-black uppercase tracking-widest text-slate-400">7 ngày gần nhất</h3>
+            <div class="flex items-center gap-4 text-[10px] font-black uppercase tracking-widest">
+                <div class="flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-primary"></span>
+                    <span class="text-primary">Tổng</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-secondary"></span>
+                    <span class="text-secondary">Deep</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="relative h-64">
+            <canvas id="weekly-chart"></canvas>
+        </div>
+    </div>
+
+    <!-- ── Category Breakdown ──────────────────────── -->
+    <div class="space-y-4 pb-4">
+        <h3 class="text-xs font-black uppercase tracking-widest text-primary px-2">Phân bổ danh mục</h3>
+        <div class="space-y-3">
+            {% for name, data in daily.categories.items() %}
+            {% set pct = ((data.minutes / 1440) * 100) | round(1) %}
+            <div class="bg-white p-5 rounded-3xl border border-slate-50 shadow-sm flex items-center gap-4">
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
+                     style="background: {{ data.color }}15; color: {{ data.color }}">
+                    <i data-lucide="tag" class="w-5 h-5"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center justify-between">
+                        <h4 class="font-bold text-primary truncate">{{ name }}</h4>
+                        <span class="text-sm font-black text-primary">{{ format_duration_short(data.minutes) }}</span>
+                    </div>
+                    <div class="mt-2 h-1.5 w-full bg-slate-50 rounded-full overflow-hidden">
+                        <div class="h-full rounded-full transition-all duration-1000" 
+                             style="width: {{ pct }}%; background: {{ data.color }}"></div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
 </div>
 {% endblock %}
 
 {% block extra_scripts %}
 <script>
-    // ── Pie Chart ─────────────────────────────────────
-    const pieCtx = document.getElementById('pie-chart').getContext('2d');
-    new Chart(pieCtx, {
-        type: 'doughnut',
-        data: {
-            labels: {{ daily.chart.labels | tojson }},
-            datasets: [{
-                data: {{ daily.chart.data | tojson }},
-                backgroundColor: {{ daily.chart.colors | tojson }},
-                borderWidth: 0,
-                borderRadius: 4,
-                spacing: 2,
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            cutout: '65%',
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: { color: '#94A3B8', padding: 16, font: { size: 11, weight: '500' }, usePointStyle: true, pointStyleWidth: 8 }
-                },
-                tooltip: {
-                    callbacks: {
-                        label: (ctx) => {
-                            const mins = ctx.raw;
-                            const h = Math.floor(mins / 60);
-                            const m = mins % 60;
-                            return ` ${ctx.label}: ${h}h ${String(m).padStart(2,'0')}m`;
-                        }
-                    }
-                }
-            }
-        }
-    });
-
-    // ── Bar Chart ─────────────────────────────────────
-    const barCtx = document.getElementById('bar-chart').getContext('2d');
     const weeklyData = {{ weekly | tojson }};
-    new Chart(barCtx, {
+    const ctx = document.getElementById('weekly-chart').getContext('2d');
+    
+    new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: weeklyData.map(d => d.label),
+            labels: weeklyData.map(d => d.label.split(' ')[0]), // Just the day name
             datasets: [
-                {
-                    label: 'Tổng',
-                    data: weeklyData.map(d => d.total),
-                    backgroundColor: 'rgba(244, 63, 94, 0.6)',
-                    borderColor: 'rgba(244, 63, 94, 0.9)',
-                    borderWidth: 1,
-                    borderRadius: 6,
-                },
                 {
                     label: 'Deep Work',
                     data: weeklyData.map(d => d.pomodoro),
-                    backgroundColor: 'rgba(245, 158, 11, 0.6)',
-                    borderColor: 'rgba(245, 158, 11, 0.9)',
-                    borderWidth: 1,
-                    borderRadius: 6,
+                    backgroundColor: '#F1A208',
+                    borderRadius: 20,
+                    barThickness: 8,
+                },
+                {
+                    label: 'Tổng',
+                    data: weeklyData.map(d => d.total),
+                    backgroundColor: '#0A1128',
+                    borderRadius: 20,
+                    barThickness: 8,
                 }
             ]
         },
         options: {
             responsive: true,
-            maintainAspectRatio: true,
+            maintainAspectRatio: false,
             scales: {
-                x: { grid: { display: false }, ticks: { color: '#64748B', font: { size: 10, weight: 'bold' } } },
-                y: {
-                    grid: { color: 'rgba(0,0,0,0.05)' },
-                    ticks: {
-                        color: '#64748B', font: { size: 10, weight: 'bold' },
-                        callback: (v) => { const h = Math.floor(v/60); return h > 0 ? `${h}h` : `${v}m`; }
-                    }
-                }
+                x: { stacked: true, grid: { display: false }, border: { display: false }, ticks: { font: { size: 10, weight: '900' }, color: '#94A3B8' } },
+                y: { stacked: false, grid: { display: false }, border: { display: false }, ticks: { display: false } }
             },
             plugins: {
-                legend: {
-                    labels: { color: '#94A3B8', font: { size: 11, weight: '500' }, usePointStyle: true, pointStyleWidth: 8 }
-                },
+                legend: { display: false },
                 tooltip: {
+                    backgroundColor: '#0A1128',
+                    titleFont: { size: 12, weight: '900' },
+                    bodyFont: { size: 11 },
+                    padding: 12,
+                    displayColors: false,
                     callbacks: {
                         label: (ctx) => {
                             const mins = ctx.raw;

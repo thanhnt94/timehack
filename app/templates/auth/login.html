@@ -2,60 +2,58 @@
 {% block title %}Đăng nhập{% endblock %}
 
 {% block content %}
-<div class="min-h-[80vh] flex items-center justify-center">
-    <div class="w-full max-w-md">
+<div class="min-h-[70vh] flex items-center justify-center px-6">
+    <div class="w-full max-w-md space-y-10">
         <!-- Header -->
-        <div class="text-center mb-8">
-            <div class="w-20 h-20 mx-auto rounded-[2rem] bg-gradient-to-br from-brand-400 to-rose-400 flex items-center justify-center shadow-[0_10px_40px_-10px_rgba(244,63,94,0.4)] mb-6 transform hover:scale-105 transition-transform duration-300">
-                <i data-lucide="clock" class="w-10 h-10 text-white"></i>
+        <div class="text-center space-y-4">
+            <div class="w-24 h-24 mx-auto rounded-[2.5rem] bg-primary flex items-center justify-center shadow-premium relative group">
+                <div class="absolute inset-0 bg-accent/20 rounded-[2.5rem] blur-xl group-hover:blur-2xl transition-all"></div>
+                <i data-lucide="zap" class="w-12 h-12 text-accent fill-accent relative z-10"></i>
             </div>
-            <h1 class="text-3xl font-extrabold text-slate-800 tracking-tight">TimeHack</h1>
-            <p class="text-brand-500 font-bold uppercase tracking-widest text-[11px] mt-2">Quản lý thời gian cá nhân</p>
+            <div>
+                <h1 class="text-4xl font-black text-primary tracking-tighter uppercase">TimeHack</h1>
+                <p class="text-slate-400 font-bold uppercase tracking-[0.2em] text-[10px] mt-2">Personal Time Ledger</p>
+            </div>
         </div>
 
         <!-- Form Card -->
-        <div class="glass rounded-3xl p-8 shadow-soft relative overflow-hidden">
-            <!-- Cute decoration -->
-            <div class="absolute -top-10 -right-10 w-32 h-32 bg-rose-100 rounded-full mix-blend-multiply filter blur-2xl opacity-70"></div>
-            <div class="absolute -bottom-10 -left-10 w-32 h-32 bg-brand-100 rounded-full mix-blend-multiply filter blur-2xl opacity-70"></div>
-
-            <form method="POST" class="space-y-5 relative z-10">
+        <div class="bg-white rounded-[3rem] p-10 shadow-premium border border-slate-100 relative overflow-hidden">
+            <form method="POST" class="space-y-6">
                 {{ form.hidden_tag() }}
 
-                <div>
-                    <label for="identifier" class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 ml-1">Email / Tên đăng nhập</label>
-                    {{ form.identifier(id="identifier", class="w-full px-5 py-4 rounded-2xl bg-white border-2 border-slate-100 text-slate-800 placeholder-slate-300 focus:outline-none focus:border-brand-400 focus:ring-4 focus:ring-brand-50 transition-all font-semibold text-sm shadow-sm", placeholder="Nhập email hoặc tên đăng nhập") }}
+                <div class="space-y-2">
+                    <label for="identifier" class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Email / Username</label>
+                    {{ form.identifier(id="identifier", class="w-full px-6 py-4 rounded-2xl bg-slate-50 border border-transparent focus:border-accent/20 focus:ring-4 focus:ring-accent/5 font-bold text-primary outline-none transition-all placeholder-slate-300", placeholder="your@email.com") }}
                     {% for error in form.identifier.errors %}
-                    <p class="text-rose-500 text-xs mt-2 ml-1 font-medium">{{ error }}</p>
+                    <p class="text-rose-500 text-[10px] font-bold mt-2 ml-2 uppercase tracking-wide">{{ error }}</p>
                     {% endfor %}
                 </div>
 
-                <div>
-                    <label for="password" class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 ml-1">Mật khẩu</label>
-                    {{ form.password(id="password", class="w-full px-5 py-4 rounded-2xl bg-white border-2 border-slate-100 text-slate-800 placeholder-slate-300 focus:outline-none focus:border-brand-400 focus:ring-4 focus:ring-brand-50 transition-all font-semibold text-sm shadow-sm", placeholder="••••••••") }}
+                <div class="space-y-2">
+                    <label for="password" class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Password</label>
+                    {{ form.password(id="password", class="w-full px-6 py-4 rounded-2xl bg-slate-50 border border-transparent focus:border-accent/20 focus:ring-4 focus:ring-accent/5 font-bold text-primary outline-none transition-all placeholder-slate-300", placeholder="••••••••") }}
                     {% for error in form.password.errors %}
-                    <p class="text-rose-500 text-xs mt-2 ml-1 font-medium">{{ error }}</p>
+                    <p class="text-rose-500 text-[10px] font-bold mt-2 ml-2 uppercase tracking-wide">{{ error }}</p>
                     {% endfor %}
                 </div>
 
-                <div class="flex items-center justify-between ml-1">
-                    <label class="flex items-center gap-2 cursor-pointer group">
-                        {{ form.remember_me(class="w-5 h-5 rounded-lg border-2 border-slate-200 text-brand-500 focus:ring-brand-200 transition-colors cursor-pointer checked:border-brand-500") }}
-                        <span class="text-sm font-medium text-slate-500 group-hover:text-slate-700 transition">Ghi nhớ</span>
+                <div class="flex items-center justify-between px-2">
+                    <label class="flex items-center gap-3 cursor-pointer group">
+                        {{ form.remember_me(class="w-5 h-5 rounded-lg border-2 border-slate-200 text-accent focus:ring-accent/20 transition-colors cursor-pointer checked:border-accent") }}
+                        <span class="text-xs font-bold text-slate-400 group-hover:text-primary transition uppercase tracking-widest">Ghi nhớ</span>
                     </label>
                 </div>
 
                 <button type="submit"
-                    class="w-full py-4 px-4 rounded-2xl bg-gradient-to-r from-brand-500 to-rose-500 text-white font-bold text-sm
-                           hover:from-brand-600 hover:to-rose-600 transition-all shadow-[0_8px_20px_rgba(244,63,94,0.3)] hover:shadow-[0_12px_25px_rgba(244,63,94,0.4)] transform hover:-translate-y-0.5">
-                    Đăng nhập ngay
+                    class="w-full py-5 bg-primary text-white font-black text-xs uppercase tracking-[0.2em] rounded-full shadow-premium active:scale-95 transition-all">
+                    Đăng nhập
                 </button>
             </form>
 
-            <div class="mt-8 text-center relative z-10">
-                <p class="text-sm font-medium text-slate-500">
+            <div class="mt-10 text-center">
+                <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">
                     Chưa có tài khoản?
-                    <a href="{{ url_for('auth.register') }}" class="text-brand-600 hover:text-brand-700 font-bold border-b-2 border-brand-200 hover:border-brand-500 transition-colors pb-0.5 ml-1">Tạo mới</a>
+                    <a href="{{ url_for('auth.register') }}" class="text-accent hover:underline ml-1">Đăng ký ngay</a>
                 </p>
             </div>
         </div>

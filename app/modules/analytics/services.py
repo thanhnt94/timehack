@@ -115,3 +115,35 @@ class AnalyticsService:
             })
 
         return days
+
+    @staticmethod
+    def get_heatmap_data(user_id: int):
+        """Get daily totals for the last 365 days for the heatmap."""
+        end_date = datetime.now(timezone(timedelta(hours=7))).date()
+        start_date = end_date - timedelta(days=364)
+
+        # Use group by to get all sums in one query
+        # sqlite: strftime('%Y-%m-%d', start_time)
+        # postgres: start_time::date
+        # We'll use a more generic approach or check for sqlite
+        results = db.session.query(
+            func.date(TimeEntry.start_time).label('date'),
+            func.sum(TimeEntry.duration).label('total')
+        ).filter(
+            TimeEntry.user_id == user_id,
+            TimeEntry.start_time >= start_date,
+            TimeEntry.is_running == False  # noqa: E712
+        ).group_by(func.date(TimeEntry.start_time)).all()
+
+        data_map = {r.date.isoformat() if hasattr(r.date, 'isoformat') else str(r.date): r.total for r in results}
+
+        heatmap = []
+        for i in range(365):
+            day = start_date + timedelta(days=i)
+            iso = day.isoformat()
+            heatmap.append({
+                'date': iso,
+                'total': data_map.get(iso, 0)
+            })
+
+        return heatmap

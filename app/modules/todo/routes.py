@@ -4,25 +4,30 @@ from . import todo_bp
 from app.models.todo_item import TodoItem
 from app.extensions import db
 from datetime import datetime, timezone
-
 @todo_bp.route('/')
 @login_required
 def index():
     todos = TodoItem.query.filter_by(user_id=current_user.id).order_by(TodoItem.created_at.desc()).all()
-    return render_template('todo/index.html', todos=todos)
+    from app.models.category import Category
+    categories = Category.query.filter_by(user_id=current_user.id).all()
+    categories.sort(key=lambda c: c.get_full_path())
+    return render_template('todo/index.html', todos=todos, categories=categories)
+
 
 @todo_bp.route('/api/add', methods=['POST'])
 @login_required
-def add_todo():
+def api_add():
     data = request.get_json()
     content = data.get('content')
-    if not content:
-        return jsonify({'status': 'error', 'message': 'Content is required'}), 400
+    category_id = data.get('category_id')
     
-    new_todo = TodoItem(user_id=current_user.id, content=content)
-    db.session.add(new_todo)
+    if not content or not category_id:
+        return jsonify({'error': 'Nội dung và Danh mục là bắt buộc'}), 400
+
+    todo = TodoItem(user_id=current_user.id, content=content, category_id=category_id)
+    db.session.add(todo)
     db.session.commit()
-    return jsonify({'status': 'ok', 'todo': new_todo.to_dict()}), 201
+    return jsonify({'status': 'ok', 'todo': todo.to_dict()}), 201
 
 @todo_bp.route('/api/toggle/<int:todo_id>', methods=['POST'])
 @login_required

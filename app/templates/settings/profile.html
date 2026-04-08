@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}Cá nhân{% endblock %}
+
+{% block content %}
+<div class="px-6 space-y-10">
+    <!-- Header / Avatar Section -->
+    <div class="flex flex-col items-center text-center space-y-4 pt-10">
+        <div class="w-28 h-28 rounded-full bg-gradient-to-tr from-primary to-slate-800 p-1 shadow-2xl relative">
+            <div class="w-full h-full rounded-full border-4 border-white bg-slate-100 flex items-center justify-center text-primary text-4xl font-black overflow-hidden shadow-inner">
+                {{ current_user.username[0]|upper }}
+            </div>
+            <button class="absolute bottom-0 right-0 w-9 h-9 bg-white rounded-full border border-slate-100 shadow-lg flex items-center justify-center text-slate-400 active:scale-90 transition-all">
+                <i data-lucide="camera" class="w-4 h-4"></i>
+            </button>
+        </div>
+        <div>
+            <h1 class="text-3xl font-black text-primary tracking-tight">{{ current_user.full_name or current_user.username }}</h1>
+            <p class="text-slate-400 font-bold text-xs uppercase tracking-widest">{{ current_user.email }}</p>
+        </div>
+        <button onclick="openEditProfile()" class="px-8 py-2.5 rounded-full bg-slate-900 text-accent font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all shadow-lg shadow-primary/20">
+            Chỉnh sửa thông tin
+        </button>
+    </div>
+
+    <!-- Menu List -->
+    <div class="space-y-2">
+        <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-4 mb-2">Thông tin tài khoản</h3>
+        <div class="bg-white rounded-[2rem] shadow-sm border border-slate-50 overflow-hidden divide-y divide-slate-50">
+            <!-- Timezone Display -->
+            <div class="flex items-center justify-between p-5">
+                <div class="flex items-center gap-4">
+                    <div class="w-10 h-10 rounded-xl bg-sky-50 flex items-center justify-center text-sky-500">
+                        <i data-lucide="globe" class="w-5 h-5"></i>
+                    </div>
+                    <span class="font-bold text-primary">Múi giờ hiện tại</span>
+                </div>
+                <span class="text-sm font-black text-slate-400 bg-slate-50 px-3 py-1 rounded-lg border border-slate-100">{{ current_user.timezone or 'Asia/Ho_Chi_Minh' }}</span>
+            </div>
+
+            <!-- Preferences Link -->
+            <a href="{{ url_for('settings.preferences') }}" class="flex items-center justify-between p-5 hover:bg-slate-50 transition-all active:scale-[0.98] group">
+                <div class="flex items-center gap-4">
+                    <div class="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-primary">
+                        <i data-lucide="settings" class="w-5 h-5"></i>
+                    </div>
+                    <span class="font-bold text-primary">Cấu hình & Danh mục</span>
+                </div>
+                <i data-lucide="chevron-right" class="w-5 h-5 text-slate-200 group-hover:text-slate-400 transition-colors"></i>
+            </a>
+        </div>
+    </div>
+
+    <!-- Logout Section -->
+    <div class="pt-10">
+        <a href="{{ url_for('auth.logout') }}" class="flex items-center justify-center gap-3 w-full py-5 bg-rose-50 text-rose-500 rounded-[2rem] font-black text-xs uppercase tracking-[0.2em] active:scale-95 transition-all">
+            <i data-lucide="log-out" class="w-4 h-4"></i>
+            Đăng xuất
+        </a>
+    </div>
+</div>
+
+<!-- ── Edit Profile Modal ─────────────────────────── -->
+<div id="edit-profile-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-6 bg-primary/40 backdrop-blur-md">
+    <div class="bg-white rounded-[3rem] w-full max-w-md p-10 space-y-8 shadow-2xl border border-white animate-slide-up">
+        <div class="flex items-center justify-between">
+            <h3 class="text-2xl font-black tracking-tighter uppercase">Chỉnh sửa hồ sơ</h3>
+            <button onclick="closeEditProfile()" class="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center active:scale-90 transition-all"><i data-lucide="x" class="w-5 h-5"></i></button>
+        </div>
+
+        <div class="space-y-6">
+            <div class="space-y-2">
+                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-3">Tên hiển thị</label>
+                <input type="text" id="edit-fullname" value="{{ current_user.full_name or current_user.username }}" class="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold text-primary outline-none border-2 border-transparent focus:border-accent/20 transition-all">
+            </div>
+
+            <div class="space-y-2">
+                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-3">Múi giờ (Timezone)</label>
+                <div class="relative">
+                    <select id="edit-timezone" class="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold text-primary outline-none border-2 border-transparent focus:border-accent/20 transition-all appearance-none">
+                        <option value="Asia/Ho_Chi_Minh" {{ 'selected' if current_user.timezone == 'Asia/Ho_Chi_Minh' }}>🇻🇳 Asia/Ho Chi Minh (GMT+7)</option>
+                        <option value="Asia/Bangkok" {{ 'selected' if current_user.timezone == 'Asia/Bangkok' }}>🇹🇭 Asia/Bangkok (GMT+7)</option>
+                        <option value="Asia/Singapore" {{ 'selected' if current_user.timezone == 'Asia/Singapore' }}>🇸🇬 Asia/Singapore (GMT+8)</option>
+                        <option value="Asia/Tokyo" {{ 'selected' if current_user.timezone == 'Asia/Tokyo' }}>🇯🇵 Asia/Tokyo (GMT+9)</option>
+                        <option value="Europe/London" {{ 'selected' if current_user.timezone == 'Europe/London' }}>🇬🇧 Europe/London (GMT+0)</option>
+                        <option value="America/New_York" {{ 'selected' if current_user.timezone == 'America/New_York' }}>🇺🇸 America/New York (GMT-5)</option>
+                        <option value="UTC" {{ 'selected' if current_user.timezone == 'UTC' }}>🌐 UTC / GMT</option>
+                    </select>
+                    <div class="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none">
+                        <i data-lucide="chevron-down" class="w-5 h-5 text-slate-300"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <button onclick="saveProfile()" class="w-full py-5 bg-primary text-white rounded-full font-black uppercase tracking-[0.2em] shadow-xl active:scale-95 transition-all">
+                Lưu thay đổi
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const CSRF = document.querySelector('meta[name="csrf-token"]').content;
+
+    function openEditProfile() { document.getElementById('edit-profile-modal').classList.remove('hidden'); }
+    function closeEditProfile() { document.getElementById('edit-profile-modal').classList.add('hidden'); }
+
+    function saveProfile() {
+        const full_name = document.getElementById('edit-fullname').value;
+        const timezone = document.getElementById('edit-timezone').value;
+
+        fetch('/settings/api/profile', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+            body: JSON.stringify({ full_name, timezone })
+        }).then(res => {
+            if (res.ok) {
+                window.location.reload();
+            } else {
+                alert('Lỗi khi cập nhật hồ sơ');
+            }
+        });
+    }
+</script>
+{% endblock %}

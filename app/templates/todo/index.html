@@ -1,61 +1,92 @@
 {% extends "base.html" %}
-{% block title %}Hôm nay tôi làm gì?{% endblock %}
+{% block title %}Việc cần làm{% endblock %}
 
 {% block content %}
-<div class="max-w-2xl mx-auto space-y-8">
+<div class="px-6 space-y-10">
     <!-- Header -->
-    <div class="text-center">
-        <div class="w-16 h-16 mx-auto rounded-3xl bg-pink-100 flex items-center justify-center text-pink-500 mb-4 shadow-sm border-2 border-white">
-            <i data-lucide="list-checks" class="w-8 h-8"></i>
+    <div class="flex flex-col items-center text-center space-y-4">
+        <div class="w-20 h-20 rounded-[2.5rem] bg-primary flex items-center justify-center text-accent shadow-premium">
+            <i data-lucide="check-circle" class="w-10 h-10"></i>
         </div>
-        <h1 class="text-3xl font-black text-slate-800 tracking-tight">Hôm nay làm gì?</h1>
-        <p class="text-slate-500 font-bold text-sm mt-2">Ghi chép nhanh các việc cần hoàn thành</p>
+        <div>
+            <h1 class="text-3xl font-black text-primary tracking-tight">Hôm nay làm gì?</h1>
+            <p class="text-slate-400 font-bold text-xs uppercase tracking-widest mt-2">Danh sách các việc cần hoàn thành</p>
+        </div>
     </div>
 
     <!-- Input Area -->
-    <div class="glass-light p-4 rounded-[2.5rem] shadow-soft border-2 border-white flex items-center gap-3">
-        <input type="text" id="todo-input" 
-            placeholder="Thêm một việc mới... (Shop list mode! ✨)"
-            class="flex-1 bg-transparent border-none focus:ring-0 font-bold text-slate-700 placeholder-slate-300 px-4">
-        <button onclick="addTodo()" 
-            class="w-12 h-12 rounded-2xl bg-brand-500 text-white flex items-center justify-center hover:bg-brand-600 transition-all active:scale-95 shadow-lg shadow-brand-500/30">
-            <i data-lucide="plus" class="w-6 h-6"></i>
-        </button>
+    <div class="bg-white p-4 rounded-[2rem] shadow-premium border border-slate-100 space-y-4">
+        <div class="flex flex-col sm:flex-row gap-3">
+            <div class="flex-1">
+                <input type="text" id="todo-input" 
+                    placeholder="Bạn cần làm gì tiếp theo?"
+                    class="w-full bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-accent/20 font-bold text-primary placeholder-slate-300 px-6 py-4 outline-none">
+            </div>
+            <div class="sm:w-48 relative">
+                <select id="todo-category" class="w-full bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-accent/20 font-bold text-primary px-4 py-4 text-sm appearance-none outline-none">
+                    <option value="" disabled selected>📂 Danh mục...</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat.id }}">{{ cat.name }}</option>
+                    {% endfor %}
+                </select>
+                <div class="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
+                    <i data-lucide="chevron-down" class="w-4 h-4 text-slate-300"></i>
+                </div>
+            </div>
+            <button onclick="addTodo()" 
+                class="w-full sm:w-14 h-14 rounded-2xl bg-primary text-white flex items-center justify-center hover:bg-slate-800 transition-all active:scale-95 shadow-lg">
+                <i data-lucide="plus" class="w-6 h-6 text-accent"></i>
+            </button>
+        </div>
     </div>
 
     <!-- List -->
-    <div id="todo-list" class="space-y-3">
-        {% for todo in todos %}
-        <div class="glass-light p-5 rounded-3xl flex items-center gap-4 group transition-all hover:bg-white {% if todo.is_completed %}opacity-60{% endif %}" id="todo-{{ todo.id }}">
-            <button onclick="toggleTodo({{ todo.id }})" 
-                class="w-8 h-8 rounded-xl border-2 flex items-center justify-center transition-all 
-                {% if todo.is_completed %}bg-emerald-500 border-emerald-500 text-white{% else %}border-slate-200 text-transparent hover:border-emerald-300{% endif %}">
-                <i data-lucide="check" class="w-5 h-5"></i>
-            </button>
-            <span class="flex-1 font-bold text-slate-700 {% if todo.is_completed %}line-through{% endif %}" id="content-{{ todo.id }}">
-                {{ todo.content }}
-            </span>
-            <button onclick="deleteTodo({{ todo.id }})" 
-                class="opacity-0 group-hover:opacity-100 w-8 h-8 rounded-xl text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-all">
-                <i data-lucide="trash-2" class="w-4 h-4"></i>
-            </button>
-        </div>
-        {% else %}
-        <div class="text-center py-10">
-            <div class="opacity-20 mb-4 flex justify-center">
-                <i data-lucide="shopping-bag" class="w-16 h-16"></i>
+    <div id="todo-list" class="space-y-4">
+        {% if todos %}
+            {% for todo in todos %}
+            <div class="bg-white p-5 rounded-[2rem] flex items-center gap-4 group transition-all border border-slate-50 shadow-sm active:scale-[0.98] {% if todo.is_completed %}opacity-50{% endif %}" id="todo-{{ todo.id }}">
+                <button onclick="toggleTodo({{ todo.id }})" 
+                    class="w-10 h-10 rounded-2xl border-2 flex items-center justify-center transition-all 
+                    {% if todo.is_completed %}bg-accent border-accent text-white{% else %}border-slate-100 text-transparent hover:border-accent/30{% endif %}">
+                    <i data-lucide="check" class="w-6 h-6 stroke-[3]"></i>
+                </button>
+                <div class="flex-1 min-w-0">
+                    <span class="block font-bold text-primary text-base {% if todo.is_completed %}line-through text-slate-400{% endif %}" id="content-{{ todo.id }}">
+                        {{ todo.content }}
+                    </span>
+                    <div class="flex items-center gap-2 mt-1">
+                        <span class="w-2 h-2 rounded-full" style="background-color: {{ todo.category_color }}"></span>
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{{ todo.category_name }}</span>
+                    </div>
+                </div>
+                <button onclick="deleteTodo({{ todo.id }})" 
+                    class="w-10 h-10 rounded-2xl text-slate-200 hover:text-rose-500 hover:bg-rose-50 transition-all active:scale-90">
+                    <i data-lucide="trash-2" class="w-5 h-5"></i>
+                </button>
             </div>
-            <p class="text-slate-400 font-bold">Danh sách đang trống trơn...</p>
-        </div>
-        {% endfor %}
+            {% endfor %}
+        {% else %}
+            <div class="flex flex-col items-center justify-center py-16 px-8 bg-white rounded-[3rem] border border-dashed border-slate-100 relative overflow-hidden group/empty">
+                <div class="absolute -right-10 -top-10 w-40 h-40 bg-accent/5 rounded-full blur-3xl opacity-50"></div>
+                <div class="w-20 h-20 bg-slate-50 rounded-3xl flex items-center justify-center text-slate-200 mb-6">
+                    <i data-lucide="shopping-bag" class="w-10 h-10"></i>
+                </div>
+                <h3 class="text-xl font-black text-primary">Danh sách trống</h3>
+                <p class="text-xs text-slate-400 mt-2">Mọi kế hoạch lớn đều bắt đầu từ một việc nhỏ.</p>
+            </div>
+        {% endif %}
     </div>
 </div>
 
 <script>
 async function addTodo() {
     const input = document.getElementById('todo-input');
+    const categorySelect = document.getElementById('todo-category');
     const content = input.value.trim();
-    if (!content) return;
+    const category_id = categorySelect.value;
+
+    if (!content) { alert('Vui lòng nhập nội dung'); return; }
+    if (!category_id) { alert('Vui lòng chọn danh mục'); return; }
 
     try {
         const res = await fetch('/todo/api/add', {
@@ -64,9 +95,13 @@ async function addTodo() {
                 'Content-Type': 'application/json',
                 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
             },
-            body: JSON.stringify({ content })
+            body: JSON.stringify({ content, category_id: parseInt(category_id) })
         });
         if (res.ok) location.reload();
+        else {
+            const err = await res.json();
+            alert(err.error || 'Lỗi khi thêm Todo');
+        }
     } catch (e) { console.error(e); }
 }
 
@@ -79,17 +114,7 @@ async function toggleTodo(id) {
             }
         });
         if (res.ok) {
-            const data = await res.json();
-            const el = document.getElementById(`todo-${id}`);
-            const contentEl = document.getElementById(`content-${id}`);
-            if (data.is_completed) {
-                el.classList.add('opacity-60');
-                contentEl.classList.add('line-through');
-            } else {
-                el.classList.remove('opacity-60');
-                contentEl.classList.remove('line-through');
-            }
-            location.reload(); // Refresh to update icons properly
+            location.reload(); 
         }
     } catch (e) { console.error(e); }
 }
@@ -107,7 +132,6 @@ async function deleteTodo(id) {
     } catch (e) { console.error(e); }
 }
 
-// Support Enter key
 document.getElementById('todo-input').addEventListener('keypress', (e) => {
     if (e.key === 'Enter') addTodo();
 });

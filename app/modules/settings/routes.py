@@ -7,14 +7,28 @@ from app.models.category import Category
 from app.models.time_entry import PomodoroSettings
 
 
-@settings_bp.route('/')
+@settings_bp.route('/profile')
+@login_required
+def profile():
+    """User profile summary page."""
+    return render_template('settings/profile.html')
+
+
+@settings_bp.route('/preferences')
 @login_required
 def preferences():
     """Settings page: categories + pomodoro config."""
     categories = Category.query.filter_by(user_id=current_user.id).all()
+    # Sort by full_path ensures parents come before children
     categories.sort(key=lambda c: c.get_full_path())
     pomo = PomodoroSettings.get_or_create(current_user.id)
     return render_template('settings/preferences.html', categories=categories, pomo=pomo)
+
+
+@settings_bp.route('/')
+@login_required
+def index():
+    return redirect(url_for('settings.profile'))
 
 
 # ── Category CRUD API ──────────────────────────────────────────

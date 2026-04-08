@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}Hôm nay tôi làm gì?{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto space-y-8">
+    <!-- Header -->
+    <div class="text-center">
+        <div class="w-16 h-16 mx-auto rounded-3xl bg-pink-100 flex items-center justify-center text-pink-500 mb-4 shadow-sm border-2 border-white">
+            <i data-lucide="list-checks" class="w-8 h-8"></i>
+        </div>
+        <h1 class="text-3xl font-black text-slate-800 tracking-tight">Hôm nay làm gì?</h1>
+        <p class="text-slate-500 font-bold text-sm mt-2">Ghi chép nhanh các việc cần hoàn thành</p>
+    </div>
+
+    <!-- Input Area -->
+    <div class="glass-light p-4 rounded-[2.5rem] shadow-soft border-2 border-white flex items-center gap-3">
+        <input type="text" id="todo-input" 
+            placeholder="Thêm một việc mới... (Shop list mode! ✨)"
+            class="flex-1 bg-transparent border-none focus:ring-0 font-bold text-slate-700 placeholder-slate-300 px-4">
+        <button onclick="addTodo()" 
+            class="w-12 h-12 rounded-2xl bg-brand-500 text-white flex items-center justify-center hover:bg-brand-600 transition-all active:scale-95 shadow-lg shadow-brand-500/30">
+            <i data-lucide="plus" class="w-6 h-6"></i>
+        </button>
+    </div>
+
+    <!-- List -->
+    <div id="todo-list" class="space-y-3">
+        {% for todo in todos %}
+        <div class="glass-light p-5 rounded-3xl flex items-center gap-4 group transition-all hover:bg-white {% if todo.is_completed %}opacity-60{% endif %}" id="todo-{{ todo.id }}">
+            <button onclick="toggleTodo({{ todo.id }})" 
+                class="w-8 h-8 rounded-xl border-2 flex items-center justify-center transition-all 
+                {% if todo.is_completed %}bg-emerald-500 border-emerald-500 text-white{% else %}border-slate-200 text-transparent hover:border-emerald-300{% endif %}">
+                <i data-lucide="check" class="w-5 h-5"></i>
+            </button>
+            <span class="flex-1 font-bold text-slate-700 {% if todo.is_completed %}line-through{% endif %}" id="content-{{ todo.id }}">
+                {{ todo.content }}
+            </span>
+            <button onclick="deleteTodo({{ todo.id }})" 
+                class="opacity-0 group-hover:opacity-100 w-8 h-8 rounded-xl text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-all">
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
+            </button>
+        </div>
+        {% else %}
+        <div class="text-center py-10">
+            <div class="opacity-20 mb-4 flex justify-center">
+                <i data-lucide="shopping-bag" class="w-16 h-16"></i>
+            </div>
+            <p class="text-slate-400 font-bold">Danh sách đang trống trơn...</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+async function addTodo() {
+    const input = document.getElementById('todo-input');
+    const content = input.value.trim();
+    if (!content) return;
+
+    try {
+        const res = await fetch('/todo/api/add', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            body: JSON.stringify({ content })
+        });
+        if (res.ok) location.reload();
+    } catch (e) { console.error(e); }
+}
+
+async function toggleTodo(id) {
+    try {
+        const res = await fetch(`/todo/api/toggle/${id}`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            }
+        });
+        if (res.ok) {
+            const data = await res.json();
+            const el = document.getElementById(`todo-${id}`);
+            const contentEl = document.getElementById(`content-${id}`);
+            if (data.is_completed) {
+                el.classList.add('opacity-60');
+                contentEl.classList.add('line-through');
+            } else {
+                el.classList.remove('opacity-60');
+                contentEl.classList.remove('line-through');
+            }
+            location.reload(); // Refresh to update icons properly
+        }
+    } catch (e) { console.error(e); }
+}
+
+async function deleteTodo(id) {
+    if (!confirm('Xoá việc này?')) return;
+    try {
+        const res = await fetch(`/todo/api/delete/${id}`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            }
+        });
+        if (res.ok) document.getElementById(`todo-${id}`).remove();
+    } catch (e) { console.error(e); }
+}
+
+// Support Enter key
+document.getElementById('todo-input').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') addTodo();
+});
+</script>
+{% endblock %}

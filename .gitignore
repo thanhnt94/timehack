@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+*.pyo
+instance/
+.env
+*.db
+*.db-shm
+*.db-wal
+migrations/
+.vscode/

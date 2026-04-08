@@ -1,0 +1,392 @@
+{% extends "base.html" %}
+{% block title %}Tracker{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto space-y-5">
+
+    <!-- Compact Timer Bar (collapsed by default) -->
+    <div class="glass rounded-[2rem] shadow-soft overflow-hidden">
+        <!-- Collapsed bar -->
+        <div id="timer-bar" onclick="toggleTimerPanel()" class="flex items-center justify-between px-6 py-4 cursor-pointer hover:bg-white/60 transition select-none">
+            <div class="flex items-center gap-4">
+                <div class="w-10 h-10 rounded-xl bg-brand-50 flex items-center justify-center border-2 border-white shadow-sm">
+                    <i data-lucide="timer" class="w-5 h-5 text-brand-500"></i>
+                </div>
+                <div>
+                    <div class="timer-font text-2xl font-black text-slate-800 tracking-tight" id="timer-display">00:00:00</div>
+                    {% if running_entry %}
+                    <p class="text-[10px] font-bold text-emerald-500 uppercase tracking-wider flex items-center gap-1">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                        {{ running_entry.category.name if running_entry.category else 'Đang track...' }}
+                    </p>
+                    {% else %}
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Nhấn để mở bảng điều khiển</p>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                {% if running_entry %}
+                <button onclick="event.stopPropagation(); stopTimer()" class="px-5 py-2.5 rounded-xl bg-rose-500 text-white font-black text-xs hover:bg-rose-600 transition active:scale-95 shadow-sm">
+                    DỪNG
+                </button>
+                {% else %}
+                <button onclick="event.stopPropagation(); quickStart()" class="px-5 py-2.5 rounded-xl bg-emerald-500 text-white font-black text-xs hover:bg-emerald-600 transition active:scale-95 shadow-sm">
+                    BẮT ĐẦU
+                </button>
+                {% endif %}
+                <i data-lucide="chevron-down" id="timer-chevron" class="w-5 h-5 text-slate-300 transition-transform"></i>
+            </div>
+        </div>
+
+        <!-- Expanded panel (hidden by default) -->
+        <div id="timer-panel" class="hidden border-t border-slate-100/80">
+            <div class="p-6 space-y-4">
+                <div class="flex flex-col sm:flex-row items-stretch gap-3">
+                    <select id="category-select" class="flex-1 px-5 py-4 rounded-2xl bg-white border-2 border-slate-100 text-sm font-bold text-slate-700 focus:outline-none focus:border-brand-400 shadow-sm">
+                        <option value="">💡 Chọn danh mục...</option>
+                        {% for cat in categories %}
+                        <option value="{{ cat.id }}">{{ '↳ ' if cat.parent else '' }}{{ cat.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <button id="pomo-toggle" onclick="togglePomodoro()" class="px-5 py-4 rounded-2xl bg-white border-2 border-slate-100 text-slate-300 hover:text-amber-500 transition-all shadow-sm active:scale-95 flex items-center gap-2 justify-center">
+                        <i data-lucide="flame" class="w-5 h-5"></i>
+                        <span class="text-xs font-bold">Pomodoro</span>
+                    </button>
+                </div>
+                <div class="flex gap-3">
+                    {% if running_entry %}
+                    <button onclick="stopTimer()" class="flex-1 py-4 rounded-2xl bg-rose-500 text-white font-black text-sm tracking-widest hover:bg-rose-600 shadow-lg shadow-rose-200 active:scale-95 transition-all">
+                        DỪNG LẠI
+                    </button>
+                    {% else %}
+                    <button onclick="startTimer()" class="flex-1 py-4 rounded-2xl bg-emerald-500 text-white font-black text-sm tracking-widest hover:bg-emerald-600 shadow-lg shadow-emerald-200 active:scale-95 transition-all">
+                        BẮT ĐẦU TRACK
+                    </button>
+                    {% endif %}
+                    <button onclick="openManualModal()" class="px-6 py-4 rounded-2xl bg-white border-2 border-slate-100 text-slate-500 font-bold text-sm hover:text-brand-500 transition shadow-sm">
+                        + Thêm thủ công
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Date Navigator + Filter bar -->
+    <div class="flex flex-col sm:flex-row items-stretch gap-3">
+        <!-- Date nav -->
+        <div class="flex items-center gap-1 bg-white rounded-2xl px-3 py-2 border border-slate-100 shadow-sm flex-1">
+            <button onclick="navigateDate(-1)" class="p-2 rounded-lg hover:bg-slate-50 text-slate-400 hover:text-slate-700 transition active:scale-95">
+                <i data-lucide="chevron-left" class="w-4 h-4"></i>
+            </button>
+            <input type="date" id="date-nav" value="{{ selected_date.isoformat() }}"
+                onchange="goToDate(this.value)"
+                class="flex-1 bg-transparent border-none text-center font-black text-slate-800 text-sm focus:outline-none cursor-pointer min-w-0">
+            <button onclick="navigateDate(1)" class="p-2 rounded-lg hover:bg-slate-50 text-slate-400 hover:text-slate-700 transition active:scale-95">
+                <i data-lucide="chevron-right" class="w-4 h-4"></i>
+            </button>
+            {% if not is_today %}
+            <button onclick="goToDate('')" class="px-3 py-1.5 rounded-lg bg-brand-50 text-brand-600 text-[10px] font-bold hover:bg-brand-100 transition border border-brand-100 ml-1 whitespace-nowrap">
+                Hôm nay
+            </button>
+            {% endif %}
+        </div>
+
+        <!-- Category filter -->
+        <div class="flex items-center gap-2">
+            <select id="filter-category" onchange="filterEntries()"
+                class="px-4 py-3 rounded-2xl bg-white border border-slate-100 text-sm font-bold text-slate-600 focus:outline-none shadow-sm cursor-pointer min-w-[160px]">
+                <option value="">Tất cả danh mục</option>
+                {% for cat in categories %}
+                <option value="{{ cat.id }}">{{ cat.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <!-- Summary -->
+    <div class="flex items-center justify-between px-3">
+        <h2 class="text-base font-black text-slate-700 flex items-center gap-2">
+            {% if is_today %}Hôm nay{% else %}{{ selected_date.strftime('%d/%m/%Y') }}{% endif %}
+        </h2>
+        <div class="flex items-center gap-4 text-sm">
+            <span class="font-black text-brand-600">{{ format_duration(total_today) }}</span>
+            {% if pomodoro_today > 0 %}
+            <span class="font-bold text-amber-500 flex items-center gap-1">
+                <i data-lucide="flame" class="w-3.5 h-3.5"></i> {{ format_duration(pomodoro_today) }}
+            </span>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Entry List -->
+    {% set completed = [] %}
+    {% for entry in entries %}{% if not entry.is_running %}{% if completed.append(entry) %}{% endif %}{% endif %}{% endfor %}
+
+    {% if completed %}
+    <div class="grid grid-cols-1 gap-2" id="entries-list">
+        {% for entry in completed %}
+        {% set local_start = entry.start_time|localtime %}
+        {% set local_end = entry.end_time|localtime if entry.end_time else none %}
+        <div class="entry-row bg-white px-5 py-4 rounded-2xl flex items-center gap-4 border border-slate-100/50 hover:border-brand-200 transition-all group"
+             data-category="{{ entry.category_id or '' }}">
+            <div class="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0" style="background-color: {{ (entry.category.color if entry.category else '#cbd5e1') }}20">
+                {{ entry.category.icon if entry.category and entry.category.icon else '📌' }}
+            </div>
+            <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2">
+                    <h4 class="font-bold text-slate-700 truncate text-sm">{{ entry.category.name if entry.category else 'Không phân loại' }}</h4>
+                    {% if entry.is_pomodoro %}
+                    <i data-lucide="flame" class="w-3 h-3 text-amber-400 flex-shrink-0"></i>
+                    {% endif %}
+                </div>
+                <p class="text-[10px] font-bold text-slate-400 mt-0.5 uppercase tracking-tight">
+                    {{ local_start.strftime('%H:%M') }} – {{ local_end.strftime('%H:%M') if local_end else '' }}
+                </p>
+            </div>
+            <div class="text-base font-black text-brand-600 px-1 flex-shrink-0 tabular-nums">{{ format_duration(entry.duration) }}</div>
+            <div class="flex items-center gap-0.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button onclick="openEditModal({{ entry.id }}, '{{ local_start.strftime('%H:%M') }}', '{{ local_end.strftime('%H:%M') if local_end else '' }}', '{{ entry.category_id or '' }}', '{{ local_start.strftime('%Y-%m-%d') }}', '{{ local_end.strftime('%Y-%m-%d') if local_end else local_start.strftime('%Y-%m-%d') }}')"
+                    class="p-2 rounded-lg text-slate-300 hover:text-blue-500 hover:bg-blue-50 transition-all" title="Sửa">
+                    <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                </button>
+                <button onclick="deleteEntry({{ entry.id }})"
+                    class="p-2 rounded-lg text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-all" title="Xoá">
+                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                </button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-20 bg-white rounded-[2.5rem] border-2 border-dashed border-slate-100">
+        <div class="w-16 h-16 mx-auto bg-brand-50 rounded-full flex items-center justify-center mb-4">
+            <i data-lucide="inbox" class="w-7 h-7 text-brand-300"></i>
+        </div>
+        <p class="text-slate-700 font-black">Chưa có bản ghi</p>
+        <p class="text-slate-400 font-bold mt-1 text-sm">
+            {% if is_today %}Bắt đầu track thôi nào!{% else %}Ngày này không có hoạt động nào.{% endif %}
+        </p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Manual Entry Modal -->
+<div id="manual-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+    <div class="bg-white rounded-[2.5rem] p-8 w-full max-w-md shadow-2xl border-4 border-white">
+        <h3 class="text-xl font-black text-slate-800 mb-6 flex items-center gap-2">
+            <i data-lucide="plus-circle" class="w-5 h-5 text-brand-500"></i> Thêm bản ghi
+        </h3>
+        <div class="space-y-5">
+            <select id="manual-category" class="w-full px-5 py-4 rounded-2xl bg-slate-50 border border-slate-100 font-bold text-slate-700">
+                <option value="">💡 Chọn danh mục...</option>
+                {% for cat in categories %}
+                <option value="{{ cat.id }}">{{ cat.name }}</option>
+                {% endfor %}
+            </select>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1.5 ml-1">📅 Ngày bắt đầu</label>
+                    <input type="date" id="manual-start-date" class="w-full px-4 py-3 rounded-2xl bg-slate-50 border-2 border-slate-100 font-bold text-slate-700 text-sm focus:outline-none focus:border-brand-400">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1.5 ml-1">⏰ Giờ bắt đầu</label>
+                    <input type="time" id="manual-start-time" class="w-full px-4 py-3.5 rounded-2xl bg-slate-50 border-2 border-slate-100 text-base font-black text-slate-700 text-center focus:outline-none focus:border-brand-400">
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1.5 ml-1">📅 Ngày kết thúc</label>
+                    <input type="date" id="manual-end-date" class="w-full px-4 py-3 rounded-2xl bg-slate-50 border-2 border-slate-100 font-bold text-slate-700 text-sm focus:outline-none focus:border-brand-400">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1.5 ml-1">🏁 Giờ kết thúc</label>
+                    <input type="time" id="manual-end-time" class="w-full px-4 py-3.5 rounded-2xl bg-slate-50 border-2 border-slate-100 text-base font-black text-slate-700 text-center focus:outline-none focus:border-brand-400">
+                </div>
+            </div>
+            <div class="flex gap-3 pt-2">
+                <button onclick="closeManualModal()" class="flex-1 py-3.5 font-black text-slate-400 rounded-2xl">Huỷ</button>
+                <button onclick="submitManualEntry()" class="flex-1 py-3.5 bg-slate-800 text-white rounded-2xl font-bold shadow-lg">Lưu</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Entry Modal -->
+<div id="edit-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+    <div class="bg-white rounded-[2.5rem] p-8 w-full max-w-md shadow-2xl border-4 border-white">
+        <h3 class="text-xl font-black text-slate-800 mb-6 flex items-center gap-2">
+            <i data-lucide="pencil" class="w-5 h-5 text-blue-500"></i> Sửa bản ghi
+        </h3>
+        <input type="hidden" id="edit-entry-id">
+        <div class="space-y-5">
+            <select id="edit-category" class="w-full px-5 py-4 rounded-2xl bg-slate-50 border border-slate-100 font-bold text-slate-700">
+                <option value="">💡 Chọn danh mục...</option>
+                {% for cat in categories %}
+                <option value="{{ cat.id }}">{{ cat.name }}</option>
+                {% endfor %}
+            </select>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1.5 ml-1">📅 Ngày bắt đầu</label>
+                    <input type="date" id="edit-start-date" class="w-full px-4 py-3 rounded-2xl bg-slate-50 border-2 border-slate-100 font-bold text-slate-700 text-sm focus:outline-none focus:border-blue-400">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1.5 ml-1">⏰ Giờ bắt đầu</label>
+                    <input type="time" id="edit-start-time" class="w-full px-4 py-3.5 rounded-2xl bg-slate-50 border-2 border-slate-100 text-base font-black text-slate-700 text-center focus:outline-none focus:border-blue-400">
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1.5 ml-1">📅 Ngày kết thúc</label>
+                    <input type="date" id="edit-end-date" class="w-full px-4 py-3 rounded-2xl bg-slate-50 border-2 border-slate-100 font-bold text-slate-700 text-sm focus:outline-none focus:border-blue-400">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1.5 ml-1">🏁 Giờ kết thúc</label>
+                    <input type="time" id="edit-end-time" class="w-full px-4 py-3.5 rounded-2xl bg-slate-50 border-2 border-slate-100 text-base font-black text-slate-700 text-center focus:outline-none focus:border-blue-400">
+                </div>
+            </div>
+            <div id="edit-error" class="hidden px-4 py-3 rounded-2xl bg-rose-50 text-rose-600 text-sm font-bold border border-rose-100"></div>
+            <div class="flex gap-3 pt-2">
+                <button onclick="closeEditModal()" class="flex-1 py-3.5 font-black text-slate-400 rounded-2xl">Huỷ</button>
+                <button onclick="submitEditEntry()" class="flex-1 py-3.5 bg-blue-600 text-white rounded-2xl font-bold shadow-lg">Cập nhật</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const CSRF = document.querySelector('meta[name="csrf-token"]').content;
+    let isPomo = false;
+
+    // ── Timer Panel Toggle ────────────────────────────
+    function toggleTimerPanel() {
+        const panel = document.getElementById('timer-panel');
+        const chevron = document.getElementById('timer-chevron');
+        panel.classList.toggle('hidden');
+        chevron.style.transform = panel.classList.contains('hidden') ? '' : 'rotate(180deg)';
+    }
+
+    // ── Date Navigation ───────────────────────────────
+    function goToDate(dateStr) {
+        window.location.href = dateStr ? '/tracker/?date=' + dateStr : '/tracker/';
+    }
+    function navigateDate(offset) {
+        const d = new Date(document.getElementById('date-nav').value);
+        d.setDate(d.getDate() + offset);
+        goToDate(d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'));
+    }
+
+    // ── Category Filter (client-side) ─────────────────
+    function filterEntries() {
+        const catId = document.getElementById('filter-category').value;
+        document.querySelectorAll('.entry-row').forEach(row => {
+            if (!catId || row.dataset.category === catId) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    }
+
+    // ── Timer Actions ─────────────────────────────────
+    function quickStart() {
+        toggleTimerPanel();
+    }
+    function startTimer() {
+        const catId = document.getElementById('category-select').value;
+        fetch('/tracker/api/start', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+            body: JSON.stringify({ category_id: catId ? parseInt(catId) : null, is_pomodoro: isPomo })
+        }).then(res => { if(res.ok) window.location.reload(); });
+    }
+    function stopTimer() {
+        fetch('/tracker/api/stop', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': CSRF }
+        }).then(res => { if(res.ok) window.location.reload(); });
+    }
+    function deleteEntry(id) {
+        if(!confirm('Xoá bản ghi này?')) return;
+        fetch('/tracker/api/entry/' + id, {
+            method: 'DELETE',
+            headers: { 'X-CSRFToken': CSRF }
+        }).then(res => { if(res.ok) window.location.reload(); });
+    }
+    function togglePomodoro() {
+        isPomo = !isPomo;
+        const btn = document.getElementById('pomo-toggle');
+        btn.classList.toggle('text-amber-500');
+        btn.classList.toggle('bg-amber-50');
+        btn.classList.toggle('border-amber-100');
+    }
+
+    // ── Manual Entry ──────────────────────────────────
+    function openManualModal() {
+        const today = new Date();
+        const todayStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
+        document.getElementById('manual-start-date').value = todayStr;
+        document.getElementById('manual-end-date').value = todayStr;
+        document.getElementById('manual-modal').classList.remove('hidden');
+    }
+    function closeManualModal() { document.getElementById('manual-modal').classList.add('hidden'); }
+    function submitManualEntry() {
+        const sd = document.getElementById('manual-start-date').value;
+        const st = document.getElementById('manual-start-time').value;
+        const ed = document.getElementById('manual-end-date').value;
+        const et = document.getElementById('manual-end-time').value;
+        if (!sd || !st || !ed || !et) { alert('Vui lòng nhập đầy đủ ngày và giờ.'); return; }
+        fetch('/tracker/api/manual', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+            body: JSON.stringify({ start_time: sd+'T'+st+':00', end_time: ed+'T'+et+':00', category_id: document.getElementById('manual-category').value || null })
+        }).then(res => { if(res.ok) window.location.reload(); });
+    }
+
+    // ── Edit Entry ────────────────────────────────────
+    function openEditModal(id, startTime, endTime, catId, startDate, endDate) {
+        document.getElementById('edit-entry-id').value = id;
+        document.getElementById('edit-start-date').value = startDate;
+        document.getElementById('edit-start-time').value = startTime;
+        document.getElementById('edit-end-date').value = endDate;
+        document.getElementById('edit-end-time').value = endTime;
+        document.getElementById('edit-category').value = catId;
+        document.getElementById('edit-error').classList.add('hidden');
+        document.getElementById('edit-modal').classList.remove('hidden');
+    }
+    function closeEditModal() { document.getElementById('edit-modal').classList.add('hidden'); }
+    function submitEditEntry() {
+        const id = document.getElementById('edit-entry-id').value;
+        const sd = document.getElementById('edit-start-date').value;
+        const st = document.getElementById('edit-start-time').value;
+        const ed = document.getElementById('edit-end-date').value;
+        const et = document.getElementById('edit-end-time').value;
+        fetch('/tracker/api/entry/' + id, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+            body: JSON.stringify({ start_time: sd+'T'+st+':00', end_time: ed+'T'+et+':00', category_id: document.getElementById('edit-category').value || null })
+        }).then(res => {
+            if (res.ok) { window.location.reload(); }
+            else { res.json().then(d => { const e = document.getElementById('edit-error'); e.textContent = d.message; e.classList.remove('hidden'); }); }
+        });
+    }
+
+    // ── Timer Display ─────────────────────────────────
+    (function() {
+        const running = "{{ 'true' if running_entry else 'false' }}" === "true";
+        const startStr = "{{ running_entry.start_time.isoformat() if running_entry else '' }}";
+        if (!running || !startStr) return;
+        const startTime = new Date(startStr.endsWith('Z') ? startStr : startStr + 'Z');
+        const display = document.getElementById('timer-display');
+        function tick() {
+            const diff = Math.max(0, Math.floor((new Date() - startTime) / 1000));
+            const h = String(Math.floor(diff / 3600)).padStart(2, '0');
+            const m = String(Math.floor((diff % 3600) / 60)).padStart(2, '0');
+            const s = String(diff % 60).padStart(2, '0');
+            if(display) display.textContent = h + ':' + m + ':' + s;
+        }
+        setInterval(tick, 1000);
+        tick();
+    })();
+</script>
+{% endblock %}

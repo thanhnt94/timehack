@@ -17,6 +17,10 @@ class Category(db.Model):
     color_bg = db.Column(db.String(50), default='bg-slate-50')
     color_text = db.Column(db.String(50), default='text-slate-600')
     
+    # Gamification Fields
+    current_exp = db.Column(db.Integer, default=0) # 1 phút = 1 EXP
+    current_level = db.Column(db.Integer, default=1)
+    
     is_default = db.Column(db.Boolean, default=False)
 
     # Relationships

@@ -2,138 +2,133 @@
 {% block title %}Việc cần làm{% endblock %}
 
 {% block content %}
-<div class="px-6 space-y-10">
+<div class="px-6 space-y-10 pb-20">
     <!-- Header -->
     <div class="flex flex-col items-center text-center space-y-4">
-        <div class="w-20 h-20 rounded-[2.5rem] bg-primary flex items-center justify-center text-accent shadow-premium">
-            <i data-lucide="check-circle" class="w-10 h-10"></i>
-        </div>
+        <div class="w-20 h-20 rounded-[2.5rem] bg-primary flex items-center justify-center text-accent shadow-premium"><i data-lucide="check-circle" class="w-10 h-10"></i></div>
         <div>
             <h1 class="text-3xl font-black text-primary tracking-tight">Hôm nay làm gì?</h1>
-            <p class="text-slate-400 font-bold text-xs uppercase tracking-widest mt-2">Danh sách các việc cần hoàn thành</p>
+            <p class="text-slate-400 font-bold text-xs uppercase tracking-widest mt-2">Lên lịch và theo dõi tiến độ</p>
         </div>
     </div>
 
     <!-- Input Area -->
-    <div class="bg-white p-4 rounded-[2rem] shadow-premium border border-slate-100 space-y-4">
-        <div class="flex flex-col sm:flex-row gap-3">
-            <div class="flex-1">
-                <input type="text" id="todo-input" 
-                    placeholder="Bạn cần làm gì tiếp theo?"
-                    class="w-full bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-accent/20 font-bold text-primary placeholder-slate-300 px-6 py-4 outline-none">
-            </div>
-            <div class="sm:w-48 relative">
-                <select id="todo-category" class="w-full bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-accent/20 font-bold text-primary px-4 py-4 text-sm appearance-none outline-none">
-                    <option value="" disabled selected>📂 Danh mục...</option>
-                    {% for cat in categories %}
-                    <option value="{{ cat.id }}">{{ cat.name }}</option>
-                    {% endfor %}
-                </select>
-                <div class="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
-                    <i data-lucide="chevron-down" class="w-4 h-4 text-slate-300"></i>
+    <div class="bg-white p-6 rounded-[2.5rem] shadow-premium border border-slate-100 space-y-4">
+        <div class="space-y-3">
+            <input type="text" id="todo-input" placeholder="Bạn cần làm gì tiếp theo?" class="w-full bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-accent/20 font-bold text-primary placeholder-slate-300 px-6 py-4 outline-none">
+            
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div class="relative">
+                    <select id="todo-category" class="w-full bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-accent/20 font-bold text-primary px-10 py-4 text-sm appearance-none outline-none">
+                        <option value="" disabled selected>📂 Danh mục...</option>
+                        {% for cat in categories %}<option value="{{ cat.id }}">{{ cat.name }}</option>{% endfor %}
+                    </select>
+                    <div class="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none"><i data-lucide="tag" class="w-4 h-4 text-slate-300"></i></div>
+                </div>
+                <div class="relative">
+                    <input type="datetime-local" id="todo-scheduled" class="w-full bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-accent/20 font-bold text-primary px-10 py-4 text-sm outline-none">
+                    <div class="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none"><i data-lucide="calendar" class="w-4 h-4 text-slate-300"></i></div>
                 </div>
             </div>
-            <button onclick="addTodo()" 
-                class="w-full sm:w-14 h-14 rounded-2xl bg-primary text-white flex items-center justify-center hover:bg-slate-800 transition-all active:scale-95 shadow-lg">
-                <i data-lucide="plus" class="w-6 h-6 text-accent"></i>
-            </button>
         </div>
+        <button onclick="addTodo()" class="w-full py-4 rounded-2xl bg-primary text-white font-black text-xs uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-slate-800 transition-all active:scale-95 shadow-lg shadow-primary/20">
+            <i data-lucide="plus" class="w-5 h-5 text-accent"></i> THÊM CÔNG VIỆC
+        </button>
     </div>
 
     <!-- List -->
     <div id="todo-list" class="space-y-4">
         {% if todos %}
             {% for todo in todos %}
-            <div class="bg-white p-5 rounded-[2rem] flex items-center gap-4 group transition-all border border-slate-50 shadow-sm active:scale-[0.98] {% if todo.is_completed %}opacity-50{% endif %}" id="todo-{{ todo.id }}">
-                <button onclick="toggleTodo({{ todo.id }})" 
-                    class="w-10 h-10 rounded-2xl border-2 flex items-center justify-center transition-all 
-                    {% if todo.is_completed %}bg-accent border-accent text-white{% else %}border-slate-100 text-transparent hover:border-accent/30{% endif %}">
+            {% set is_running = todo.status == 'in_progress' %}
+            <div class="bg-white p-5 rounded-[2rem] flex items-center gap-4 group transition-all border border-slate-50 shadow-sm active:scale-[0.98] 
+                {{ 'opacity-50' if todo.status == 'completed' }} 
+                {{ 'border-l-4 border-accent bg-emerald-50/30' if is_running }}" id="todo-{{ todo.id }}">
+                
+                <button onclick="toggleTodo({{ todo.id }})" class="w-10 h-10 rounded-2xl border-2 flex items-center justify-center transition-all 
+                    {% if todo.status == 'completed' %}bg-accent border-accent text-white{% else %}border-slate-100 text-transparent hover:border-accent/30{% endif %}">
                     <i data-lucide="check" class="w-6 h-6 stroke-[3]"></i>
                 </button>
+
                 <div class="flex-1 min-w-0">
-                    <span class="block font-bold text-primary text-base {% if todo.is_completed %}line-through text-slate-400{% endif %}" id="content-{{ todo.id }}">
-                        {{ todo.content }}
-                    </span>
-                    <div class="flex items-center gap-2 mt-1">
-                        <span class="w-2 h-2 rounded-full" style="background-color: {{ todo.category_color }}"></span>
-                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{{ todo.category_name }}</span>
+                    <div class="flex items-center">
+                        {% if is_running %}
+                        <span class="relative flex h-3 w-3 mr-3">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-3 w-3 bg-accent"></span>
+                        </span>
+                        {% endif %}
+                        <span class="block font-bold text-primary text-base {{ 'line-through text-slate-400' if todo.status == 'completed' }}" id="content-{{ todo.id }}">
+                            {{ todo.content }}
+                        </span>
+                    </div>
+                    
+                    <div class="flex flex-wrap items-center gap-3 mt-1">
+                        <div class="flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full" style="background-color: {{ todo.category_color }}"></span>
+                            <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">{{ todo.category_name }}</span>
+                        </div>
+                        {% if is_running %}
+                            <span class="text-[9px] text-accent font-black uppercase tracking-widest animate-pulse">▶ Đang track thời gian</span>
+                        {% elif todo.scheduled_time %}
+                            <div class="flex items-center gap-1 px-2 py-0.5 bg-accent/10 rounded-md">
+                                <i data-lucide="clock" class="w-3 h-3 text-accent"></i>
+                                <span class="text-[9px] font-black text-accent uppercase tracking-tighter">{{ (todo.scheduled_time|localtime).strftime('%d/%m %H:%M') }}</span>
+                            </div>
+                        {% endif %}
                     </div>
                 </div>
-                <button onclick="deleteTodo({{ todo.id }})" 
-                    class="w-10 h-10 rounded-2xl text-slate-200 hover:text-rose-500 hover:bg-rose-50 transition-all active:scale-90">
-                    <i data-lucide="trash-2" class="w-5 h-5"></i>
-                </button>
+
+                {% if not is_running %}
+                <button onclick="deleteTodo({{ todo.id }})" class="w-10 h-10 rounded-2xl text-slate-200 hover:text-rose-500 hover:bg-rose-50 transition-all active:scale-90"><i data-lucide="trash-2" class="w-5 h-5"></i></button>
+                {% else %}
+                <a href="{{ url_for('time_logging.track') }}" class="w-10 h-10 rounded-2xl bg-accent/10 text-accent flex items-center justify-center active:scale-90 transition-all">
+                    <i data-lucide="external-link" class="w-5 h-5"></i>
+                </a>
+                {% endif %}
             </div>
             {% endfor %}
         {% else %}
             <div class="flex flex-col items-center justify-center py-16 px-8 bg-white rounded-[3rem] border border-dashed border-slate-100 relative overflow-hidden group/empty">
-                <div class="absolute -right-10 -top-10 w-40 h-40 bg-accent/5 rounded-full blur-3xl opacity-50"></div>
-                <div class="w-20 h-20 bg-slate-50 rounded-3xl flex items-center justify-center text-slate-200 mb-6">
-                    <i data-lucide="shopping-bag" class="w-10 h-10"></i>
-                </div>
+                <div class="w-20 h-20 bg-slate-50 rounded-3xl flex items-center justify-center text-slate-200 mb-6"><i data-lucide="shopping-bag" class="w-10 h-10"></i></div>
                 <h3 class="text-xl font-black text-primary">Danh sách trống</h3>
-                <p class="text-xs text-slate-400 mt-2">Mọi kế hoạch lớn đều bắt đầu từ một việc nhỏ.</p>
+                <p class="text-xs text-slate-400 mt-2 text-center leading-relaxed">Mọi kế hoạch lớn đều bắt đầu từ một việc nhỏ.<br>Hãy lên lịch công việc đầu tiên ngay!</p>
             </div>
         {% endif %}
     </div>
 </div>
 
 <script>
+// JS giữ nguyên từ bước trước
 async function addTodo() {
     const input = document.getElementById('todo-input');
     const categorySelect = document.getElementById('todo-category');
+    const scheduledInput = document.getElementById('todo-scheduled');
     const content = input.value.trim();
     const category_id = categorySelect.value;
-
-    if (!content) { alert('Vui lòng nhập nội dung'); return; }
-    if (!category_id) { alert('Vui lòng chọn danh mục'); return; }
-
+    const scheduled_time = scheduledInput.value;
+    if (!content || !category_id) { alert('Vui lòng nhập đủ thông tin'); return; }
     try {
         const res = await fetch('/todo/api/add', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-            },
-            body: JSON.stringify({ content, category_id: parseInt(category_id) })
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content') },
+            body: JSON.stringify({ content, category_id: parseInt(category_id), scheduled_time })
         });
         if (res.ok) location.reload();
-        else {
-            const err = await res.json();
-            alert(err.error || 'Lỗi khi thêm Todo');
-        }
     } catch (e) { console.error(e); }
 }
-
 async function toggleTodo(id) {
     try {
-        const res = await fetch(`/todo/api/toggle/${id}`, {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-            }
-        });
-        if (res.ok) {
-            location.reload(); 
-        }
+        const res = await fetch(`/todo/api/toggle/${id}`, { method: 'POST', headers: { 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content') } });
+        if (res.ok) location.reload(); 
     } catch (e) { console.error(e); }
 }
-
 async function deleteTodo(id) {
     if (!confirm('Xoá việc này?')) return;
     try {
-        const res = await fetch(`/todo/api/delete/${id}`, {
-            method: 'DELETE',
-            headers: {
-                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-            }
-        });
+        const res = await fetch(`/todo/api/delete/${id}`, { method: 'DELETE', headers: { 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content') } });
         if (res.ok) document.getElementById(`todo-${id}`).remove();
     } catch (e) { console.error(e); }
 }
-
-document.getElementById('todo-input').addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') addTodo();
-});
 </script>
 {% endblock %}

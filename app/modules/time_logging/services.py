@@ -4,6 +4,7 @@ from datetime import datetime, timezone, timedelta
 from app.extensions import db
 from app.models.time_entry import TimeEntry
 from app.models.category import Category
+from app.models.todo_item import TodoItem
 
 
 class TimeLoggingService:
@@ -24,19 +25,57 @@ class TimeLoggingService:
             note=note,
         )
         db.session.add(entry)
+        
+        # Cập nhật trạng thái Todo sang 'in_progress'
+        if todo_id:
+            todo = db.session.get(TodoItem, todo_id)
+            if todo:
+                todo.status = 'in_progress'
+
         db.session.commit()
         return entry
 
     @staticmethod
     def stop_timer(user_id: int):
-        """Stop the currently running timer and return the entry."""
+        """Stop the currently running timer and return the entry with level up info."""
         entry = TimeEntry.query.filter_by(user_id=user_id, is_running=True).first()
         if not entry:
-            return None
+            return None, None
         entry.stop()
-        # ĐÃ XÓA logic tự động hoàn thành Todo ở đây theo yêu cầu
+        
+        # Cập nhật trạng thái Todo về 'completed' hoặc 'pending'
+        # Ở đây ta mặc định 'completed' theo yêu cầu Phase 4
+        if entry.todo_id:
+            todo = db.session.get(TodoItem, entry.todo_id)
+            if todo:
+                todo.status = 'completed'
+                todo.is_completed = True
+
+        level_up_info = None
+        if entry.category and entry.duration:
+            level_up_info = TimeLoggingService._add_exp_to_category(entry.category, entry.duration)
+
         db.session.commit()
-        return entry
+        return entry, level_up_info
+
+    @staticmethod
+    def _add_exp_to_category(category, minutes):
+        """Helper để cộng EXP và kiểm tra lên cấp."""
+        from app.utils.gamification import calculate_level_info
+        
+        old_level = category.current_level
+        category.current_exp += minutes
+        
+        level_data = calculate_level_info(category.current_exp)
+        category.current_level = level_data['level']
+        
+        if category.current_level > old_level:
+            return {
+                'leveled_up': True,
+                'skill_name': category.name,
+                'new_level': category.current_level
+            }
+        return {'leveled_up': False}
 
     @staticmethod
     def get_running_entry(user_id: int):
@@ -66,10 +105,22 @@ class TimeLoggingService:
             is_pomodoro=is_pomodoro,
             is_running=False,
         )
-        # ĐÃ XÓA logic tự động hoàn thành Todo ở đây
         db.session.add(entry)
+        
+        # Ghi thủ công thì mặc định xong task luôn
+        if todo_id:
+            todo = db.session.get(TodoItem, todo_id)
+            if todo:
+                todo.status = 'completed'
+                todo.is_completed = True
+        
+        # Gamification
+        level_up_info = None
+        if entry.category:
+            level_up_info = TimeLoggingService._add_exp_to_category(entry.category, duration)
+            
         db.session.commit()
-        return entry
+        return entry, level_up_info
 
     @staticmethod
     def get_entries_for_date(user_id: int, date_obj=None, tz_name: str = 'Asia/Ho_Chi_Minh'):
@@ -82,9 +133,14 @@ class TimeLoggingService:
             now_local = datetime.now(timezone(timedelta(hours=tz_offset)))
             date_obj = now_local.date()
 
+        from sqlalchemy.orm import joinedload, selectinload
         start_utc, end_utc = get_day_boundaries(date_obj, tz_offset)
 
-        entries = TimeEntry.query.filter(
+        entries = TimeEntry.query.options(
+            joinedload(TimeEntry.category),
+            joinedload(TimeEntry.todo),
+            selectinload(TimeEntry.tags)
+        ).filter(
             TimeEntry.user_id == user_id,
             TimeEntry.start_time >= start_utc,
             TimeEntry.start_time < end_utc,

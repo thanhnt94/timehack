@@ -5,7 +5,7 @@ sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
 from app import create_app
 from app.extensions import db
-from app.models import User, Category, TimeEntry, PomodoroSettings, DailyGoal, AppSetting, TodoItem
+from app.models import User, Category, TimeEntry, PomodoroSettings, DailyGoal, AppSetting, TodoItem, SmartHabit
 from app.models.tag import Tag
 
 app = create_app()

@@ -20,7 +20,10 @@ class Config:
         SQLALCHEMY_DATABASE_URI = _raw_db_url or \
             f"sqlite:///{os.path.abspath(os.path.join(project_root, '../Storage/database/TimeHack.db'))}"
 
-    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    # Web Push VAPID Settings
+    VAPID_PUBLIC_KEY = os.environ.get('VAPID_PUBLIC_KEY')
+    VAPID_PRIVATE_KEY = os.environ.get('VAPID_PRIVATE_KEY')
+    VAPID_CLAIM_EMAIL = os.environ.get('VAPID_CLAIM_EMAIL', 'mailto:admin@timehack.local')
 
     # Ecosystem SSO Settings
     CENTRAL_AUTH_SERVER_ADDRESS = os.environ.get('CENTRAL_AUTH_SERVER_ADDRESS', 'http://localhost:5000')

@@ -47,6 +47,19 @@
                 </div>
                 <i data-lucide="chevron-right" class="w-5 h-5 text-slate-200 group-hover:text-slate-400 transition-colors"></i>
             </a>
+
+            <!-- Push Notification Enable -->
+            <div class="flex items-center justify-between p-5">
+                <div class="flex items-center gap-4">
+                    <div class="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-500">
+                        <i data-lucide="bell" class="w-5 h-5"></i>
+                    </div>
+                    <span class="font-bold text-primary">Thông báo đẩy</span>
+                </div>
+                <button id="push-btn" onclick="subscribeUserToPush()" class="text-xs font-black text-emerald-500 bg-emerald-50 px-4 py-2 rounded-full border border-emerald-100 active:scale-95 transition-all">
+                    BẬT NGAY
+                </button>
+            </div>
         </div>
     </div>
 
@@ -119,6 +132,54 @@
                 alert('Lỗi khi cập nhật hồ sơ');
             }
         });
+    }
+
+    // ── Web Push Logic ────────────────────────────────
+    function urlBase64ToUint8Array(base64String) {
+        const padding = '='.repeat((4 - base64String.length % 4) % 4);
+        const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+        const rawData = window.atob(base64);
+        const outputArray = new Uint8Array(rawData.length);
+        for (let i = 0; i < rawData.length; ++i) { outputArray[i] = rawData.charCodeAt(i); }
+        return outputArray;
+    }
+
+    async function subscribeUserToPush() {
+        const btn = document.getElementById('push-btn');
+        btn.textContent = 'ĐANG XỬ LÝ...';
+        
+        try {
+            const permission = await Notification.requestPermission();
+            if (permission !== 'granted') {
+                alert('Bạn cần cấp quyền thông báo để sử dụng tính năng này.');
+                btn.textContent = 'BẬT NGAY';
+                return;
+            }
+
+            const registration = await navigator.serviceWorker.ready;
+            const subscribeOptions = {
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array("{{ config.VAPID_PUBLIC_KEY }}")
+            };
+
+            const subscription = await registration.pushManager.subscribe(subscribeOptions);
+            
+            // Gửi subscription lên server
+            const res = await fetch('/settings/api/push/subscribe', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+                body: JSON.stringify(subscription)
+            });
+
+            if (res.ok) {
+                btn.textContent = 'ĐÃ BẬT ✅';
+                btn.disabled = true;
+                btn.classList.replace('text-emerald-500', 'text-slate-400');
+            }
+        } catch (error) {
+            console.error('Lỗi đăng ký push:', error);
+            btn.textContent = 'THỬ LẠI';
+        }
     }
 </script>
 {% endblock %}

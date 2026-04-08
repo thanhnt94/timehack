@@ -2,8 +2,14 @@ from datetime import datetime, timezone
 from ..extensions import db
 from .todo_item import TodoItem
 
+from sqlalchemy import Index
+
 class TimeEntry(db.Model):
     __tablename__ = 'time_entries'
+    __table_args__ = (
+        Index('idx_user_start_time', 'user_id', 'start_time'),
+        Index('idx_user_category', 'user_id', 'category_id'),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)

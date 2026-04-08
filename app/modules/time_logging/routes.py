@@ -49,7 +49,6 @@ def track():
     # Lấy toàn bộ Tag của user kèm theo mapping với category
     all_tags = Tag.query.filter_by(user_id=current_user.id).all()
     
-    # Chuẩn bị data tag cho JS: { tag_id: { name: '', categories: [cat_id, ...] } }
     tags_json = []
     for t in all_tags:
         tags_json.append({
@@ -69,11 +68,10 @@ def api_start():
         todo_id = data.get('todo_id')
         note = data.get('note', '')
         is_pomodoro = data.get('is_pomodoro', False)
-        tag_ids = data.get('tag_ids', []) # Nhận danh sách ID tag
+        tag_ids = data.get('tag_ids', [])
 
         entry = TimeLoggingService.start_timer(user_id=current_user.id, category_id=category_id, todo_id=todo_id, note=note, is_pomodoro=is_pomodoro)
         
-        # Gắn tag vào entry
         if tag_ids:
             tags = Tag.query.filter(Tag.id.in_(tag_ids), Tag.user_id == current_user.id).all()
             entry.tags = tags
@@ -88,9 +86,13 @@ def api_start():
 @login_required
 def api_stop():
     try:
-        entry = TimeLoggingService.stop_timer(current_user.id)
+        entry, level_up = TimeLoggingService.stop_timer(current_user.id)
         if not entry: return jsonify({'status': 'error', 'message': 'Không có timer đang chạy.'}), 404
-        return jsonify({'status': 'ok', 'entry': entry.to_dict()}), 200
+        return jsonify({
+            'status': 'ok', 
+            'entry': entry.to_dict(),
+            'level_up': level_up
+        }), 200
     except Exception as e:
         import traceback; traceback.print_exc()
         return jsonify({'status': 'error', 'message': str(e)}), 500
@@ -117,7 +119,7 @@ def api_manual_entry():
         if end > now_utc + timedelta(minutes=1): return jsonify({'status': 'error', 'message': 'Không thể thêm bản ghi trong tương lai.'}), 400
         if end <= start: return jsonify({'status': 'error', 'message': 'Thời gian kết thúc phải sau thời gian bắt đầu.'}), 400
 
-        entry = TimeLoggingService.add_manual_entry(user_id=current_user.id, start_time=start.isoformat(), end_time=end.isoformat(), category_id=data.get('category_id'), todo_id=data.get('todo_id'), note=data.get('note', ''), is_pomodoro=data.get('is_pomodoro', False))
+        entry, level_up = TimeLoggingService.add_manual_entry(user_id=current_user.id, start_time=start.isoformat(), end_time=end.isoformat(), category_id=data.get('category_id'), todo_id=data.get('todo_id'), note=data.get('note', ''), is_pomodoro=data.get('is_pomodoro', False))
         
         tag_ids = data.get('tag_ids', [])
         if tag_ids:
@@ -125,7 +127,11 @@ def api_manual_entry():
             entry.tags = tags
             db.session.commit()
 
-        return jsonify({'status': 'ok', 'entry': entry.to_dict()}), 201
+        return jsonify({
+            'status': 'ok', 
+            'entry': entry.to_dict(),
+            'level_up': level_up
+        }), 201
     except Exception as e:
         import traceback; traceback.print_exc()
         return jsonify({'status': 'error', 'message': str(e)}), 500
@@ -143,3 +149,51 @@ def api_update_entry(entry_id):
 def api_delete_entry(entry_id):
     ok = TimeLoggingService.delete_entry(entry_id, current_user.id)
     return jsonify({'status': 'ok' if ok else 'error'}), 200 if ok else 404
+
+@time_logging_bp.route('/api/time/quick-start', methods=['POST'])
+@login_required
+def api_quick_start():
+    from app.models.smart_habit import SmartHabit
+    data = request.get_json() or {}
+    habit_id = data.get('habit_id')
+    habit = SmartHabit.query.filter_by(id=habit_id, user_id=current_user.id).first()
+    if not habit or not habit.is_active: return jsonify({'status': 'error'}), 400
+    entry = TimeLoggingService.start_timer(user_id=current_user.id, category_id=habit.category_id, tag_id=habit.tag_id, note=f"Auto-started from habit: {habit.category.name}")
+    return jsonify({'status': 'ok', 'entry': entry.to_dict()}), 200
+
+@time_logging_bp.route('/api/time/quick-start-todo', methods=['POST'])
+@login_required
+def api_quick_start_todo():
+    """Bắt đầu Timer ngay lập tức cho một Todo cụ thể."""
+    from app.models.todo_item import TodoItem
+    data = request.get_json() or {}
+    todo_id = data.get('todo_id')
+    
+    todo = TodoItem.query.filter_by(id=todo_id, user_id=current_user.id).first()
+    if not todo:
+        return jsonify({'status': 'error', 'message': 'Todo không tồn tại.'}), 404
+
+    entry = TimeLoggingService.start_timer(
+        user_id=current_user.id,
+        category_id=todo.category_id,
+        todo_id=todo.id,
+        note=f"Đang làm: {todo.content}"
+    )
+    return jsonify({'status': 'ok', 'entry': entry.to_dict()}), 200
+
+
+@time_logging_bp.route('/api/habits/ignore', methods=['POST'])
+@login_required
+def api_habit_ignore():
+    from app.models.smart_habit import SmartHabit
+    data = request.get_json() or {}
+    habit_id = data.get('habit_id')
+    habit = SmartHabit.query.filter_by(id=habit_id, user_id=current_user.id).first()
+    if not habit: return jsonify({'status': 'error'}), 404
+    habit.ignore_count += 1
+    if habit.ignore_count >= 3:
+        habit.is_active = False
+        db.session.commit()
+        return jsonify({'status': 'habit_disabled', 'message': f"Đã tạm tắt nhắc nhở [{habit.category.name}]"}), 200
+    db.session.commit()
+    return jsonify({'status': 'ok'}), 200

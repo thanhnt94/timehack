@@ -48,13 +48,26 @@ def api_add_tag():
     db.session.commit()
     return jsonify({'status': 'ok', 'id': tag.id}), 201
 
-@settings_bp.route('/api/tags/<int:tag_id>', methods=['DELETE'])
+@settings_bp.route('/api/push/subscribe', methods=['POST'])
 @login_required
-def api_delete_tag(tag_id):
-    tag = Tag.query.filter_by(id=tag_id, user_id=current_user.id).first()
-    if not tag: return jsonify({'status': 'error'}), 404
-    db.session.delete(tag)
-    db.session.commit()
+def api_push_subscribe():
+    from app.models.push_subscription import PushSubscription
+    data = request.get_json()
+    if not data or 'endpoint' not in data:
+        return jsonify({'status': 'error'}), 400
+
+    # Kiểm tra xem subscription này đã tồn tại chưa
+    exists = PushSubscription.query.filter_by(endpoint=data['endpoint']).first()
+    if not exists:
+        new_sub = PushSubscription(
+            user_id=current_user.id,
+            endpoint=data['endpoint'],
+            p256dh=data['keys']['p256dh'],
+            auth=data['keys']['auth']
+        )
+        db.session.add(new_sub)
+        db.session.commit()
+    
     return jsonify({'status': 'ok'}), 200
 
 

@@ -92,6 +92,7 @@
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 <script>
     const CSRF = document.querySelector('meta[name="csrf-token"]').content;
     const TAGS_DATA = {{ tags_data | tojson }};
@@ -157,8 +158,15 @@
     async function handleMainAction() {
         const isRunning = "{{ 'true' if running_entry else 'false' }}" === "true";
         if (isRunning) {
-            await fetch('/tracker/api/stop', { method: 'POST', headers: { 'X-CSRFToken': CSRF } });
-            window.location.reload();
+            const res = await fetch('/tracker/api/stop', { method: 'POST', headers: { 'X-CSRFToken': CSRF } });
+            const data = await res.json();
+            if (res.ok) {
+                if (data.level_up && data.level_up.leveled_up) {
+                    confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+                    alert(`🎊 CHÚC MỪNG!\nKỹ năng "${data.level_up.skill_name}" của bạn đã thăng cấp lên Level ${data.level_up.new_level}!`);
+                }
+                window.location.reload();
+            }
         } else {
             const data = {
                 is_pomodoro: isPomo,
@@ -194,7 +202,13 @@
             tag_ids: Array.from(selectedTagIds), is_pomodoro: isPomo, note: trackMode === 'other' ? document.getElementById('note-input').value : ''
         };
         const res = await fetch('/tracker/api/manual', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF }, body: JSON.stringify(data) });
-        if (res.ok) window.location.href = "{{ url_for('time_logging.dashboard') }}";
+        const resData = await res.json();
+        if (res.ok) {
+            if (resData.level_up && resData.level_up.leveled_up) {
+                alert(`🎊 Tuyệt vời! Bạn đã thăng cấp kỹ năng "${resData.level_up.skill_name}" lên Level ${resData.level_up.new_level}!`);
+            }
+            window.location.href = "{{ url_for('time_logging.dashboard') }}";
+        }
     }
 </script>
 {% endblock %}

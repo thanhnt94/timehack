@@ -1,30 +1,53 @@
 {% extends "base.html" %}
-{% block title %}Stats{% endblock %}
+{% block title %}Thống kê{% endblock %}
 
 {% block extra_head %}
 <style>
     .heatmap-container { display: grid; grid-template-columns: repeat(53, 1fr); gap: 2px; }
     .heatmap-day { width: 100%; aspect-ratio: 1; border-radius: 2px; }
-    @media (max-width: 640px) {
-        .heatmap-container { grid-template-columns: repeat(26, 1fr); }
-        .heatmap-day:nth-child(-n+189) { display: none; } /* Show only last ~6 months on mobile */
-    }
+    @media (max-width: 640px) { .heatmap-container { grid-template-columns: repeat(26, 1fr); } .heatmap-day:nth-child(-n+189) { display: none; } }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="px-6 space-y-10">
-
-    <!-- ── Header ──────────────────────────────────── -->
+<div class="px-6 space-y-10 pb-10">
     <div class="flex items-center justify-between">
         <h1 class="text-2xl font-black tracking-tight text-primary uppercase">Thống kê</h1>
         <div class="flex gap-2">
-            <a href="{{ url_for('analytics.export_data') }}" class="w-12 h-12 rounded-2xl bg-white border border-slate-100 flex items-center justify-center shadow-sm text-slate-400 hover:text-accent transition-colors premium-touch" title="Export CSV">
-                <i data-lucide="download" class="w-5 h-5"></i>
-            </a>
-            <div class="w-12 h-12 rounded-2xl bg-white border border-slate-100 flex items-center justify-center shadow-sm">
-                <i data-lucide="filter" class="w-5 h-5 text-slate-400"></i>
+            <a href="{{ url_for('analytics.export_data') }}" class="w-12 h-12 rounded-2xl bg-white border border-slate-100 flex items-center justify-center shadow-sm text-slate-400 hover:text-accent transition-colors premium-touch" title="Export CSV"><i data-lucide="download" class="w-5 h-5"></i></a>
+            <div class="w-12 h-12 rounded-2xl bg-white border border-slate-100 flex items-center justify-center shadow-sm"><i data-lucide="filter" class="w-5 h-5 text-slate-400"></i></div>
+        </div>
+    </div>
+
+    <!-- ── RPG SKILL TREE SECTION ────────────────── -->
+    <div class="space-y-4">
+        <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Cây kỹ năng RPG</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {% for name, data in daily.categories.items() %}
+            {% set info = data.level_info %}
+            <div class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-50 relative overflow-hidden group">
+                <div class="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity"><i data-lucide="award" class="w-20 h-20 text-primary"></i></div>
+                
+                <div class="flex items-center gap-4 mb-4">
+                    <div class="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl shadow-inner" style="background-color: {{ data.color }}15; color: {{ data.color }}">{{ data.icon or '🛡️' }}</div>
+                    <div>
+                        <h4 class="font-black text-primary">{{ name }}</h4>
+                        <div class="flex items-center gap-1.5 mt-0.5">
+                            <span class="px-2 py-0.5 bg-primary text-white text-[9px] font-black rounded-md uppercase tracking-tighter">LV.{{ data.level }}</span>
+                            <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{{ info.current_exp_in_level }} / {{ info.exp_needed_for_next }} EXP</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Progress Bar -->
+                <div class="space-y-2">
+                    <div class="h-2.5 w-full bg-slate-50 rounded-full overflow-hidden p-0.5 border border-slate-100">
+                        <div class="h-full rounded-full transition-all duration-1000 ease-out shadow-sm" style="width: {{ info.progress_percent }}%; background-color: {{ data.color }}"></div>
+                    </div>
+                    <div class="flex justify-between text-[8px] font-black text-slate-300 uppercase tracking-widest"><span>Bắt đầu</span><span>Cấp kế tiếp</span></div>
+                </div>
             </div>
+            {% endfor %}
         </div>
     </div>
 
@@ -32,91 +55,22 @@
     <div class="bg-primary rounded-[2.5rem] p-8 shadow-premium relative overflow-hidden">
         <div class="absolute -right-10 -bottom-10 w-40 h-40 bg-accent/10 rounded-full blur-3xl"></div>
         <div class="relative z-10 space-y-6">
-            <div class="flex items-center justify-between text-white">
-                <h3 class="text-xs font-black uppercase tracking-widest opacity-60">Chuỗi hoạt động (365 ngày)</h3>
-                <span class="text-[10px] font-bold opacity-40 italic">Mỗi ô đại diện cho 1 ngày</span>
-            </div>
-
+            <div class="flex items-center justify-between text-white"><h3 class="text-xs font-black uppercase tracking-widest opacity-60">Chuỗi hoạt động (365 ngày)</h3><span class="text-[10px] font-bold opacity-40 italic">Mỗi ô đại diện cho 1 ngày</span></div>
             <div class="heatmap-container">
                 {% for day in heatmap %}
-                    {% set level = 0 %}
-                    {% if day.total > 480 %}{% set level = 4 %}
-                    {% elif day.total > 240 %}{% set level = 3 %}
-                    {% elif day.total > 60 %}{% set level = 2 %}
-                    {% elif day.total > 0 %}{% set level = 1 %}
-                    {% endif %}
-                    
-                    <div class="heatmap-day transition-all duration-500 hover:scale-150 hover:z-20
-                        {% if level == 4 %}bg-accent shadow-[0_0_8px_rgba(0,168,150,0.4)]
-                        {% elif level == 3 %}bg-accent/70
-                        {% elif level == 2 %}bg-accent/40
-                        {% elif level == 1 %}bg-accent/20
-                        {% else %}bg-white/5{% endif %}"
-                        title="{{ day.date }}: {{ format_duration(day.total) }}"></div>
+                    {% set level = 0 %}{% if day.total > 480 %}{% set level = 4 %}{% elif day.total > 240 %}{% set level = 3 %}{% elif day.total > 60 %}{% set level = 2 %}{% elif day.total > 0 %}{% set level = 1 %}{% endif %}
+                    <div class="heatmap-day transition-all duration-500 hover:scale-150 hover:z-20 {% if level == 4 %}bg-accent shadow-[0_0_8px_rgba(0,168,150,0.4)] {% elif level == 3 %}bg-accent/70 {% elif level == 2 %}bg-accent/40 {% elif level == 1 %}bg-accent/20 {% else %}bg-white/5{% endif %}" title="{{ day.date }}: {{ format_duration(day.total) }}"></div>
                 {% endfor %}
             </div>
-
-            <div class="flex items-center justify-end gap-2 text-[8px] font-black text-white/40 uppercase tracking-widest">
-                <span>Less</span>
-                <div class="flex gap-1">
-                    <div class="w-2 h-2 rounded-sm bg-white/5"></div>
-                    <div class="w-2 h-2 rounded-sm bg-accent/20"></div>
-                    <div class="w-2 h-2 rounded-sm bg-accent/40"></div>
-                    <div class="w-2 h-2 rounded-sm bg-accent/70"></div>
-                    <div class="w-2 h-2 rounded-sm bg-accent"></div>
-                </div>
-                <span>More</span>
-            </div>
+            <div class="flex items-center justify-end gap-2 text-[8px] font-black text-white/40 uppercase tracking-widest"><span>Less</span><div class="flex gap-1"><div class="w-2 h-2 rounded-sm bg-white/5"></div><div class="w-2 h-2 rounded-sm bg-accent/20"></div><div class="w-2 h-2 rounded-sm bg-accent/40"></div><div class="w-2 h-2 rounded-sm bg-accent/70"></div><div class="w-2 h-2 rounded-sm bg-accent"></div></div><span>More</span></div>
         </div>
     </div>
 
     <!-- ── Weekly Bar Chart ────────────────────────── -->
     <div class="bg-white rounded-[2.5rem] p-8 shadow-premium border border-slate-100 space-y-8">
-        <div class="flex items-center justify-between">
-            <h3 class="text-xs font-black uppercase tracking-widest text-slate-400">7 ngày gần nhất</h3>
-            <div class="flex items-center gap-4 text-[10px] font-black uppercase tracking-widest">
-                <div class="flex items-center gap-1.5">
-                    <span class="w-2 h-2 rounded-full bg-primary"></span>
-                    <span class="text-primary">Tổng</span>
-                </div>
-                <div class="flex items-center gap-1.5">
-                    <span class="w-2 h-2 rounded-full bg-secondary"></span>
-                    <span class="text-secondary">Deep</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="relative h-64">
-            <canvas id="weekly-chart"></canvas>
-        </div>
+        <div class="flex items-center justify-between"><h3 class="text-xs font-black uppercase tracking-widest text-slate-400">7 ngày gần nhất</h3><div class="flex items-center gap-4 text-[10px] font-black uppercase tracking-widest"><div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-primary"></span><span class="text-primary">Tổng</span></div><div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-secondary"></span><span class="text-secondary">Deep</span></div></div></div>
+        <div class="relative h-64"><canvas id="weekly-chart"></canvas></div>
     </div>
-
-    <!-- ── Category Breakdown ──────────────────────── -->
-    <div class="space-y-4 pb-4">
-        <h3 class="text-xs font-black uppercase tracking-widest text-primary px-2">Phân bổ danh mục</h3>
-        <div class="space-y-3">
-            {% for name, data in daily.categories.items() %}
-            {% set pct = ((data.minutes / 1440) * 100) | round(1) %}
-            <div class="bg-white p-5 rounded-3xl border border-slate-50 shadow-sm flex items-center gap-4">
-                <div class="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
-                     style="background: {{ data.color }}15; color: {{ data.color }}">
-                    <i data-lucide="tag" class="w-5 h-5"></i>
-                </div>
-                <div class="flex-1 min-w-0">
-                    <div class="flex items-center justify-between">
-                        <h4 class="font-bold text-primary truncate">{{ name }}</h4>
-                        <span class="text-sm font-black text-primary">{{ format_duration_short(data.minutes) }}</span>
-                    </div>
-                    <div class="mt-2 h-1.5 w-full bg-slate-50 rounded-full overflow-hidden">
-                        <div class="h-full rounded-full transition-all duration-1000" 
-                             style="width: {{ pct }}%; background: {{ data.color }}"></div>
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-
 </div>
 {% endblock %}
 
@@ -124,54 +78,6 @@
 <script>
     const weeklyData = {{ weekly | tojson }};
     const ctx = document.getElementById('weekly-chart').getContext('2d');
-    
-    new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: weeklyData.map(d => d.label.split(' ')[0]), // Just the day name
-            datasets: [
-                {
-                    label: 'Deep Work',
-                    data: weeklyData.map(d => d.pomodoro),
-                    backgroundColor: '#F1A208',
-                    borderRadius: 20,
-                    barThickness: 8,
-                },
-                {
-                    label: 'Tổng',
-                    data: weeklyData.map(d => d.total),
-                    backgroundColor: '#0A1128',
-                    borderRadius: 20,
-                    barThickness: 8,
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                x: { stacked: true, grid: { display: false }, border: { display: false }, ticks: { font: { size: 10, weight: '900' }, color: '#94A3B8' } },
-                y: { stacked: false, grid: { display: false }, border: { display: false }, ticks: { display: false } }
-            },
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    backgroundColor: '#0A1128',
-                    titleFont: { size: 12, weight: '900' },
-                    bodyFont: { size: 11 },
-                    padding: 12,
-                    displayColors: false,
-                    callbacks: {
-                        label: (ctx) => {
-                            const mins = ctx.raw;
-                            const h = Math.floor(mins / 60);
-                            const m = mins % 60;
-                            return ` ${ctx.dataset.label}: ${h}h ${String(m).padStart(2,'0')}m`;
-                        }
-                    }
-                }
-            }
-        }
-    });
+    new Chart(ctx, { type: 'bar', data: { labels: weeklyData.map(d => d.label.split(' ')[0]), datasets: [ { label: 'Deep Work', data: weeklyData.map(d => d.pomodoro), backgroundColor: '#F1A208', borderRadius: 20, barThickness: 8 }, { label: 'Tổng', data: weeklyData.map(d => d.total), backgroundColor: '#0A1128', borderRadius: 20, barThickness: 8 } ] }, options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true, grid: { display: false }, border: { display: false }, ticks: { font: { size: 10, weight: '900' }, color: '#94A3B8' } }, y: { stacked: false, grid: { display: false }, border: { display: false }, ticks: { display: false } } }, plugins: { legend: { display: false }, tooltip: { backgroundColor: '#0A1128', titleFont: { size: 12, weight: '900' }, bodyFont: { size: 11 }, padding: 12, displayColors: false, callbacks: { label: (ctx) => { const mins = ctx.raw; const h = Math.floor(mins / 60); const m = mins % 60; return ` ${ctx.dataset.label}: ${h}h ${String(m).padStart(2,'0')}m`; } } } } } });
 </script>
 {% endblock %}

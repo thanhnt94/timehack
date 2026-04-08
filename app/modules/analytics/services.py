@@ -24,7 +24,8 @@ class AnalyticsService:
 
         start_utc, end_utc = get_day_boundaries(date_obj)
 
-        entries = TimeEntry.query.filter(
+        from sqlalchemy.orm import joinedload
+        entries = TimeEntry.query.options(joinedload(TimeEntry.category)).filter(
             TimeEntry.user_id == user_id,
             TimeEntry.start_time >= start_utc,
             TimeEntry.start_time < end_utc,
@@ -48,9 +49,18 @@ class AnalyticsService:
             root_cat = entry.category.get_root() if entry.category else None
             cat_name = root_cat.name if root_cat else 'Không phân loại'
             cat_color = root_cat.color if root_cat else '#94A3B8'
+            cat_icon = root_cat.icon if root_cat else '📌'
 
             if cat_name not in category_map:
-                category_map[cat_name] = {'minutes': 0, 'color': cat_color}
+                from app.utils.gamification import calculate_level_info
+                lvl_info = calculate_level_info(root_cat.current_exp if root_cat else 0)
+                category_map[cat_name] = {
+                    'minutes': 0, 
+                    'color': cat_color, 
+                    'icon': cat_icon,
+                    'level': root_cat.current_level if root_cat else 1,
+                    'level_info': lvl_info
+                }
             category_map[cat_name]['minutes'] += dur
 
         unlogged = max(0, MINUTES_IN_DAY - total_logged)
@@ -147,3 +157,55 @@ class AnalyticsService:
             })
 
         return heatmap
+
+class HabitRecognitionService:
+    @staticmethod
+    def analyze_and_create_habits(user_id: int):
+        """Phân tích lịch sử 7 ngày để tìm các khung giờ lặp lại (Patterns)."""
+        from app.models.smart_habit import SmartHabit
+        from datetime import time
+        
+        seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
+        
+        # 1. Query TimeEntry trong 7 ngày qua
+        entries = TimeEntry.query.filter(
+            TimeEntry.user_id == user_id,
+            TimeEntry.start_time >= seven_days_ago,
+            TimeEntry.is_running == False  # noqa: E712
+        ).all()
+
+        # 2. Heuristic: Gom nhóm theo Category và Slot 30 phút
+        patterns = {}
+        for e in entries:
+            # Chuyển về giờ địa phương (giả sử VN) để phân tích slot
+            # Trong thực tế nên dùng current_user.timezone
+            h = e.start_time.hour 
+            m = e.start_time.minute
+            slot_idx = (h * 60 + m) // 30
+            key = (e.category_id, slot_idx)
+            patterns[key] = patterns.get(key, 0) + 1
+
+        new_suggestions = []
+        for (cat_id, slot_idx), count in patterns.items():
+            if count >= 3: # Lặp lại ít nhất 3 lần trong tuần
+                h, m = divmod(slot_idx * 30, 60)
+                habit_time = time(h, m)
+
+                # Kiểm tra habit đã tồn tại chưa
+                exists = SmartHabit.query.filter_by(
+                    user_id=user_id, 
+                    category_id=cat_id, 
+                    expected_time=habit_time
+                ).first()
+
+                if not exists:
+                    habit = SmartHabit(
+                        user_id=user_id,
+                        category_id=cat_id,
+                        expected_time=habit_time
+                    )
+                    db.session.add(habit)
+                    db.session.commit()
+                    new_suggestions.append(habit.to_dict())
+        
+        return new_suggestions

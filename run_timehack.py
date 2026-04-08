@@ -55,5 +55,9 @@ with app.app_context():
 
     print("Database ready.")
 
+    # Khởi tạo Scheduler quét Todo
+    from app.utils.scheduler import start_scheduler
+    start_scheduler(app)
+
 if __name__ == '__main__':
     app.run(debug=True, port=5050)

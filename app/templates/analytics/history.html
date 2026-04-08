@@ -27,32 +27,34 @@
                 <div class="space-y-2">
                     {% for item in group.day_items %}
                         {% if item.is_gap %}
-                            <!-- Gap Indicator (Visualizing Free Time) -->
                             <div onclick="openAddManualGap('{{ group.date.isoformat() }}', '{{ item.start.strftime('%H:%M') }}', '{{ item.end.strftime('%H:%M') }}')" 
                                  class="group flex items-center gap-4 px-6 py-3 border-2 border-dashed border-slate-100 rounded-2xl hover:border-accent/30 hover:bg-accent/5 transition-all cursor-pointer">
-                                <div class="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-300 group-hover:text-accent transition-colors">
-                                    <i data-lucide="plus" class="w-4 h-4"></i>
-                                </div>
-                                <div class="flex-1">
-                                    <span class="text-[10px] font-black text-slate-300 group-hover:text-accent uppercase tracking-widest">Khoảng trống: {{ item.duration_str }}</span>
-                                </div>
+                                <div class="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-300 group-hover:text-accent transition-colors"><i data-lucide="plus" class="w-4 h-4"></i></div>
+                                <div class="flex-1"><span class="text-[10px] font-black text-slate-300 group-hover:text-accent uppercase tracking-widest">Khoảng trống: {{ item.duration_str }}</span></div>
                                 <span class="text-[10px] font-bold text-slate-200 group-hover:text-accent/50">{{ item.start.strftime('%H:%M') }} - {{ item.end.strftime('%H:%M') }}</span>
                             </div>
                         {% else %}
                             {% set entry = item.data %}
-                            <div onclick="openEditEntry({{ entry.to_dict() | tojson | forceescape }}, '{{ group.date.isoformat() }}')" 
-                                 class="bg-white p-5 flex items-center gap-4 rounded-[2rem] shadow-sm border border-slate-50 hover:bg-slate-50/50 transition-all cursor-pointer active:scale-[0.98]">
-                                <div class="w-12 h-12 rounded-2xl flex items-center justify-center text-xl flex-shrink-0"
-                                     style="background-color: {{ entry.category.color if entry.category else '#f1f5f9' }}15; color: {{ entry.category.color if entry.category else '#64748b' }}">
+                            <div onclick="openEditEntry({{ entry.to_dict() | tojson | forceescape }})" 
+                                 class="bg-white p-5 flex items-center gap-4 rounded-[2rem] shadow-sm border border-slate-50 hover:bg-slate-50/50 transition-all cursor-pointer active:scale-[0.98] relative overflow-hidden">
+                                
+                                {% if entry.is_pomodoro %}
+                                <div class="absolute top-0 right-0 w-8 h-8 bg-secondary/10 flex items-center justify-center rounded-bl-2xl">
+                                    <i data-lucide="flame" class="w-3.5 h-3.5 text-secondary fill-current"></i>
+                                </div>
+                                {% endif %}
+
+                                <div class="w-12 h-12 rounded-2xl flex items-center justify-center text-xl flex-shrink-0" style="background-color: {{ entry.category.color if entry.category else '#f1f5f9' }}15; color: {{ entry.category.color if entry.category else '#64748b' }}">
                                     {{ entry.category.icon if entry.category and entry.category.icon else '📌' }}
                                 </div>
                                 <div class="flex-1 min-w-0">
                                     <h4 class="font-bold text-primary text-[15px] truncate">{{ entry.category.name if entry.category else 'Không phân loại' }}</h4>
-                                    {% if entry.todo_content %}
-                                        <p class="text-[11px] font-medium text-slate-400 truncate italic mt-0.5">{{ entry.todo_content }}</p>
-                                    {% elif entry.note %}
-                                        <p class="text-[11px] font-medium text-slate-400 truncate mt-0.5">{{ entry.note }}</p>
+                                    {% if entry.tags %}
+                                    <div class="flex flex-wrap gap-1 mt-1">
+                                        {% for tag in entry.tags %}<span class="text-[9px] font-black text-accent uppercase tracking-tighter">#{{ tag }}</span>{% endfor %}
+                                    </div>
                                     {% endif %}
+                                    <p class="text-[11px] font-medium text-slate-400 truncate mt-0.5 italic">{{ entry.todo_content or entry.note or 'Không có ghi chú' }}</p>
                                 </div>
                                 <div class="text-right flex-shrink-0">
                                     <p class="text-[15px] font-black text-primary tracking-tight">{{ format_duration_short(entry.duration) }}</p>
@@ -73,129 +75,188 @@
     </div>
 </div>
 
+<!-- ── QUICK MANUAL FLY BUTTON ────── -->
+<div class="fixed bottom-28 right-6 z-40">
+    <button onclick="openQuickManual()" class="w-14 h-14 rounded-full bg-gradient-to-tr from-accent to-emerald-500 text-white shadow-lg flex items-center justify-center active:scale-90 transition-all border-4 border-white"><i data-lucide="plus" class="w-7 h-7 stroke-[3]"></i></button>
+</div>
+
 <!-- ── Unified Edit/Add Modal ─────────────────────── -->
 <div id="entry-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-6 bg-primary/40 backdrop-blur-md">
-    <div class="bg-white rounded-[3rem] w-full max-w-md p-8 space-y-6 shadow-2xl animate-slide-up">
+    <div class="bg-white rounded-[3rem] w-full max-w-md p-8 space-y-6 shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto no-scrollbar">
         <div class="flex items-center justify-between">
             <h3 id="modal-title" class="text-xl font-black uppercase tracking-tight text-primary">Sửa bản ghi</h3>
             <button onclick="closeEntryModal()" class="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center active:scale-90"><i data-lucide="x" class="w-5 h-5 text-primary"></i></button>
         </div>
 
         <input type="hidden" id="entry-id">
-        <input type="hidden" id="entry-date">
         
         <div class="space-y-4">
-            <!-- Category Edit -->
             <div class="space-y-1">
                 <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Danh mục</label>
                 <div class="relative">
-                    <select id="entry-category" class="w-full px-5 py-3.5 bg-slate-50 rounded-2xl border-none font-bold text-primary outline-none focus:ring-2 focus:ring-accent/20 appearance-none">
+                    <select id="entry-category" onchange="updateTagSuggestions()" class="w-full px-5 py-3.5 bg-slate-50 rounded-2xl border-none font-bold text-primary outline-none focus:ring-2 focus:ring-accent/20 appearance-none">
                         <option value="">📂 Chọn danh mục...</option>
-                        {% for cat in categories %}
-                        <option value="{{ cat.id }}">{{ cat.get_full_path() }}</option>
-                        {% endfor %}
+                        {% for cat in categories %}<option value="{{ cat.id }}">{{ cat.get_full_path() }}</option>{% endfor %}
                     </select>
                     <div class="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none"><i data-lucide="chevron-down" class="w-4 h-4 text-slate-300"></i></div>
                 </div>
             </div>
 
-            <!-- Note Edit -->
+            <!-- Tag Suggestions in Modal -->
+            <div id="modal-tags-container" class="hidden space-y-2">
+                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Gợi ý Tag</label>
+                <div id="modal-tags-cloud" class="flex flex-wrap gap-2"></div>
+            </div>
+
+            <label class="flex items-center justify-between p-4 bg-slate-50 rounded-2xl cursor-pointer group transition-all hover:bg-slate-100">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-lg bg-secondary/10 flex items-center justify-center text-secondary"><i data-lucide="flame" class="w-4 h-4 fill-current"></i></div>
+                    <span class="text-xs font-bold text-primary uppercase tracking-widest">Chế độ Deep Work</span>
+                </div>
+                <input type="checkbox" id="entry-pomo" class="w-6 h-6 rounded-lg border-slate-200 text-secondary focus:ring-secondary/20">
+            </label>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div class="space-y-1"><label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Ngày bắt đầu</label><input type="date" id="entry-start-date" class="w-full p-3 bg-slate-50 rounded-2xl font-bold text-sm outline-none border-none"></div>
+                <div class="space-y-1"><label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Giờ bắt đầu</label><input type="time" id="entry-start-time" class="w-full p-3 bg-slate-50 rounded-2xl font-bold text-lg text-center outline-none border-none"></div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div class="space-y-1"><label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Ngày kết thúc</label><input type="date" id="entry-end-date" class="w-full p-3 bg-slate-50 rounded-2xl font-bold text-sm outline-none border-none"></div>
+                <div class="space-y-1"><label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Giờ kết thúc</label><input type="time" id="entry-end-time" class="w-full p-3 bg-slate-50 rounded-2xl font-bold text-lg text-center outline-none border-none"></div>
+            </div>
+
             <div class="space-y-1">
                 <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Ghi chú</label>
                 <textarea id="entry-note" placeholder="Bạn đã làm gì..." class="w-full p-4 bg-slate-50 rounded-2xl font-bold text-primary outline-none focus:ring-2 focus:ring-accent/20 resize-none h-20 text-sm"></textarea>
             </div>
-
-            <div class="grid grid-cols-2 gap-4">
-                <div class="space-y-1">
-                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Bắt đầu</label>
-                    <input type="time" id="entry-start-time" class="w-full p-4 bg-slate-50 rounded-2xl font-bold text-lg text-center outline-none">
-                </div>
-                <div class="space-y-1">
-                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Kết thúc</label>
-                    <input type="time" id="entry-end-time" class="w-full p-4 bg-slate-50 rounded-2xl font-bold text-lg text-center outline-none">
-                </div>
-            </div>
         </div>
 
         <div class="flex gap-3 pt-2">
-            <button id="btn-delete" onclick="deleteEntry()" class="w-14 h-14 bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center active:scale-90">
-                <i data-lucide="trash-2" class="w-6 h-6"></i>
-            </button>
-            <button id="btn-save" onclick="handleSave()" class="flex-1 bg-primary text-white rounded-2xl font-black uppercase tracking-widest shadow-lg active:scale-95">
-                Lưu thay đổi
-            </button>
+            <button id="btn-delete" onclick="deleteEntry()" class="w-14 h-14 bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center active:scale-90"><i data-lucide="trash-2" class="w-6 h-6"></i></button>
+            <button id="btn-save" onclick="handleSave()" class="flex-1 bg-primary text-white rounded-2xl font-black uppercase tracking-widest shadow-lg active:scale-95">Lưu thay đổi</button>
         </div>
     </div>
 </div>
 
 <script>
     const CSRF = document.querySelector('meta[name="csrf-token"]').content;
-    let modalMode = 'edit'; // 'edit' or 'add'
+    const TAGS_DATA = {{ tags_data | default([]) | tojson }};
+    let modalMode = 'edit', selectedTagIds = new Set();
 
-    function openEditEntry(entry, date) {
+    function openEditEntry(entry) {
         modalMode = 'edit';
         document.getElementById('modal-title').textContent = "Sửa bản ghi";
         document.getElementById('entry-id').value = entry.id;
-        document.getElementById('entry-date').value = date;
         document.getElementById('entry-note').value = entry.note || '';
         document.getElementById('entry-category').value = entry.category_id || '';
+        document.getElementById('entry-pomo').checked = entry.is_pomodoro || false;
         
-        if (entry.start_time) document.getElementById('entry-start-time').value = entry.start_time.split('T')[1].substring(0, 5);
-        if (entry.end_time) document.getElementById('entry-end-time').value = entry.end_time.split('T')[1].substring(0, 5);
+        selectedTagIds.clear();
+        // Cần truyền tag_ids thực tế từ entry. Hiện tại to_dict() trả về tên, ta sẽ map lại hoặc sửa to_dict trả ID
+        // Tạm thời fix: Nếu entry.tags tồn tại, tìm ID tương ứng trong TAGS_DATA
+        if (entry.tags) {
+            entry.tags.forEach(tagName => {
+                const tag = TAGS_DATA.find(t => t.name === tagName);
+                if (tag) selectedTagIds.add(tag.id);
+            });
+        }
+
+        if (entry.start_time) {
+            const parts = entry.start_time.split('T');
+            document.getElementById('entry-start-date').value = parts[0];
+            document.getElementById('entry-start-time').value = parts[1].substring(0, 5);
+        }
+        if (entry.end_time) {
+            const parts = entry.end_time.split('T');
+            document.getElementById('entry-end-date').value = parts[0];
+            document.getElementById('entry-end-time').value = parts[1].substring(0, 5);
+        }
 
         document.getElementById('btn-delete').classList.remove('hidden');
         document.getElementById('entry-modal').classList.remove('hidden');
+        updateTagSuggestions();
         lucide.createIcons();
+    }
+
+    function updateTagSuggestions() {
+        const catId = document.getElementById('entry-category').value;
+        const container = document.getElementById('modal-tags-container');
+        const cloud = document.getElementById('modal-tags-cloud');
+        cloud.innerHTML = '';
+
+        if (catId) {
+            const filteredTags = TAGS_DATA.filter(t => t.category_ids.includes(parseInt(catId)));
+            if (filteredTags.length > 0) {
+                container.classList.remove('hidden');
+                filteredTags.forEach(tag => {
+                    const btn = document.createElement('button');
+                    btn.textContent = '#' + tag.name;
+                    const isActive = selectedTagIds.has(tag.id);
+                    btn.className = `px-3 py-1.5 rounded-xl text-[10px] font-bold transition-all active:scale-90 border ${isActive ? 'bg-primary text-white border-primary' : 'bg-slate-50 text-slate-400 border-slate-100'}`;
+                    btn.onclick = () => {
+                        if (selectedTagIds.has(tag.id)) {
+                            selectedTagIds.delete(tag.id);
+                            btn.className = "px-3 py-1.5 rounded-xl bg-slate-50 text-[10px] font-bold text-slate-400 border border-slate-100 transition-all active:scale-90";
+                        } else {
+                            selectedTagIds.add(tag.id);
+                            btn.className = "px-3 py-1.5 rounded-xl bg-primary text-white text-[10px] font-bold border border-primary transition-all active:scale-90";
+                        }
+                    };
+                    cloud.appendChild(btn);
+                });
+            } else { container.classList.add('hidden'); }
+        } else { container.classList.add('hidden'); }
     }
 
     function openAddManualGap(date, start, end) {
         modalMode = 'add';
         document.getElementById('modal-title').textContent = "Điền khoảng trống";
         document.getElementById('entry-id').value = "";
-        document.getElementById('entry-date').value = date;
         document.getElementById('entry-note').value = "";
         document.getElementById('entry-category').value = "";
+        document.getElementById('entry-pomo').checked = false;
+        selectedTagIds.clear();
+        document.getElementById('entry-start-date').value = date;
+        document.getElementById('entry-end-date').value = date;
         document.getElementById('entry-start-time').value = start;
         document.getElementById('entry-end-time').value = end;
-
         document.getElementById('btn-delete').classList.add('hidden');
         document.getElementById('entry-modal').classList.remove('hidden');
+        updateTagSuggestions();
+        lucide.createIcons();
+    }
+
+    function openQuickManual() {
+        modalMode = 'add';
+        const today = new Date().toISOString().split('T')[0], now = new Date();
+        const time = String(now.getHours()).padStart(2, '0') + ":" + String(now.getMinutes()).padStart(2, '0');
+        document.getElementById('modal-title').textContent = "Thêm nhanh";
+        document.getElementById('entry-id').value = ""; document.getElementById('entry-note').value = "";
+        document.getElementById('entry-category').value = ""; document.getElementById('entry-pomo').checked = false;
+        selectedTagIds.clear();
+        document.getElementById('entry-start-date').value = today; document.getElementById('entry-end-date').value = today;
+        document.getElementById('entry-start-time').value = time; document.getElementById('entry-end-time').value = time;
+        document.getElementById('btn-delete').classList.add('hidden');
+        document.getElementById('entry-modal').classList.remove('hidden');
+        updateTagSuggestions();
         lucide.createIcons();
     }
 
     function closeEntryModal() { document.getElementById('entry-modal').classList.add('hidden'); }
 
     async function handleSave() {
-        const id = document.getElementById('entry-id').value;
-        const date = document.getElementById('entry-date').value;
-        const note = document.getElementById('entry-note').value;
-        const st = document.getElementById('entry-start-time').value;
-        const et = document.getElementById('entry-end-time').value;
-        const catId = document.getElementById('entry-category').value;
+        const id = document.getElementById('entry-id').value, note = document.getElementById('entry-note').value;
+        const catId = document.getElementById('entry-category').value, isPomo = document.getElementById('entry-pomo').checked;
+        const sDate = document.getElementById('entry-start-date').value, sTime = document.getElementById('entry-start-time').value;
+        const eDate = document.getElementById('entry-end-date').value, eTime = document.getElementById('entry-end-time').value;
 
-        if (!st || !et) return;
-
-        const data = {
-            note: note,
-            category_id: catId ? parseInt(catId) : null,
-            start_time: date + 'T' + st + ':00',
-            end_time: date + 'T' + et + ':00'
-        };
-
+        if (!sDate || !sTime || !eDate || !eTime) { alert("Vui lòng nhập đủ ngày và giờ"); return; }
+        const data = { note, category_id: catId ? parseInt(catId) : null, is_pomodoro: isPomo, start_time: `${sDate}T${sTime}:00`, end_time: `${eDate}T${eTime}:00`, tag_ids: Array.from(selectedTagIds) };
         const url = modalMode === 'edit' ? `/tracker/api/entry/${id}` : '/tracker/api/manual';
         const method = modalMode === 'edit' ? 'PUT' : 'POST';
-
-        const res = await fetch(url, {
-            method: method,
-            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
-            body: JSON.stringify(data)
-        });
-
-        if (res.ok) window.location.reload();
-        else {
-            const err = await res.json();
-            alert(err.message || "Lỗi khi xử lý");
-        }
+        const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF }, body: JSON.stringify(data) });
+        if (res.ok) window.location.reload(); else { const err = await res.json(); alert(err.message || "Lỗi khi xử lý"); }
     }
 
     async function deleteEntry() {

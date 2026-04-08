@@ -22,7 +22,40 @@ def preferences():
     # Sort by full_path ensures parents come before children
     categories.sort(key=lambda c: c.get_full_path())
     pomo = PomodoroSettings.get_or_create(current_user.id)
-    return render_template('settings/preferences.html', categories=categories, pomo=pomo)
+    from app.models.tag import Tag
+    tags = Tag.query.filter_by(user_id=current_user.id).all()
+    return render_template('settings/preferences.html', categories=categories, pomo=pomo, tags=tags)
+
+
+# ── Tag CRUD API ──────────────────────────────────────────
+
+@settings_bp.route('/api/tags', methods=['POST'])
+@login_required
+def api_add_tag():
+    data = request.get_json()
+    if not data or not data.get('name'):
+        return jsonify({'status': 'error', 'message': 'Tên tag là bắt buộc.'}), 400
+
+    tag = Tag(user_id=current_user.id, name=data['name'])
+    
+    # Liên kết với các categories
+    cat_ids = data.get('category_ids', [])
+    if cat_ids:
+        cats = Category.query.filter(Category.id.in_(cat_ids), Category.user_id == current_user.id).all()
+        tag.categories = cats
+
+    db.session.add(tag)
+    db.session.commit()
+    return jsonify({'status': 'ok', 'id': tag.id}), 201
+
+@settings_bp.route('/api/tags/<int:tag_id>', methods=['DELETE'])
+@login_required
+def api_delete_tag(tag_id):
+    tag = Tag.query.filter_by(id=tag_id, user_id=current_user.id).first()
+    if not tag: return jsonify({'status': 'error'}), 404
+    db.session.delete(tag)
+    db.session.commit()
+    return jsonify({'status': 'ok'}), 200
 
 
 @settings_bp.route('/')

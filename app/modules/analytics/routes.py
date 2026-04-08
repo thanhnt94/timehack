@@ -38,6 +38,7 @@ def overview():
 def history():
     from app.models.time_entry import TimeEntry
     from app.models.category import Category
+    from app.models.tag import Tag
     from app.utils.time_helpers import to_user_tz
     
     start_date_str = request.args.get('start_date')
@@ -101,9 +102,20 @@ def history():
             'day_items': processed_day
         })
         
+    # Lấy toàn bộ Tag của user kèm theo mapping với category cho JS
+    all_tags = Tag.query.filter_by(user_id=current_user.id).all()
+    tags_json = []
+    for t in all_tags:
+        tags_json.append({
+            'id': t.id,
+            'name': t.name,
+            'category_ids': [c.id for c in t.categories]
+        })
+
     return render_template('analytics/history.html', 
                            grouped_entries=grouped_entries, 
                            categories=categories,
+                           tags_data=tags_json,
                            start_date=start_date_str, 
                            end_date=end_date_str)
 

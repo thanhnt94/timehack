@@ -1,70 +1,73 @@
 {% extends "base.html" %}
-{% block title %}Cài đặt{% endblock %}
+{% block title %}Cấu hình{% endblock %}
 
 {% block content %}
-<div class="px-6 space-y-10 pb-10">
-    <!-- Header with Back Button -->
+<div class="px-6 space-y-10 pb-20">
     <div class="flex items-center gap-4 pt-6">
-        <a href="{{ url_for('settings.profile') }}" class="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center text-primary active:scale-90 transition-all">
-            <i data-lucide="chevron-left" class="w-6 h-6"></i>
-        </a>
+        <a href="{{ url_for('settings.profile') }}" class="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center text-primary active:scale-90 transition-all"><i data-lucide="chevron-left" class="w-6 h-6"></i></a>
         <h1 class="text-2xl font-black text-primary tracking-tight uppercase">Cấu hình</h1>
     </div>
 
-    <!-- ── Categories Section (Tree View) ────────────── -->
+    <!-- ── Category Management ──────────────────────── -->
     <div class="space-y-4">
         <div class="flex items-center justify-between px-2">
-            <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Quản lý danh mục</h3>
-            <button onclick="showAddCategory()" class="w-8 h-8 rounded-lg bg-primary text-accent flex items-center justify-center active:scale-90 transition-all">
-                <i data-lucide="plus" class="w-4 h-4"></i>
-            </button>
+            <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Danh mục</h3>
+            <button onclick="showAddCategory()" class="w-8 h-8 rounded-lg bg-primary text-accent flex items-center justify-center active:scale-90 transition-all"><i data-lucide="plus" class="w-4 h-4"></i></button>
         </div>
 
-        <!-- Add Category Form (Hidden) -->
         <div id="add-cat-form" class="hidden bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 space-y-4 animate-fade-in">
-            <div class="grid grid-cols-1 gap-3">
-                <input type="text" id="new-cat-name" placeholder="Tên danh mục..." class="w-full px-5 py-3.5 bg-slate-50 rounded-xl border-none font-bold text-primary outline-none focus:ring-2 focus:ring-accent/20">
-                <select id="new-cat-parent" class="w-full px-5 py-3.5 bg-slate-50 rounded-xl border-none font-bold text-primary outline-none text-sm appearance-none">
-                    <option value="">📂 Danh mục gốc (Không có cha)</option>
-                    {% for cat in categories %}
-                    <option value="{{ cat.id }}">{{ cat.get_full_path() }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="flex gap-3">
-                <button onclick="hideAddCategory()" class="flex-1 py-3 text-[10px] font-black uppercase text-slate-400">Huỷ</button>
-                <button onclick="addCategory()" class="flex-1 py-3 bg-primary text-white rounded-xl text-[10px] font-black uppercase shadow-lg">Lưu lại</button>
-            </div>
+            <input type="text" id="new-cat-name" placeholder="Tên danh mục..." class="w-full px-5 py-3.5 bg-slate-50 rounded-xl border-none font-bold text-primary outline-none focus:ring-2 focus:ring-accent/20">
+            <select id="new-cat-parent" class="w-full px-5 py-3.5 bg-slate-50 rounded-xl border-none font-bold text-primary outline-none text-sm appearance-none">
+                <option value="">📂 Danh mục gốc</option>
+                {% for cat in categories %}<option value="{{ cat.id }}">{{ cat.get_full_path() }}</option>{% endfor %}
+            </select>
+            <div class="flex gap-3"><button onclick="hideAddCategory()" class="flex-1 py-3 text-[10px] font-black uppercase text-slate-400">Huỷ</button><button onclick="addCategory()" class="flex-1 py-3 bg-primary text-white rounded-xl text-[10px] font-black uppercase">Lưu lại</button></div>
         </div>
 
-        <!-- Tree List -->
         <div class="space-y-1">
             {% for cat in categories %}
                 {% set level = cat.get_indent_level() %}
-                <div class="relative group" style="margin-left: {{ level * 1.5 }}rem;">
-                    
-                    <!-- Tree line for children -->
-                    {% if level > 0 %}
-                    <div class="absolute -left-4 top-0 bottom-0 w-px border-l-2 border-dashed border-slate-200"></div>
-                    <div class="absolute -left-4 top-1/2 w-3 h-px border-t-2 border-dashed border-slate-200"></div>
-                    {% endif %}
-
-                    <!-- Category Row -->
-                    <div class="flex items-center justify-between p-4 {{ 'bg-white shadow-sm border border-slate-50' if level == 0 else 'bg-slate-50/50' }} rounded-2xl group transition-all">
-                        <div class="flex items-center gap-3">
-                            <span class="{{ 'text-2xl' if level == 0 else 'text-lg' }}">{{ cat.icon or '📌' }}</span>
-                            <span class="{{ 'font-black text-primary' if level == 0 else 'font-bold text-slate-600 text-sm' }}">
-                                {{ cat.name }}
-                            </span>
-                        </div>
-                        
-                        <!-- Subtle Actions -->
-                        <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button class="p-2 text-slate-300 hover:text-primary transition-colors"><i data-lucide="pencil" class="w-4 h-4"></i></button>
-                            <button onclick="deleteCategory({{ cat.id }}, '{{ cat.name }}')" class="p-2 text-slate-300 hover:text-rose-500 transition-colors"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-                        </div>
+                <div class="relative" style="margin-left: {{ level * 1.5 }}rem;">
+                    {% if level > 0 %}<div class="absolute -left-4 top-0 bottom-0 w-px border-l-2 border-dashed border-slate-200"></div><div class="absolute -left-4 top-1/2 w-3 h-px border-t-2 border-dashed border-slate-200"></div>{% endif %}
+                    <div class="flex items-center justify-between p-4 {{ 'bg-white shadow-sm border border-slate-50' if level == 0 else 'bg-slate-50/50' }} rounded-2xl group">
+                        <div class="flex items-center gap-3"><span class="{{ 'text-2xl' if level == 0 else 'text-lg' }}">{{ cat.icon or '📌' }}</span><span class="{{ 'font-black text-primary' if level == 0 else 'font-bold text-slate-600 text-sm' }}">{{ cat.name }}</span></div>
+                        <button onclick="deleteCategory({{ cat.id }}, '{{ cat.name }}')" class="p-2 text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
                     </div>
                 </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- ── SMART TAG MANAGEMENT ────────────────────── -->
+    <div class="space-y-4">
+        <div class="flex items-center justify-between px-2">
+            <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Quản lý Smart Tag</h3>
+            <button onclick="showAddTag()" class="w-8 h-8 rounded-lg bg-emerald-500 text-white flex items-center justify-center active:scale-90 transition-all shadow-lg shadow-emerald-500/20"><i data-lucide="tag" class="w-4 h-4"></i></button>
+        </div>
+
+        <div id="add-tag-form" class="hidden bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 space-y-4 animate-fade-in">
+            <input type="text" id="new-tag-name" placeholder="Tên tag (VD: Podcast)..." class="w-full px-5 py-3.5 bg-slate-50 rounded-xl border-none font-bold text-primary outline-none focus:ring-2 focus:ring-accent/20">
+            <div class="space-y-2">
+                <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-2">Xuất hiện trong các Danh mục:</label>
+                <div class="flex flex-wrap gap-2 max-h-40 overflow-y-auto p-2 bg-slate-50 rounded-xl">
+                    {% for cat in categories %}
+                    <label class="flex items-center gap-2 px-3 py-1.5 bg-white rounded-lg border border-slate-100 cursor-pointer active:scale-95 transition-all">
+                        <input type="checkbox" name="tag-cats" value="{{ cat.id }}" class="w-4 h-4 rounded text-accent focus:ring-accent/20">
+                        <span class="text-[10px] font-bold text-slate-600">{{ cat.name }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="flex gap-3"><button onclick="hideAddTag()" class="flex-1 py-3 text-[10px] font-black uppercase text-slate-400">Huỷ</button><button onclick="addTag()" class="flex-1 py-3 bg-emerald-500 text-white rounded-xl text-[10px] font-black uppercase shadow-lg shadow-emerald-500/20">Thêm Tag</button></div>
+        </div>
+
+        <div class="flex flex-wrap gap-3">
+            {% for tag in tags %}
+            <div class="group flex items-center gap-2 px-4 py-2 bg-white rounded-full shadow-sm border border-slate-50 transition-all hover:border-emerald-200">
+                <span class="text-xs font-bold text-primary">#{{ tag.name }}</span>
+                <span class="text-[8px] font-black text-slate-300 uppercase">{{ tag.categories|length }} cats</span>
+                <button onclick="deleteTag({{ tag.id }})" class="text-slate-200 hover:text-rose-500 transition-colors"><i data-lucide="x" class="w-3 h-3"></i></button>
+            </div>
             {% endfor %}
         </div>
     </div>
@@ -74,30 +77,10 @@
         <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Cài đặt Pomodoro</h3>
         <div class="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-50 space-y-8">
             <div class="grid grid-cols-2 gap-6">
-                <div class="space-y-2">
-                    <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-2">Làm việc (phút)</label>
-                    <input type="number" id="pomo-work" value="{{ pomo.work_duration }}" class="w-full p-4 bg-slate-50 rounded-2xl font-black text-center outline-none">
-                </div>
-                <div class="space-y-2">
-                    <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-2">Nghỉ ngắn (phút)</label>
-                    <input type="number" id="pomo-short" value="{{ pomo.short_break }}" class="w-full p-4 bg-slate-50 rounded-2xl font-black text-center outline-none">
-                </div>
+                <div class="space-y-2"><label class="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-2">Làm việc (phút)</label><input type="number" id="pomo-work" value="{{ pomo.work_duration }}" class="w-full p-4 bg-slate-50 rounded-2xl font-black text-center outline-none"></div>
+                <div class="space-y-2"><label class="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-2">Nghỉ ngắn (phút)</label><input type="number" id="pomo-short" value="{{ pomo.short_break }}" class="w-full p-4 bg-slate-50 rounded-2xl font-black text-center outline-none"></div>
             </div>
-            
-            <div class="space-y-4">
-                <label class="flex items-center justify-between p-4 bg-slate-50 rounded-2xl cursor-pointer">
-                    <span class="text-xs font-bold text-primary uppercase">Tự động nghỉ</span>
-                    <input type="checkbox" id="pomo-auto-break" {{ 'checked' if pomo.auto_start_breaks else '' }} class="w-5 h-5 rounded-md border-slate-200 text-accent focus:ring-accent/20">
-                </label>
-                <label class="flex items-center justify-between p-4 bg-slate-50 rounded-2xl cursor-pointer">
-                    <span class="text-xs font-bold text-primary uppercase">Âm thanh</span>
-                    <input type="checkbox" id="pomo-sound" {{ 'checked' if pomo.sound_enabled else '' }} class="w-5 h-5 rounded-md border-slate-200 text-accent focus:ring-accent/20">
-                </label>
-            </div>
-
-            <button onclick="savePomodoro()" class="w-full py-5 bg-primary text-white rounded-full font-black text-[10px] uppercase tracking-[0.2em] shadow-lg active:scale-95 transition-all">
-                Lưu cài đặt
-            </button>
+            <button onclick="savePomodoro()" class="w-full py-5 bg-primary text-white rounded-full font-black text-[10px] uppercase tracking-[0.2em] shadow-lg active:scale-95 transition-all">Lưu cài đặt</button>
         </div>
     </div>
 </div>
@@ -107,38 +90,32 @@
 
     function showAddCategory() { document.getElementById('add-cat-form').classList.toggle('hidden'); }
     function hideAddCategory() { document.getElementById('add-cat-form').classList.add('hidden'); }
-
     function addCategory() {
-        const name = document.getElementById('new-cat-name').value;
-        const parent_id = document.getElementById('new-cat-parent').value;
+        const name = document.getElementById('new-cat-name').value, parent_id = document.getElementById('new-cat-parent').value;
         if (!name) return;
-        fetch('/settings/api/categories', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
-            body: JSON.stringify({ name, parent_id: parent_id || null })
-        }).then(r => { if (r.ok) location.reload(); });
+        fetch('/settings/api/categories', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF }, body: JSON.stringify({ name, parent_id: parent_id || null }) }).then(r => { if (r.ok) location.reload(); });
     }
-
     function deleteCategory(id, name) {
         if (!confirm('Xoá "' + name + '" và tất cả danh mục con?')) return;
-        fetch('/settings/api/categories/' + id, {
-            method: 'DELETE',
-            headers: { 'X-CSRFToken': CSRF }
-        }).then(r => { if (r.ok) location.reload(); });
+        fetch('/settings/api/categories/' + id, { method: 'DELETE', headers: { 'X-CSRFToken': CSRF } }).then(r => { if (r.ok) location.reload(); });
+    }
+
+    function showAddTag() { document.getElementById('add-tag-form').classList.toggle('hidden'); }
+    function hideAddTag() { document.getElementById('add-tag-form').classList.add('hidden'); }
+    function addTag() {
+        const name = document.getElementById('new-tag-name').value;
+        const catIds = Array.from(document.querySelectorAll('input[name="tag-cats"]:checked')).map(cb => parseInt(cb.value));
+        if (!name) return;
+        fetch('/settings/api/tags', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF }, body: JSON.stringify({ name, category_ids: catIds }) }).then(r => { if (r.ok) location.reload(); });
+    }
+    function deleteTag(id) {
+        if (!confirm('Xoá tag này?')) return;
+        fetch('/settings/api/tags/' + id, { method: 'DELETE', headers: { 'X-CSRFToken': CSRF } }).then(r => { if (r.ok) location.reload(); });
     }
 
     function savePomodoro() {
-        const data = {
-            work_duration: parseInt(document.getElementById('pomo-work').value),
-            short_break: parseInt(document.getElementById('pomo-short').value),
-            auto_start_breaks: document.getElementById('pomo-auto-break').checked,
-            sound_enabled: document.getElementById('pomo-sound').checked,
-        };
-        fetch('/settings/api/pomodoro', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
-            body: JSON.stringify(data)
-        }).then(r => { if (r.ok) alert('✅ Đã lưu!'); });
+        const data = { work_duration: parseInt(document.getElementById('pomo-work').value), short_break: parseInt(document.getElementById('pomo-short').value) };
+        fetch('/settings/api/pomodoro', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF }, body: JSON.stringify(data) }).then(r => { if (r.ok) alert('✅ Đã lưu!'); });
     }
 </script>
 {% endblock %}

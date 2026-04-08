@@ -22,6 +22,10 @@ class TimeEntry(db.Model):
     user = db.relationship('User', back_populates='time_entries')
     category = db.relationship('Category', back_populates='time_entries')
     todo = db.relationship('TodoItem', backref=db.backref('time_entries', lazy=True))
+    
+    # Gắn Tag cho bản ghi
+    from .tag import entry_tags
+    tags = db.relationship('Tag', secondary=entry_tags, backref=db.backref('time_entries', lazy='dynamic'))
 
     def stop(self):
         if self.is_running and not self.end_time:
@@ -35,11 +39,18 @@ class TimeEntry(db.Model):
     def to_dict(self):
         return {
             'id': self.id,
+            'category_id': self.category_id,
             'category_name': self.category.name if self.category else None,
+            'category_color': self.category.color if self.category else '#94A3B8',
+            'todo_id': self.todo_id,
             'todo_content': self.todo.content if self.todo else None,
+            'is_pomodoro': self.is_pomodoro,
+            'note': self.note,
             'start_time': self.start_time.isoformat() if self.start_time else None,
+            'end_time': self.end_time.isoformat() if self.end_time else None,
             'is_running': self.is_running,
-            'duration': self.duration
+            'duration': self.duration,
+            'tags': [t.name for t in self.tags]
         }
 
 class PomodoroSettings(db.Model):

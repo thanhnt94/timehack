@@ -131,24 +131,38 @@ class TimeLoggingService:
                 kwargs[field] = dt.fromisoformat(val)
 
         for key, value in kwargs.items():
-            if hasattr(entry, key) and value is not None:
+            if key == 'tag_ids':
+                from app.models.tag import Tag
+                tags = Tag.query.filter(Tag.id.in_(value), Tag.user_id == user_id).all()
+                entry.tags = tags
+            elif hasattr(entry, key) and value is not None:
                 setattr(entry, key, value)
 
         # Recalculate duration if times changed
         if entry.start_time and entry.end_time:
-            start = entry.start_time.replace(tzinfo=None) if entry.start_time.tzinfo else entry.start_time
-            end = entry.end_time.replace(tzinfo=None) if entry.end_time.tzinfo else entry.end_time
+            # Xử lý múi giờ cho chuẩn xác (Coi input là giờ địa phương của user)
+            from app.utils.time_helpers import tz_offset_from_name
+            from app.models.user import User
+            user = db.session.get(User, user_id)
+            user_tz = user.timezone or 'Asia/Ho_Chi_Minh'
+            offset = tz_offset_from_name(user_tz)
+            tz_info = timezone(timedelta(hours=offset))
+
+            # Chuyển về naive UTC để so sánh database nếu cần, hoặc aware UTC
+            start = entry.start_time
+            if start.tzinfo is None: start = start.replace(tzinfo=tz_info).astimezone(timezone.utc)
             
-            if end <= start:
+            end = entry.end_time
+            if end.tzinfo is None: end = end.replace(tzinfo=tz_info).astimezone(timezone.utc)
+
+            # Cập nhật lại vào entry (loại bỏ tzinfo để khớp SQLite nếu cần)
+            entry.start_time = start.replace(tzinfo=None)
+            entry.end_time = end.replace(tzinfo=None)
+            
+            if entry.end_time <= entry.start_time:
                 return None, 'Thời gian kết thúc phải sau thời gian bắt đầu.'
             
-            # Check overlap
-            overlap = TimeLoggingService.check_overlap(user_id, start, end, exclude_id=entry_id)
-            if overlap:
-                cat_name = overlap.category.name if overlap.category else 'Không phân loại'
-                return None, f'Trùng lịch với "{cat_name}" ({overlap.start_time.strftime("%H:%M")}).'
-            
-            delta = end - start
+            delta = entry.end_time - entry.start_time
             entry.duration = max(1, int(delta.total_seconds() / 60))
 
         db.session.commit()

@@ -2,41 +2,16 @@
 {% block title %}Việc cần làm{% endblock %}
 
 {% block content %}
-<div class="px-6 space-y-10 pb-20">
-    <!-- Header -->
-    <div class="flex flex-col items-center text-center space-y-4">
-        <div class="w-20 h-20 rounded-[2.5rem] bg-primary flex items-center justify-center text-accent shadow-premium"><i data-lucide="check-circle" class="w-10 h-10"></i></div>
-        <div>
-            <h1 class="text-3xl font-black text-primary tracking-tight">Hôm nay làm gì?</h1>
-            <p class="text-slate-400 font-bold text-xs uppercase tracking-widest mt-2">Lên lịch và theo dõi tiến độ</p>
-        </div>
-    </div>
-
-    <!-- Input Area -->
-    <div class="bg-white p-6 rounded-[2.5rem] shadow-premium border border-slate-100 space-y-4">
-        <div class="space-y-3">
-            <input type="text" id="todo-input" placeholder="Bạn cần làm gì tiếp theo?" class="w-full bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-accent/20 font-bold text-primary placeholder-slate-300 px-6 py-4 outline-none">
-            
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div class="relative">
-                    <select id="todo-category" class="w-full bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-accent/20 font-bold text-primary px-10 py-4 text-sm appearance-none outline-none">
-                        <option value="" disabled selected>📂 Danh mục...</option>
-                        {% for cat in categories %}<option value="{{ cat.id }}">{{ cat.name }}</option>{% endfor %}
-                    </select>
-                    <div class="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none"><i data-lucide="tag" class="w-4 h-4 text-slate-300"></i></div>
-                </div>
-                <div class="relative">
-                    <input type="datetime-local" id="todo-scheduled" class="w-full bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-accent/20 font-bold text-primary px-10 py-4 text-sm outline-none">
-                    <div class="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none"><i data-lucide="calendar" class="w-4 h-4 text-slate-300"></i></div>
-                </div>
-            </div>
-        </div>
-        <button onclick="addTodo()" class="w-full py-4 rounded-2xl bg-primary text-white font-black text-xs uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-slate-800 transition-all active:scale-95 shadow-lg shadow-primary/20">
-            <i data-lucide="plus" class="w-5 h-5 text-accent"></i> THÊM CÔNG VIỆC
+<div class="px-6 space-y-8 pb-20">
+    <!-- ── Minimal Header ──────────────────────────── -->
+    <div class="flex items-center justify-between pt-4">
+        <h1 class="text-2xl font-black text-primary tracking-tight uppercase">Việc cần làm</h1>
+        <button onclick="openTodoModal()" class="w-12 h-12 rounded-2xl bg-primary text-accent flex items-center justify-center shadow-lg active:scale-90 transition-all">
+            <i data-lucide="plus" class="w-6 h-6 stroke-[3]"></i>
         </button>
     </div>
 
-    <!-- List -->
+    <!-- ── Todo List ───────────────────────────────── -->
     <div id="todo-list" class="space-y-4">
         {% if todos %}
             {% for todo in todos %}
@@ -45,6 +20,7 @@
                 {{ 'opacity-50' if todo.status == 'completed' }} 
                 {{ 'border-l-4 border-accent bg-emerald-50/30' if is_running }}" id="todo-{{ todo.id }}">
                 
+                <!-- Toggle Check -->
                 <button onclick="toggleTodo({{ todo.id }})" class="w-10 h-10 rounded-2xl border-2 flex items-center justify-center transition-all 
                     {% if todo.status == 'completed' %}bg-accent border-accent text-white{% else %}border-slate-100 text-transparent hover:border-accent/30{% endif %}">
                     <i data-lucide="check" class="w-6 h-6 stroke-[3]"></i>
@@ -58,7 +34,7 @@
                             <span class="relative inline-flex rounded-full h-3 w-3 bg-accent"></span>
                         </span>
                         {% endif %}
-                        <span class="block font-bold text-primary text-base {{ 'line-through text-slate-400' if todo.status == 'completed' }}" id="content-{{ todo.id }}">
+                        <span class="block font-bold text-primary text-base {{ 'line-through text-slate-400' if todo.status == 'completed' }}">
                             {{ todo.content }}
                         </span>
                     </div>
@@ -69,7 +45,7 @@
                             <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">{{ todo.category_name }}</span>
                         </div>
                         {% if is_running %}
-                            <span class="text-[9px] text-accent font-black uppercase tracking-widest animate-pulse">▶ Đang track thời gian</span>
+                            <span class="text-[9px] text-accent font-black uppercase tracking-widest animate-pulse">▶ Đang track</span>
                         {% elif todo.scheduled_time %}
                             <div class="flex items-center gap-1 px-2 py-0.5 bg-accent/10 rounded-md">
                                 <i data-lucide="clock" class="w-3 h-3 text-accent"></i>
@@ -79,56 +55,136 @@
                     </div>
                 </div>
 
-                {% if not is_running %}
-                <button onclick="deleteTodo({{ todo.id }})" class="w-10 h-10 rounded-2xl text-slate-200 hover:text-rose-500 hover:bg-rose-50 transition-all active:scale-90"><i data-lucide="trash-2" class="w-5 h-5"></i></button>
-                {% else %}
-                <a href="{{ url_for('time_logging.track') }}" class="w-10 h-10 rounded-2xl bg-accent/10 text-accent flex items-center justify-center active:scale-90 transition-all">
-                    <i data-lucide="external-link" class="w-5 h-5"></i>
-                </a>
-                {% endif %}
+                <!-- Actions Group -->
+                <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {% if not is_running %}
+                    <button onclick='openTodoModal({{ todo.to_dict()|tojson|safe }})' class="w-9 h-9 rounded-xl text-slate-300 hover:text-primary hover:bg-slate-50 flex items-center justify-center transition-all">
+                        <i data-lucide="edit-2" class="w-4 h-4"></i>
+                    </button>
+                    {% endif %}
+                    <button onclick="deleteTodo({{ todo.id }})" class="w-9 h-9 rounded-xl text-slate-200 hover:text-rose-500 hover:bg-rose-50 flex items-center justify-center transition-all">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+                </div>
             </div>
             {% endfor %}
         {% else %}
-            <div class="flex flex-col items-center justify-center py-16 px-8 bg-white rounded-[3rem] border border-dashed border-slate-100 relative overflow-hidden group/empty">
+            <div class="flex flex-col items-center justify-center py-20 px-8 bg-white rounded-[3rem] border border-dashed border-slate-100 relative overflow-hidden group/empty">
                 <div class="w-20 h-20 bg-slate-50 rounded-3xl flex items-center justify-center text-slate-200 mb-6"><i data-lucide="shopping-bag" class="w-10 h-10"></i></div>
-                <h3 class="text-xl font-black text-primary">Danh sách trống</h3>
-                <p class="text-xs text-slate-400 mt-2 text-center leading-relaxed">Mọi kế hoạch lớn đều bắt đầu từ một việc nhỏ.<br>Hãy lên lịch công việc đầu tiên ngay!</p>
+                <h3 class="text-xl font-black text-primary uppercase">Danh sách trống</h3>
+                <p class="text-xs text-slate-400 mt-2 text-center leading-relaxed">Hãy bấm nút + để bắt đầu lên kế hoạch!</p>
             </div>
         {% endif %}
     </div>
 </div>
 
+<!-- ── Unified Todo Modal (Add/Edit) ─────────────── -->
+<div id="todo-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-6 bg-primary/40 backdrop-blur-md">
+    <div class="bg-white rounded-[3.5rem] w-full max-w-md p-10 space-y-8 shadow-2xl animate-slide-up border border-white/50">
+        <div class="flex items-center justify-between">
+            <h3 id="modal-title" class="text-2xl font-black uppercase tracking-tight text-primary">Thêm công việc</h3>
+            <button onclick="closeTodoModal()" class="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center active:scale-90 transition-all text-primary"><i data-lucide="x" class="w-6 h-6"></i></button>
+        </div>
+
+        <div class="space-y-6">
+            <div class="space-y-2">
+                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-3">Bạn cần làm gì?</label>
+                <input type="text" id="todo-input" placeholder="Tên công việc..." class="w-full px-6 py-4 bg-slate-50 rounded-2xl border-none font-bold text-primary focus:ring-2 focus:ring-accent/20 outline-none">
+            </div>
+
+            <div class="space-y-2">
+                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-3">Danh mục</label>
+                <div class="relative">
+                    <select id="todo-category" class="w-full px-6 py-4 bg-slate-50 rounded-2xl border-none font-bold text-primary focus:ring-2 focus:ring-accent/20 outline-none appearance-none">
+                        <option value="" disabled selected>📂 Chọn danh mục...</option>
+                        {% for cat in categories %}<option value="{{ cat.id }}">{{ cat.get_full_path() }}</option>{% endfor %}
+                    </select>
+                    <div class="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none"><i data-lucide="chevron-down" class="w-4 h-4 text-slate-300"></i></div>
+                </div>
+            </div>
+
+            <div class="space-y-2">
+                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-3">Hẹn giờ (Tùy chọn)</label>
+                <input type="datetime-local" id="todo-scheduled" class="w-full px-6 py-4 bg-slate-50 rounded-2xl border-none font-bold text-primary focus:ring-2 focus:ring-accent/20 outline-none">
+            </div>
+            
+            <button id="modal-submit-btn" onclick="saveTodo()" class="w-full py-5 bg-primary text-white rounded-full font-black uppercase tracking-[0.2em] shadow-xl active:scale-95 transition-all text-xs">
+                THÊM CÔNG VIỆC
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
-// JS giữ nguyên từ bước trước
-async function addTodo() {
-    const input = document.getElementById('todo-input');
-    const categorySelect = document.getElementById('todo-category');
-    const scheduledInput = document.getElementById('todo-scheduled');
-    const content = input.value.trim();
-    const category_id = categorySelect.value;
-    const scheduled_time = scheduledInput.value;
-    if (!content || !category_id) { alert('Vui lòng nhập đủ thông tin'); return; }
+const CSRF = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+let currentEditId = null;
+
+function openTodoModal(todo = null) {
+    const modal = document.getElementById('todo-modal');
+    const title = document.getElementById('modal-title');
+    const submitBtn = document.getElementById('modal-submit-btn');
+    
+    if (todo) {
+        currentEditId = todo.id;
+        title.textContent = "Sửa công việc";
+        submitBtn.textContent = "LƯU THAY ĐỔI";
+        document.getElementById('todo-input').value = todo.content;
+        document.getElementById('todo-category').value = todo.category_id;
+        
+        if (todo.scheduled_time) {
+            // Convert ISO to local input format (YYYY-MM-DDTHH:MM)
+            document.getElementById('todo-scheduled').value = todo.scheduled_time.substring(0, 16);
+        } else {
+            document.getElementById('todo-scheduled').value = "";
+        }
+    } else {
+        currentEditId = null;
+        title.textContent = "Thêm công việc";
+        submitBtn.textContent = "THÊM CÔNG VIỆC";
+        document.getElementById('todo-input').value = "";
+        document.getElementById('todo-category').value = "";
+        document.getElementById('todo-scheduled').value = "";
+    }
+    
+    modal.classList.remove('hidden');
+    lucide.createIcons();
+}
+
+function closeTodoModal() {
+    document.getElementById('todo-modal').classList.add('hidden');
+}
+
+async function saveTodo() {
+    const content = document.getElementById('todo-input').value.trim();
+    const category_id = document.getElementById('todo-category').value;
+    const scheduled_time = document.getElementById('todo-scheduled').value;
+
+    if (!content || !category_id) { alert('Vui lòng nhập đủ nội dung và danh mục'); return; }
+
+    const data = { content, category_id: parseInt(category_id), scheduled_time };
+    const url = currentEditId ? `/todo/api/edit/${currentEditId}` : '/todo/api/add';
+    const method = currentEditId ? 'PUT' : 'POST';
+
     try {
-        const res = await fetch('/todo/api/add', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content') },
-            body: JSON.stringify({ content, category_id: parseInt(category_id), scheduled_time })
+        const res = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+            body: JSON.stringify(data)
         });
-        if (res.ok) location.reload();
+        if (res.ok) window.location.reload();
+        else alert('Có lỗi xảy ra, vui lòng thử lại');
     } catch (e) { console.error(e); }
 }
+
 async function toggleTodo(id) {
-    try {
-        const res = await fetch(`/todo/api/toggle/${id}`, { method: 'POST', headers: { 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content') } });
-        if (res.ok) location.reload(); 
-    } catch (e) { console.error(e); }
+    const res = await fetch(`/todo/api/toggle/${id}`, { method: 'POST', headers: { 'X-CSRFToken': CSRF } });
+    if (res.ok) window.location.reload();
 }
+
 async function deleteTodo(id) {
     if (!confirm('Xoá việc này?')) return;
-    try {
-        const res = await fetch(`/todo/api/delete/${id}`, { method: 'DELETE', headers: { 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content') } });
-        if (res.ok) document.getElementById(`todo-${id}`).remove();
-    } catch (e) { console.error(e); }
+    const res = await fetch(`/todo/api/delete/${id}`, { method: 'DELETE', headers: { 'X-CSRFToken': CSRF } });
+    if (res.ok) document.getElementById(`todo-${id}`).remove();
 }
 </script>
 {% endblock %}

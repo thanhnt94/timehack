@@ -1,116 +1,195 @@
 {% extends "base.html" %}
 {% block title %}Track{% endblock %}
 
-{% block content %}
-<div class="flex flex-col items-center justify-center min-h-[70vh] space-y-8 py-4 px-2">
+{% block extra_head %}
+<style>
+    /* Hiệu ứng thở (Breathing) kết hợp Scale và Glow */
+    @keyframes organic-breathing {
+        0%, 100% { transform: scale(1.05); box-shadow: 0 0 20px rgba(0, 168, 150, 0.1); }
+        50% { transform: scale(1.08); box-shadow: 0 0 45px rgba(0, 168, 150, 0.25); }
+    }
 
-    <!-- ── Typography Timer & Status ───────────────── -->
-    <div class="flex flex-col items-center text-center space-y-2 w-full">
-        {% if running_entry %}
-            <div class="flex flex-col items-center animate-fade-in w-full">
-                {% if running_entry.is_pomodoro %}<div class="flex items-center gap-1.5 px-4 py-1.5 bg-secondary text-white rounded-full text-[10px] font-black shadow-lg mb-4 animate-bounce"><i data-lucide="flame" class="w-4 h-4 fill-current"></i> CHẾ ĐỘ TẬP TRUNG</div>
-                {% else %}<span class="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-500 animate-pulse mb-4">Đang theo dõi...</span>{% endif %}
-                <div id="timer-display" class="text-[5rem] sm:text-8xl font-black tabular-nums tracking-tighter text-slate-800 leading-none">00:00:00</div>
-                <div class="mt-6 space-y-2 px-4 w-full">
-                    <h2 class="text-2xl font-black text-primary tracking-tight truncate">{{ running_entry.todo_content if running_entry.todo_content else (running_entry.category_name if running_entry.category_name else 'Việc không tên') }}</h2>
-                    {% if running_entry.tags %}
-                    <div class="flex flex-wrap justify-center gap-1.5 mt-2">
-                        {% for tag in running_entry.tags %}<span class="px-2 py-0.5 bg-slate-100 text-slate-500 rounded-md text-[9px] font-black uppercase tracking-widest border border-slate-200">#{{ tag }}</span>{% endfor %}
-                    </div>
-                    {% endif %}
-                    {% if running_entry.note %}<p class="text-sm font-medium text-slate-400 italic">"{{ running_entry.note }}"</p>{% endif %}
-                </div>
+    .timer-container.is-running {
+        animation: organic-breathing 4s infinite ease-in-out;
+        border-color: rgba(0, 168, 150, 0.4);
+        background: rgba(255, 255, 255, 0.95);
+    }
+
+    /* Hiệu ứng trồi lên của Toast */
+    @keyframes slide-up-toast {
+        from { transform: translate(-50%, 100%); opacity: 0; }
+        to { transform: translate(-50%, 0); opacity: 1; }
+    }
+    .animate-toast { animation: slide-up-toast 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+
+    /* Morphing Icon Classes */
+    .icon-play { transform: rotate(0) scale(1); opacity: 1; }
+    .is-running .icon-play { transform: rotate(90deg) scale(0.5); opacity: 0; }
+    
+    .icon-stop { transform: rotate(-90deg) scale(0.5); opacity: 0; }
+    .is-running .icon-stop { transform: rotate(0) scale(1); opacity: 1; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flex flex-col items-center justify-center min-h-[75vh] space-y-12 py-4 px-2 relative overflow-hidden">
+
+    <!-- ── Organic Timer Display ───────────────────── -->
+    <div id="timer-wrapper" class="timer-container relative w-72 h-72 rounded-full flex flex-col items-center justify-center border-[6px] border-white shadow-xl backdrop-blur-md transition-all duration-700 ease-spring-heavy {{ 'is-running' if running_entry }}">
+        
+        <div class="flex flex-col items-center text-center space-y-1 mb-2">
+            {% if running_entry %}
+                <span class="text-[10px] font-black uppercase tracking-[0.4em] text-accent">Đang theo dõi</span>
+            {% else %}
+                <span class="text-[10px] font-black uppercase tracking-[0.4em] text-slate-300">Sẵn sàng</span>
+            {% endif %}
+        </div>
+
+        <div id="timer-display" class="text-6xl font-black tabular-nums tracking-tighter text-slate-800 leading-none transition-colors duration-700 {{ 'text-accent' if running_entry }}">
+            00:00:00
+        </div>
+
+        <div class="mt-5 px-8 w-full text-center">
+            <h2 class="text-sm font-extrabold text-primary tracking-tight truncate">
+                {{ running_entry.todo_content if running_entry.todo_content else (running_entry.category_name if running_entry.category_name else '') }}
+            </h2>
+            {% if running_entry and running_entry.is_pomodoro %}
+            <div class="inline-flex items-center gap-1.5 mt-2 px-3 py-1 bg-secondary/10 text-secondary rounded-full">
+                <i data-lucide="flame" class="w-3 h-3 fill-current"></i>
+                <span class="text-[9px] font-black uppercase tracking-tighter">Deep Work</span>
             </div>
-        {% else %}
-            <span class="text-[10px] font-black uppercase tracking-[0.3em] text-slate-300 mb-2">Sẵn sàng</span>
-            <div id="timer-display" class="text-[5rem] sm:text-8xl font-black tabular-nums tracking-tighter text-slate-200 leading-none">00:00:00</div>
-        {% endif %}
+            {% endif %}
+        </div>
     </div>
 
-    <!-- ── Control Card ────────────────────────────── -->
-    <div class="w-full space-y-6">
-        <div id="track-form" class="{% if running_entry %}hidden{% endif %} space-y-4">
-            <div class="bg-slate-100 p-1 rounded-2xl flex items-center shadow-inner">
-                <button onclick="setTrackMode('todo')" id="btn-mode-todo" class="flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all bg-white shadow-sm text-primary">Theo Todo</button>
-                <button onclick="setTrackMode('other')" id="btn-mode-other" class="flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all text-slate-400">Việc tự do</button>
+    <!-- ── Liquid Control Card ─────────────────────── -->
+    <div class="w-full space-y-8">
+        
+        <div id="track-form" class="{% if running_entry %}hidden opacity-0 -translate-y-4 scale-95{% else %}opacity-100 translate-y-0 scale-100{% endif %} space-y-4 transition-all duration-700 ease-spring-heavy">
+            <div class="bg-slate-100 p-1.5 rounded-[1.5rem] flex items-center shadow-inner">
+                <button onclick="setTrackMode('todo')" id="btn-mode-todo" class="flex-1 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all duration-500 ease-out-expo bg-white shadow-sm text-primary">Theo Todo</button>
+                <button onclick="setTrackMode('other')" id="btn-mode-other" class="flex-1 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all duration-500 ease-out-expo text-slate-400">Việc tự do</button>
             </div>
 
-            <div class="bg-white/60 backdrop-blur-xl rounded-[2.5rem] p-6 shadow-sm border border-white/80 space-y-4">
-                <div id="section-todo" class="relative">
-                    <select id="todo-select" onchange="onSelectionChange()" class="w-full pl-10 pr-4 py-4 rounded-2xl bg-white/50 border border-slate-100 text-sm font-semibold text-primary outline-none focus:border-accent/30 appearance-none">
+            <div class="bg-white/70 backdrop-blur-2xl rounded-[3rem] p-7 shadow-2xl border border-white space-y-5">
+                <div id="section-todo" class="relative group">
+                    <select id="todo-select" onchange="onSelectionChange()" class="w-full pl-12 pr-4 py-4 rounded-2xl bg-white border border-slate-100 text-sm font-bold text-primary outline-none focus:ring-4 focus:ring-accent/10 appearance-none transition-all duration-500 ease-spring">
                         <option value="">📝 Gắn với một Todo...</option>
                         {% for todo in pending_todos %}<option value="{{ todo.id }}" data-category="{{ todo.category_id }}">{{ todo.content }}</option>{% endfor %}
                     </select>
-                    <div class="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none"><i data-lucide="list-checks" class="w-4 h-4 text-slate-300"></i></div>
+                    <div class="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none group-focus-within:text-accent transition-colors"><i data-lucide="list-checks" class="w-5 h-5"></i></div>
                 </div>
 
                 <div id="section-category" class="hidden space-y-4">
-                    <div class="relative">
-                        <select id="category-select" onchange="onSelectionChange()" class="w-full pl-10 pr-4 py-4 rounded-2xl bg-white/50 border border-slate-100 text-sm font-semibold text-primary outline-none focus:border-accent/30 appearance-none">
+                    <div class="relative group">
+                        <select id="category-select" onchange="onSelectionChange()" class="w-full pl-12 pr-4 py-4 rounded-2xl bg-white border border-slate-100 text-sm font-bold text-primary outline-none focus:ring-4 focus:ring-accent/10 appearance-none transition-all duration-500 ease-spring">
                             <option value="">🏷️ Chọn danh mục...</option>
                             {% for cat in categories %}<option value="{{ cat.id }}">{{ cat.get_full_path() }}</option>{% endfor %}
                         </select>
-                        <div class="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none"><i data-lucide="tag" class="w-4 h-4 text-slate-300"></i></div>
+                        <div class="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none transition-colors"><i data-lucide="tag" class="w-5 h-5"></i></div>
                     </div>
-                    <div class="relative">
-                        <textarea id="note-input" placeholder="Ghi chú nhanh..." class="w-full pl-10 pr-4 py-4 rounded-2xl bg-white/50 border border-slate-100 text-sm font-semibold text-primary outline-none focus:border-accent/30 transition-all resize-none h-20"></textarea>
-                        <div class="absolute left-4 top-5 pointer-events-none"><i data-lucide="edit-3" class="w-4 h-4 text-slate-300"></i></div>
+                    <div class="relative group">
+                        <textarea id="note-input" placeholder="Ghi chú nhanh..." class="w-full pl-12 pr-4 py-4 rounded-2xl bg-white border border-slate-100 text-sm font-bold text-primary outline-none focus:ring-4 focus:ring-accent/10 transition-all duration-500 ease-spring resize-none h-24"></textarea>
+                        <div class="absolute left-4 top-5 pointer-events-none"><i data-lucide="edit-3" class="w-5 h-5"></i></div>
                     </div>
                 </div>
 
-                <!-- SMART TAGS CLOUD -->
-                <div id="tags-container" class="hidden space-y-2 transition-all duration-500">
-                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-2">Gợi ý Tag</span>
+                <div id="tags-container" class="hidden space-y-3">
                     <div id="tags-cloud" class="flex flex-wrap gap-2 px-1"></div>
                 </div>
 
-                <button id="pomo-toggle" onclick="togglePomodoro()" class="w-full py-4 rounded-2xl bg-slate-50 border border-slate-100 text-slate-400 font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 active:scale-95 transition-all">
+                <button id="pomo-toggle" onclick="togglePomodoro()" class="w-full py-4 rounded-2xl bg-slate-50 border border-slate-100 text-slate-400 font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 active:scale-95 transition-all duration-500 ease-spring">
                     <i data-lucide="flame" class="w-4 h-4"></i> Chế độ Deep Work
                 </button>
             </div>
         </div>
 
-        <button id="main-btn" onclick="handleMainAction()" class="w-full h-24 rounded-full bg-gradient-to-r {% if running_entry %}from-slate-800 to-slate-900{% else %}from-teal-400 to-emerald-500{% endif %} text-white font-black tracking-[0.2em] shadow-xl flex items-center justify-center gap-4 border-4 border-white active:scale-95 transition-all group">
-            <div class="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center shadow-inner"><i id="main-btn-icon" data-lucide="{{ 'square' if running_entry else 'play' }}" class="w-6 h-6 fill-current"></i></div>
-            <span id="main-btn-text" class="text-base">{{ 'DỪNG LẠI' if running_entry else 'BẮT ĐẦU' }}</span>
+        <!-- ── Hero Action Button (Liquid & Morphing) ── -->
+        <button id="main-btn" onclick="handleMainAction()" 
+            class="w-full h-24 rounded-full transition-all duration-700 ease-spring-heavy flex items-center justify-center gap-5 border-[6px] border-white active:scale-90 hover:scale-[1.02] shadow-2xl group overflow-hidden relative {{ 'from-slate-800 to-black bg-gradient-to-br' if running_entry else 'from-accent to-emerald-500 bg-gradient-to-br' }} text-white">
+            
+            <div class="relative w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center shadow-inner overflow-hidden">
+                <div class="relative w-7 h-7">
+                    <i data-lucide="play" class="icon-play absolute inset-0 transition-all duration-700 ease-spring-heavy fill-current"></i>
+                    <i data-lucide="square" class="icon-stop absolute inset-0 transition-all duration-700 ease-spring-heavy fill-current"></i>
+                </div>
+            </div>
+            <span id="main-btn-text" class="text-lg font-black uppercase tracking-[0.25em]">{{ 'DỪNG LẠI' if running_entry else 'BẮT ĐẦU' }}</span>
         </button>
 
-        {% if not running_entry %}<div class="text-center pt-2"><button onclick="openManualModal()" class="text-[10px] font-black text-slate-300 uppercase tracking-widest hover:text-accent transition-colors">+ Thêm giờ thủ công</button></div>{% endif %}
+        {% if not running_entry %}<div class="text-center pt-2"><button onclick="openManualModal()" class="text-[10px] font-black text-slate-300 uppercase tracking-widest hover:text-accent transition-colors duration-500">+ Thêm giờ thủ công</button></div>{% endif %}
     </div>
 </div>
 
-<div id="manual-modal" class="hidden fixed inset-0 z-[100] flex items-end justify-center bg-primary/40 backdrop-blur-xl p-4">
-    <div class="bg-white rounded-[3rem] w-full max-w-md p-8 space-y-6 shadow-2xl animate-slide-up mb-20">
-        <div class="flex items-center justify-between"><h3 class="text-lg font-black uppercase tracking-widest text-primary">Ghi giờ thủ công</h3><button onclick="closeManualModal()" class="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center active:scale-90"><i data-lucide="x" class="w-5 h-5 text-primary"></i></button></div>
-        <div class="space-y-4">
-            <div class="grid grid-cols-2 gap-4">
-                <div class="space-y-1"><label class="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-2">Bắt đầu</label><input type="time" id="manual-start-time" class="w-full p-4 bg-slate-50 rounded-2xl font-bold text-xl text-center outline-none border-none"></div>
-                <div class="space-y-1"><label class="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-2">Kết thúc</label><input type="time" id="manual-end-time" class="w-full p-4 bg-slate-50 rounded-2xl font-bold text-xl text-center outline-none border-none"></div>
-            </div>
-            <button onclick="submitManualEntry()" class="w-full py-5 bg-primary text-white rounded-full font-black uppercase tracking-widest shadow-lg active:scale-95 transition-all">Lưu bản ghi</button>
-        </div>
+<!-- ── Quick Toast ── -->
+<div id="toast" class="hidden fixed bottom-32 left-1/2 -translate-x-1/2 z-[110] px-8 py-4 bg-primary/95 backdrop-blur-xl text-white rounded-full font-black text-xs uppercase tracking-widest shadow-2xl animate-toast border border-white/10">
+    <div class="flex items-center gap-4">
+        <i data-lucide="check-circle" class="w-5 h-5 text-accent"></i>
+        <span id="toast-msg">Bản ghi đã được lưu!</span>
     </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 <script>
     const CSRF = document.querySelector('meta[name="csrf-token"]').content;
-    const TAGS_DATA = {{ tags_data | tojson }};
-    let trackMode = 'todo', isPomo = false, timerInterval = null, startTime = null, selectedTagIds = new Set();
+    const TAGS_DATA = {{ tags_data | default([]) | tojson }};
+    let trackMode = 'todo', isPomo = false, startTime = null, selectedTagIds = new Set();
+
+    function showToast(msg) {
+        const toast = document.getElementById('toast');
+        document.getElementById('toast-msg').textContent = msg;
+        toast.classList.remove('hidden');
+        setTimeout(() => toast.classList.add('hidden'), 3500);
+    }
+
+    async function handleMainAction() {
+        const btn = document.getElementById('main-btn');
+        const wrapper = document.getElementById('timer-wrapper');
+        const isRunning = "{{ 'true' if running_entry else 'false' }}" === "true";
+        
+        // Haptic feedback (iOS style)
+        if (window.navigator.vibrate) window.navigator.vibrate(15);
+
+        if (isRunning) {
+            const res = await fetch('/tracker/api/stop', { method: 'POST', headers: { 'X-CSRFToken': CSRF } });
+            const data = await res.json();
+            if (res.ok) {
+                confetti({ particleCount: 120, spread: 80, origin: { y: 0.7 }, colors: ['#00A896', '#F1A208', '#0A1128'], ticks: 300 });
+                showToast("Đã lưu thành công!");
+                if (data.level_up && data.level_up.leveled_up) {
+                    setTimeout(() => alert(`🎊 Tuyệt vời! Bạn đã thăng cấp kỹ năng "${data.level_up.skill_name}" lên Level ${data.level_up.new_level}!`), 600);
+                }
+                setTimeout(() => window.location.reload(), 1800);
+            }
+        } else {
+            const data = {
+                is_pomodoro: isPomo,
+                note: trackMode === 'other' ? document.getElementById('note-input').value : '',
+                todo_id: trackMode === 'todo' ? (document.getElementById('todo-select').value ? parseInt(document.getElementById('todo-select').value) : null) : null,
+                category_id: trackMode === 'other' ? (document.getElementById('category-select').value ? parseInt(document.getElementById('category-select').value) : null) : null,
+                tag_ids: Array.from(selectedTagIds)
+            };
+            
+            // UI Feedback ngay lập tức trước khi reload
+            btn.classList.add('is-running');
+            wrapper.classList.add('is-running');
+
+            const res = await fetch('/tracker/api/start', { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF }, 
+                body: JSON.stringify(data) 
+            });
+            if (res.ok) window.location.reload();
+        }
+    }
 
     function setTrackMode(mode) {
         trackMode = mode;
         const btnTodo = document.getElementById('btn-mode-todo'), btnOther = document.getElementById('btn-mode-other');
         const secTodo = document.getElementById('section-todo'), secOther = document.getElementById('section-category');
-        if (mode === 'todo') {
-            btnTodo.className = "flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all bg-white shadow-sm text-primary";
-            btnOther.className = "flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all text-slate-400";
-            secTodo.classList.remove('hidden'); secOther.classList.add('hidden');
-        } else {
-            btnOther.className = "flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all bg-white shadow-sm text-primary";
-            btnTodo.className = "flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all text-slate-400";
-            secOther.classList.remove('hidden'); secTodo.classList.add('hidden');
-        }
+        btnTodo.className = `flex-1 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all duration-500 ease-spring ${mode==='todo'?'bg-white shadow-sm text-primary':'text-slate-400'}`;
+        btnOther.className = `flex-1 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all duration-500 ease-spring ${mode==='other'?'bg-white shadow-sm text-primary':'text-slate-400'}`;
+        mode==='todo' ? (secTodo.classList.remove('hidden'), secOther.classList.add('hidden')) : (secOther.classList.remove('hidden'), secTodo.classList.add('hidden'));
         onSelectionChange();
     }
 
@@ -119,12 +198,9 @@
         if (trackMode === 'todo') {
             const sel = document.getElementById('todo-select');
             catId = sel.options[sel.selectedIndex]?.dataset.category;
-        } else {
-            catId = document.getElementById('category-select').value;
-        }
+        } else { catId = document.getElementById('category-select').value; }
         const container = document.getElementById('tags-container'), cloud = document.getElementById('tags-cloud');
-        cloud.innerHTML = '';
-        selectedTagIds.clear();
+        cloud.innerHTML = ''; selectedTagIds.clear();
         if (catId) {
             const filteredTags = TAGS_DATA.filter(t => t.category_ids.includes(parseInt(catId)));
             if (filteredTags.length > 0) {
@@ -132,14 +208,14 @@
                 filteredTags.forEach(tag => {
                     const btn = document.createElement('button');
                     btn.textContent = '#' + tag.name;
-                    btn.className = "px-3 py-1.5 rounded-xl bg-slate-50 text-[10px] font-bold text-slate-400 border border-slate-100 transition-all active:scale-90";
+                    btn.className = "px-4 py-2 rounded-2xl bg-slate-50 text-[10px] font-bold text-slate-400 border border-slate-100 transition-all duration-500 ease-spring active:scale-90";
                     btn.onclick = () => {
                         if (selectedTagIds.has(tag.id)) {
                             selectedTagIds.delete(tag.id);
-                            btn.className = "px-3 py-1.5 rounded-xl bg-slate-50 text-[10px] font-bold text-slate-400 border border-slate-100 transition-all active:scale-90";
+                            btn.className = "px-4 py-2 rounded-2xl bg-slate-50 text-[10px] font-bold text-slate-400 border border-slate-100 transition-all";
                         } else {
                             selectedTagIds.add(tag.id);
-                            btn.className = "px-3 py-1.5 rounded-xl bg-primary text-white text-[10px] font-bold border border-primary transition-all active:scale-90";
+                            btn.className = "px-4 py-2 rounded-2xl bg-primary text-white text-[10px] font-bold border border-primary transition-all";
                         }
                     };
                     cloud.appendChild(btn);
@@ -155,60 +231,17 @@
         btn.classList.toggle('border-secondary/20'); btn.classList.toggle('text-slate-400');
     }
 
-    async function handleMainAction() {
-        const isRunning = "{{ 'true' if running_entry else 'false' }}" === "true";
-        if (isRunning) {
-            const res = await fetch('/tracker/api/stop', { method: 'POST', headers: { 'X-CSRFToken': CSRF } });
-            const data = await res.json();
-            if (res.ok) {
-                if (data.level_up && data.level_up.leveled_up) {
-                    confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
-                    alert(`🎊 CHÚC MỪNG!\nKỹ năng "${data.level_up.skill_name}" của bạn đã thăng cấp lên Level ${data.level_up.new_level}!`);
-                }
-                window.location.reload();
-            }
-        } else {
-            const data = {
-                is_pomodoro: isPomo,
-                note: trackMode === 'other' ? document.getElementById('note-input').value : '',
-                todo_id: trackMode === 'todo' ? (document.getElementById('todo-select').value ? parseInt(document.getElementById('todo-select').value) : null) : null,
-                category_id: trackMode === 'other' ? (document.getElementById('category-select').value ? parseInt(document.getElementById('category-select').value) : null) : null,
-                tag_ids: Array.from(selectedTagIds)
-            };
-            const res = await fetch('/tracker/api/start', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF }, body: JSON.stringify(data) });
-            if (res.ok) window.location.reload();
-        }
-    }
-
+    // Timer Sync
     const initialRunning = {{ 'true' if running_entry else 'false' }};
     if (initialRunning) {
         const startStr = "{{ running_entry.start_time.isoformat() if running_entry else '' }}";
         startTime = new Date(startStr.endsWith('Z') ? startStr : startStr + 'Z');
-        timerInterval = setInterval(() => {
+        setInterval(() => {
             const diff = Math.max(0, Math.floor((new Date() - startTime) / 1000));
             document.getElementById('timer-display').textContent = `${String(Math.floor(diff / 3600)).padStart(2,'0')}:${String(Math.floor((diff % 3600) / 60)).padStart(2,'0')}:${String(diff % 60).padStart(2,'0')}`;
         }, 1000);
     }
-
     function openManualModal() { document.getElementById('manual-modal').classList.remove('hidden'); }
     function closeManualModal() { document.getElementById('manual-modal').classList.add('hidden'); }
-    async function submitManualEntry() {
-        const sd = new Date().toISOString().split('T')[0], st = document.getElementById('manual-start-time').value, et = document.getElementById('manual-end-time').value;
-        if (!st || !et) return;
-        const data = { 
-            start_time: sd+'T'+st+':00', end_time: sd+'T'+et+':00', 
-            category_id: trackMode === 'other' ? (document.getElementById('category-select').value ? parseInt(document.getElementById('category-select').value) : null) : null,
-            todo_id: trackMode === 'todo' ? (document.getElementById('todo-select').value ? parseInt(document.getElementById('todo-select').value) : null) : null,
-            tag_ids: Array.from(selectedTagIds), is_pomodoro: isPomo, note: trackMode === 'other' ? document.getElementById('note-input').value : ''
-        };
-        const res = await fetch('/tracker/api/manual', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF }, body: JSON.stringify(data) });
-        const resData = await res.json();
-        if (res.ok) {
-            if (resData.level_up && resData.level_up.leveled_up) {
-                alert(`🎊 Tuyệt vời! Bạn đã thăng cấp kỹ năng "${resData.level_up.skill_name}" lên Level ${resData.level_up.new_level}!`);
-            }
-            window.location.href = "{{ url_for('time_logging.dashboard') }}";
-        }
-    }
 </script>
 {% endblock %}

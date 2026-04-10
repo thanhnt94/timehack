@@ -8,3 +8,4 @@ SQLAlchemy==2.0.36
 python-dotenv==1.1.0
 requests
 APScheduler
+pywebpush

@@ -24,7 +24,7 @@ export const FloatingTimerBar: React.FC = () => {
         initial={{ y: 80, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 80, opacity: 0 }}
-        className="fixed bottom-6 right-6 z-50 glass-card px-5 py-3 rounded-2xl border border-violet-500/40 shadow-2xl shadow-violet-950/50 flex items-center gap-4 bg-[#0F172A]/95"
+        className="fixed bottom-4 left-4 right-4 md:left-auto md:right-6 md:bottom-6 z-50 glass-card px-4 md:px-5 py-3 rounded-2xl border border-violet-500/40 shadow-2xl shadow-violet-950/50 flex items-center justify-between md:justify-start gap-2 md:gap-4 bg-[#0F172A]/95"
       >
         <div 
           onClick={() => navigate('/focus')}

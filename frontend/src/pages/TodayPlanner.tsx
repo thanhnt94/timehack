@@ -44,31 +44,31 @@ export const TodayPlanner: React.FC = () => {
   }
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-300">
+    <div className="space-y-6 md:space-y-8 animate-in fade-in duration-300">
       {/* Header Banner */}
-      <div className="p-8 glass-card rounded-3xl border border-violet-500/20 bg-gradient-to-r from-violet-900/30 via-slate-900/80 to-cyan-900/20 relative overflow-hidden">
+      <div className="p-5 md:p-8 glass-card rounded-3xl border border-violet-500/20 bg-gradient-to-r from-violet-900/30 via-slate-900/80 to-cyan-900/20 relative overflow-hidden">
         <div className="absolute right-0 top-0 w-96 h-96 bg-gradient-to-br from-violet-600/10 to-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
-            <div className="text-xs font-bold text-cyan-400 uppercase tracking-widest mb-1 flex items-center gap-1.5">
+            <div className="text-[11px] font-bold text-cyan-400 uppercase tracking-widest mb-1 flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5" />
               <span>{todayDateStr}</span>
             </div>
-            <h1 className="text-3xl font-black text-white tracking-tight">Hôm Nay Bạn Muốn Chinh Phục Gì?</h1>
-            <p className="text-sm text-slate-400 mt-1 max-w-xl">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-white tracking-tight leading-snug">Hôm Nay Bạn Muốn Chinh Phục Gì?</h1>
+            <p className="text-xs md:text-sm text-slate-400 mt-1 max-w-xl">
               Tối ưu hóa thời gian, xây dựng thói quen tốt và đạt hiệu suất cao nhất trong ngày.
             </p>
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="p-4 glass-card rounded-2xl border border-slate-800 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-violet-600/20 border border-violet-500/30 flex items-center justify-center text-violet-400 font-bold">
+            <div className="w-full md:w-auto p-3.5 md:p-4 glass-card rounded-2xl border border-slate-800 flex items-center gap-3">
+              <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-violet-600/20 border border-violet-500/30 flex items-center justify-center text-violet-400 font-bold shrink-0">
                 <Target className="w-5 h-5" />
               </div>
               <div>
-                <div className="text-xs text-slate-400 font-bold">Tiến độ Task</div>
-                <div className="text-lg font-black text-white">{completedTasksCount} / {totalTasksCount} ({taskProgressPercent}%)</div>
+                <div className="text-[11px] text-slate-400 font-bold">Tiến độ Task</div>
+                <div className="text-base md:text-lg font-black text-white">{completedTasksCount} / {totalTasksCount} ({taskProgressPercent}%)</div>
               </div>
             </div>
           </div>
@@ -80,7 +80,7 @@ export const TodayPlanner: React.FC = () => {
         {/* Column 1: Today Tasks */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold text-white uppercase tracking-wider flex items-center gap-2">
+            <h2 className="text-sm md:text-base font-bold text-white uppercase tracking-wider flex items-center gap-2">
               <CheckSquare className="w-4 h-4 text-violet-400" />
               <span>Công Việc Cần Làm</span>
             </h2>
@@ -123,7 +123,7 @@ export const TodayPlanner: React.FC = () => {
 
                 <button
                   onClick={() => startTimer({ taskId: t.id, title: t.title })}
-                  className="p-2 rounded-xl bg-violet-600/20 hover:bg-violet-600/40 text-violet-300 border border-violet-500/30 transition-all opacity-0 group-hover:opacity-100 shrink-0"
+                  className="p-2 rounded-xl bg-violet-600/20 hover:bg-violet-600/40 text-violet-300 border border-violet-500/30 transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100 shrink-0"
                   title="Bắt đầu đếm giờ"
                 >
                   <Play className="w-3.5 h-3.5 fill-current" />
@@ -132,7 +132,7 @@ export const TodayPlanner: React.FC = () => {
             ))}
 
             {tasks.filter(t => t.status !== 'completed').length === 0 && (
-              <div className="p-8 text-center glass-card rounded-2xl">
+              <div className="p-6 text-center glass-card rounded-2xl">
                 <p className="text-xs text-slate-400">Tuyệt vời! Tuyệt đối không còn task dở dang.</p>
               </div>
             )}
@@ -142,7 +142,7 @@ export const TodayPlanner: React.FC = () => {
         {/* Column 2: Today Habits */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold text-white uppercase tracking-wider flex items-center gap-2">
+            <h2 className="text-sm md:text-base font-bold text-white uppercase tracking-wider flex items-center gap-2">
               <Zap className="w-4 h-4 text-emerald-400" />
               <span>Thói Quen Mỗi Ngày</span>
             </h2>
@@ -194,7 +194,7 @@ export const TodayPlanner: React.FC = () => {
             ))}
 
             {habits.length === 0 && (
-              <div className="p-8 text-center glass-card rounded-2xl">
+              <div className="p-6 text-center glass-card rounded-2xl">
                 <p className="text-xs text-slate-400">Chưa có thói quen nào. Tạo thói quen ngay!</p>
               </div>
             )}
@@ -204,7 +204,7 @@ export const TodayPlanner: React.FC = () => {
         {/* Column 3: Today Time-Blocking Schedule */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold text-white uppercase tracking-wider flex items-center gap-2">
+            <h2 className="text-sm md:text-base font-bold text-white uppercase tracking-wider flex items-center gap-2">
               <Clock className="w-4 h-4 text-amber-400" />
               <span>Thời Gian Biểu Hàng Ngày</span>
             </h2>
@@ -228,7 +228,7 @@ export const TodayPlanner: React.FC = () => {
             ))}
 
             {slots.length === 0 && (
-              <div className="p-8 text-center glass-card rounded-2xl">
+              <div className="p-6 text-center glass-card rounded-2xl">
                 <p className="text-xs text-slate-400">Chưa xếp lịch time-blocking hôm nay.</p>
               </div>
             )}

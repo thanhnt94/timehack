@@ -1,59 +1,67 @@
-from flask import render_template, redirect, url_for, flash, request
-from flask_login import login_user, logout_user, login_required, current_user
+from fastapi import APIRouter, Depends, HTTPException, Request
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from app.core.database import get_db
+from app.core.security import get_current_user_id
+from app.models import User, Category, UserSettings
 
-from . import auth_bp
-from .forms import LoginForm, RegisterForm
-from app.models.user import User
-from app.models.category import Category
-from app.extensions import db
+router = APIRouter(prefix="/api/v1/auth", tags=["Auth"])
 
-
-@auth_bp.route('/login', methods=['GET', 'POST'])
-def login():
-    if current_user.is_authenticated:
-        return redirect(url_for('time_logging.dashboard'))
-
-    form = LoginForm()
-    if form.validate_on_submit():
-        identifier = form.identifier.data
-        user = User.query.filter((User.email == identifier) | (User.username == identifier)).first()
-        if user and user.check_password(form.password.data):
-            login_user(user, remember=form.remember_me.data)
-            next_page = request.args.get('next')
-            flash('Đăng nhập thành công!', 'success')
-            return redirect(next_page or url_for('time_logging.dashboard'))
-        flash('Email hoặc mật khẩu không đúng.', 'danger')
-
-    return render_template('auth/login.html', form=form)
-
-
-@auth_bp.route('/register', methods=['GET', 'POST'])
-def register():
-    if current_user.is_authenticated:
-        return redirect(url_for('time_logging.dashboard'))
-
-    form = RegisterForm()
-    if form.validate_on_submit():
+@router.get("/me")
+async def get_me(request: Request, db: AsyncSession = Depends(get_db)):
+    user_id = get_current_user_id(request)
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        # Create default user if not exists
         user = User(
-            username=form.username.data,
-            email=form.email.data,
+            id=user_id,
+            username=f"user_{user_id}",
+            email=f"user_{user_id}@timehack.local",
+            full_name=f"User {user_id}"
         )
-        user.set_password(form.password.data)
-        db.session.add(user)
-        db.session.commit()
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
 
-        # Seed default categories for the new user
-        Category.seed_defaults(user.id)
+        # Seed default categories for new user
+        default_categories = [
+            Category(user_id=user.id, name="Công việc", color="#8B5CF6", icon="briefcase", is_default=True),
+            Category(user_id=user.id, name="Học tập", color="#3B82F6", icon="book", is_default=True),
+            Category(user_id=user.id, name="Sức khỏe & Thể thao", color="#10B981", icon="activity", is_default=True),
+            Category(user_id=user.id, name="Cá nhân", color="#F59E0B", icon="user", is_default=True)
+        ]
+        db.add_all(default_categories)
+        await db.commit()
 
-        flash('Tạo tài khoản thành công! Hãy đăng nhập.', 'success')
-        return redirect(url_for('auth.login'))
+    # Get user settings
+    sett_res = await db.execute(select(UserSettings).where(UserSettings.user_id == user.id))
+    user_sett = sett_res.scalar_one_or_none()
+    settings_dict = user_sett.settings if user_sett and user_sett.settings else {}
 
-    return render_template('auth/register.html', form=form)
+    return {
+        "id": user.id,
+        "username": user.username,
+        "email": user.email,
+        "full_name": user.full_name,
+        "avatar_url": user.avatar_url,
+        "settings": settings_dict
+    }
 
+@router.post("/settings")
+async def update_user_settings(payload: dict, request: Request, db: AsyncSession = Depends(get_db)):
+    user_id = get_current_user_id(request)
+    sett_res = await db.execute(select(UserSettings).where(UserSettings.user_id == user_id))
+    user_sett = sett_res.scalar_one_or_none()
 
-@auth_bp.route('/logout')
-@login_required
-def logout():
-    logout_user()
-    flash('Đã đăng xuất.', 'info')
-    return redirect(url_for('auth.login'))
+    if not user_sett:
+        user_sett = UserSettings(user_id=user_id, settings=payload)
+        db.add(user_sett)
+    else:
+        existing = dict(user_sett.settings) if user_sett.settings else {}
+        existing.update(payload)
+        user_sett.settings = existing
+
+    await db.commit()
+    return {"status": "ok", "settings": user_sett.settings}

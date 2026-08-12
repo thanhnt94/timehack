@@ -11,3 +11,4 @@ requests
 APScheduler
 pywebpush
 pydantic>=2.0.0
+pydantic-settings

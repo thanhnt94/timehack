@@ -55,7 +55,7 @@ export const LandingPage: React.FC = () => {
     if (ssoConfig?.jump_url) {
       window.location.href = ssoConfig.jump_url
     } else {
-      window.location.href = 'https://centralauth.inmind.site/api/auth/jump/timehack-v1'
+      window.location.href = 'https://inmind.site/api/auth/jump/timehack-v1'
     }
   }
 

@@ -25,8 +25,8 @@ class Settings(BaseSettings):
         return f"sqlite+aiosqlite:///{db_path}"
 
     # SSO / CentralAuth
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "timehack_secret_key_ecosystem_2026")
-    CENTRAL_AUTH_URL: str = os.getenv("CENTRAL_AUTH_URL", "https://centralauth.inmind.site")
+    SECRET_KEY: str = os.getenv("SECRET_KEY", "timehack_default_secret_key_change_me_123456789")
+    CENTRAL_AUTH_URL: str = os.getenv("CENTRAL_AUTH_URL", "https://inmind.site")
     CLIENT_ID: str = os.getenv("CLIENT_ID", "timehack-v1")
     CLIENT_SECRET: str = os.getenv("CLIENT_SECRET", "timehack_secret_123")
     APP_BASE_URL: str = os.getenv("APP_BASE_URL", "") # e.g. https://time.inmind.site

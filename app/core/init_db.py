@@ -85,13 +85,18 @@ async def init_db():
             print("[+] Seeding default SSOConfig...")
             sso_conf = SSOConfig(
                 is_enabled=True,
-                server_url=settings.CENTRAL_AUTH_URL,
+                server_url=settings.CENTRAL_AUTH_URL or "https://inmind.site",
                 client_id=settings.CLIENT_ID,
                 client_secret=settings.CLIENT_SECRET,
                 redirect_uri="https://time.inmind.site/auth-center/callback"
             )
             db.add(sso_conf)
             await db.commit()
+        else:
+            if "centralauth.inmind.site" in sso_conf.server_url or not sso_conf.server_url:
+                print("[+] Correcting SSO server_url to https://inmind.site...")
+                sso_conf.server_url = "https://inmind.site"
+                await db.commit()
 
         print("[+] TimeHack Database initialized successfully with all tables and seeds!")
 

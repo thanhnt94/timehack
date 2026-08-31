@@ -62,7 +62,7 @@ export const Admin: React.FC = () => {
 
   // SSO Form State
   const [ssoEnabled, setSsoEnabled] = useState(true)
-  const [serverUrl, setServerUrl] = useState('https://centralauth.inmind.site')
+  const [serverUrl, setServerUrl] = useState('https://inmind.site')
   const [clientId, setClientId] = useState('timehack-v1')
   const [clientSecret, setClientSecret] = useState('timehack_secret_123')
   const [redirectUri, setRedirectUri] = useState('https://time.inmind.site/auth-center/callback')
@@ -87,7 +87,7 @@ export const Admin: React.FC = () => {
 
       if (overviewRes.data.sso) {
         setSsoEnabled(overviewRes.data.sso.is_enabled)
-        setServerUrl(overviewRes.data.sso.server_url || 'https://centralauth.inmind.site')
+        setServerUrl(overviewRes.data.sso.server_url || 'https://inmind.site')
         setClientId(overviewRes.data.sso.client_id || 'timehack-v1')
         setClientSecret(overviewRes.data.sso.client_secret || 'timehack_secret_123')
         setRedirectUri(overviewRes.data.sso.redirect_uri || 'https://time.inmind.site/auth-center/callback')
@@ -365,7 +365,7 @@ export const Admin: React.FC = () => {
                   type="text"
                   value={serverUrl}
                   onChange={(e) => setServerUrl(e.target.value)}
-                  placeholder="https://centralauth.inmind.site"
+                  placeholder="https://inmind.site"
                   className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-violet-500"
                 />
                 <span className="text-[10px] text-slate-500">Địa chỉ máy chủ định danh trung tâm CentralAuth</span>

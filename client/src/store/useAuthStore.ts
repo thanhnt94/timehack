@@ -1,12 +1,13 @@
 import { create } from 'zustand'
 import axios from 'axios'
 
-interface UserProfile {
+export interface UserProfile {
   id: number
   username: string
   email: string
   full_name?: string
   avatar_url?: string
+  timezone?: string
   role?: string
   settings?: any
 }
@@ -19,6 +20,7 @@ interface AuthState {
   backdoorLogin: (username?: string) => Promise<{ success: boolean; error?: string }>
   logout: () => Promise<void>
   updateSettings: (settings: any) => Promise<void>
+  updateTimezone: (timezone: string) => Promise<void>
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -83,10 +85,34 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const res = await axios.post('/api/v1/auth/settings', newSettings)
       const current = get().user
       if (current) {
-        set({ user: { ...current, settings: res.data.settings } })
+        set({
+          user: {
+            ...current,
+            timezone: res.data.timezone || current.timezone,
+            settings: res.data.settings
+          }
+        })
       }
     } catch (e) {
       console.error('Failed to update settings', e)
+    }
+  },
+
+  updateTimezone: async (timezone: string) => {
+    try {
+      const res = await axios.post('/api/v1/auth/settings', { timezone })
+      const current = get().user
+      if (current) {
+        set({
+          user: {
+            ...current,
+            timezone: res.data.timezone || timezone,
+            settings: res.data.settings
+          }
+        })
+      }
+    } catch (e) {
+      console.error('Failed to update timezone', e)
     }
   }
 }))

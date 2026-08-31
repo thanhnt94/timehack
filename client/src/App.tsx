@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom'
-import { Sparkles } from 'lucide-react'
+import { Sparkles, Globe } from 'lucide-react'
 import { Sidebar } from './components/Sidebar'
 import { BottomNav } from './components/BottomNav'
 import { FloatingTimerBar } from './components/FloatingTimerBar'
 import { QuickActionSheet } from './components/QuickActionSheet'
+import { SettingsModal } from './components/SettingsModal'
 import { TodayPlanner } from './pages/TodayPlanner'
 import { TasksBoard } from './pages/TasksBoard'
 import { HabitMatrix } from './pages/HabitMatrix'
@@ -15,6 +16,7 @@ import { LandingPage } from './pages/LandingPage'
 import { Admin } from './pages/Admin'
 import { useAuthStore } from './store/useAuthStore'
 import { useTimerStore } from './store/useTimerStore'
+import { sounds } from './utils/soundEffects'
 
 /* ── Inner app with router context ────── */
 const AppShell: React.FC = () => {
@@ -22,12 +24,15 @@ const AppShell: React.FC = () => {
   const { isRunning } = useTimerStore()
   const [sheetOpen, setSheetOpen] = useState(false)
   const [focusOpen, setFocusOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const location = useLocation()
+
+  const tzShort = user?.timezone ? user.timezone.split('/').pop()?.replace('_', ' ') : 'UTC+7'
 
   return (
     <div className="h-[100dvh] flex flex-col md:flex-row bg-[#F8FAFC] text-slate-900 overflow-hidden">
       {/* Desktop sidebar */}
-      <Sidebar user={user} onLogout={logout} />
+      <Sidebar user={user} onLogout={logout} onOpenSettings={() => setSettingsOpen(true)} />
 
       {/* Main content column */}
       <div className="flex-1 flex flex-col min-h-0 md:ml-60">
@@ -42,12 +47,25 @@ const AppShell: React.FC = () => {
             </span>
           </div>
 
-          <button
-            onClick={() => logout()}
-            className="text-[11px] font-bold text-slate-600 hover:text-rose-600 px-3 py-1 rounded-lg border border-slate-200 bg-slate-50 active:scale-95 transition"
-          >
-            Đăng xuất
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Timezone button */}
+            <button
+              onClick={() => { sounds.playTap(); setSettingsOpen(true) }}
+              className="flex items-center gap-1 text-[11px] font-bold text-violet-700 bg-violet-50 hover:bg-violet-100 px-2.5 py-1 rounded-lg border border-violet-200 active:scale-95 transition"
+              title="Cài đặt múi giờ"
+            >
+              <Globe className="w-3 h-3 text-violet-600" />
+              <span className="truncate max-w-[80px]">{tzShort}</span>
+            </button>
+
+            {/* Logout button */}
+            <button
+              onClick={() => logout()}
+              className="text-[11px] font-bold text-slate-600 hover:text-rose-600 px-2.5 py-1 rounded-lg border border-slate-200 bg-slate-50 active:scale-95 transition"
+            >
+              Đăng xuất
+            </button>
+          </div>
         </header>
 
         {/* Scrollable content area */}
@@ -79,6 +97,12 @@ const AppShell: React.FC = () => {
         isOpen={sheetOpen}
         onClose={() => setSheetOpen(false)}
         onStartFocus={() => { setSheetOpen(false); setFocusOpen(true) }}
+      />
+
+      {/* Settings modal */}
+      <SettingsModal
+        isOpen={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
       />
 
       {/* Focus overlay */}

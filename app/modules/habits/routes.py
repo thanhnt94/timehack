@@ -7,7 +7,8 @@ from pydantic import BaseModel
 
 from app.core.database import get_db
 from app.core.security import get_current_user_id
-from app.models import Habit, HabitLog, Category
+from app.core.timezone_utils import get_user_today
+from app.models import Habit, HabitLog, Category, User
 
 router = APIRouter(prefix="/api/v1/habits", tags=["Habits"])
 
@@ -29,12 +30,12 @@ class HabitLogCheckinSchema(BaseModel):
     completed: Optional[bool] = True
     notes: Optional[str] = None
 
-def calculate_streak(logs: List[date]) -> dict:
+def calculate_streak(logs: List[date], today_d: Optional[date] = None) -> dict:
     if not logs:
         return {"current_streak": 0, "longest_streak": 0}
     
     unique_dates = sorted(set(logs))
-    today = date.today()
+    today = today_d or date.today()
     yesterday = today - timedelta(days=1)
 
     # Calculate current streak
@@ -66,13 +67,17 @@ def calculate_streak(logs: List[date]) -> dict:
 @router.get("")
 async def get_habits(request: Request, db: AsyncSession = Depends(get_db)):
     user_id = get_current_user_id(request)
+    u_res = await db.execute(select(User).where(User.id == user_id))
+    user = u_res.scalar_one_or_none()
+    user_tz = user.timezone if user else "Asia/Ho_Chi_Minh"
+    today_user_date = get_user_today(user_tz)
+
     res = await db.execute(
         select(Habit)
         .where(Habit.user_id == user_id, Habit.archived == False)
         .order_by(Habit.id.desc())
     )
     habits = res.scalars().all()
-    today_str = date.today().isoformat()
 
     result = []
     for h in habits:
@@ -84,11 +89,11 @@ async def get_habits(request: Request, db: AsyncSession = Depends(get_db)):
         )
         log_rows = log_res.all()
         log_dates = [row.logged_date for row in log_rows]
-        streak_info = calculate_streak(log_dates)
+        streak_info = calculate_streak(log_dates, today_user_date)
 
-        # Check today status
+        # Check today status in user timezone
         today_log_res = await db.execute(
-            select(HabitLog).where(HabitLog.habit_id == h.id, HabitLog.logged_date == date.today())
+            select(HabitLog).where(HabitLog.habit_id == h.id, HabitLog.logged_date == today_user_date)
         )
         today_log = today_log_res.scalar_one_or_none()
 
@@ -116,7 +121,7 @@ async def get_habits(request: Request, db: AsyncSession = Depends(get_db)):
             "longest_streak": streak_info["longest_streak"],
             "today_completed": today_log.completed if today_log else False,
             "today_count": today_log.count if today_log else 0,
-            "created_at": h.created_at.isoformat()
+            "created_at": h.created_at.isoformat() + "Z"
         })
 
     return result
@@ -145,12 +150,16 @@ async def create_habit(payload: HabitCreateSchema, request: Request, db: AsyncSe
 @router.post("/{habit_id}/checkin")
 async def checkin_habit(habit_id: int, payload: HabitLogCheckinSchema, request: Request, db: AsyncSession = Depends(get_db)):
     user_id = get_current_user_id(request)
+    u_res = await db.execute(select(User).where(User.id == user_id))
+    user = u_res.scalar_one_or_none()
+    user_tz = user.timezone if user else "Asia/Ho_Chi_Minh"
+
     res = await db.execute(select(Habit).where(Habit.id == habit_id, Habit.user_id == user_id))
     habit = res.scalar_one_or_none()
     if not habit:
         raise HTTPException(status_code=404, detail="Habit not found")
 
-    target_date = date.today()
+    target_date = get_user_today(user_tz)
     if payload.logged_date:
         try:
             target_date = date.fromisoformat(payload.logged_date)

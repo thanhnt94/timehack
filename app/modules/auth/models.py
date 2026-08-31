@@ -12,6 +12,7 @@ class User(Base):
     email = Column(String(255), unique=True, index=True, nullable=False)
     full_name = Column(String(255), nullable=True)
     avatar_url = Column(Text, nullable=True)
+    timezone = Column(String(50), default="Asia/Ho_Chi_Minh", nullable=True)
     role = Column(String(50), default="user") # 'admin' or 'user'
     created_at = Column(DateTime, default=datetime.utcnow)
 

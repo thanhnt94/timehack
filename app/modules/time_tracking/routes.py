@@ -7,7 +7,8 @@ from pydantic import BaseModel
 
 from app.core.database import get_db
 from app.core.security import get_current_user_id
-from app.models import TimeLog, Task, Habit, HabitLog
+from app.core.timezone_utils import parse_to_utc, local_date_to_utc_range, get_user_today
+from app.models import TimeLog, Task, Habit, HabitLog, User
 
 router = APIRouter(prefix="/api/v1/time-tracking", tags=["TimeTracking"])
 
@@ -30,6 +31,10 @@ async def get_time_logs(
     db: AsyncSession = Depends(get_db)
 ):
     user_id = get_current_user_id(request)
+    u_res = await db.execute(select(User).where(User.id == user_id))
+    user = u_res.scalar_one_or_none()
+    user_tz = user.timezone if user else "Asia/Ho_Chi_Minh"
+
     stmt = select(TimeLog).where(TimeLog.user_id == user_id)
 
     if task_id:
@@ -38,13 +43,8 @@ async def get_time_logs(
         stmt = stmt.where(TimeLog.habit_id == habit_id)
 
     if date_str:
-        try:
-            target_d = date.fromisoformat(date_str)
-            dt_start = datetime.combine(target_d, datetime.min.time())
-            dt_end = datetime.combine(target_d, datetime.max.time())
-            stmt = stmt.where(TimeLog.start_time >= dt_start, TimeLog.start_time <= dt_end)
-        except Exception:
-            pass
+        utc_start, utc_end = local_date_to_utc_range(date_str, user_tz)
+        stmt = stmt.where(TimeLog.start_time >= utc_start, TimeLog.start_time <= utc_end)
 
     stmt = stmt.order_by(TimeLog.start_time.desc())
     res = await db.execute(stmt)
@@ -55,8 +55,8 @@ async def get_time_logs(
         "task_id": l.task_id,
         "habit_id": l.habit_id,
         "category_id": l.category_id,
-        "start_time": l.start_time.isoformat(),
-        "end_time": l.end_time.isoformat(),
+        "start_time": l.start_time.isoformat() + "Z", # UTC ISO format
+        "end_time": l.end_time.isoformat() + "Z",
         "duration_seconds": l.duration_seconds,
         "timer_type": l.timer_type,
         "notes": l.notes
@@ -65,13 +65,12 @@ async def get_time_logs(
 @router.post("/logs")
 async def create_time_log(payload: TimeLogCreateSchema, request: Request, db: AsyncSession = Depends(get_db)):
     user_id = get_current_user_id(request)
+    u_res = await db.execute(select(User).where(User.id == user_id))
+    user = u_res.scalar_one_or_none()
+    user_tz = user.timezone if user else "Asia/Ho_Chi_Minh"
 
-    try:
-        start_dt = datetime.fromisoformat(payload.start_time.replace("Z", ""))
-        end_dt = datetime.fromisoformat(payload.end_time.replace("Z", ""))
-    except Exception:
-        start_dt = datetime.utcnow()
-        end_dt = datetime.utcnow()
+    start_dt = parse_to_utc(payload.start_time, user_tz)
+    end_dt = parse_to_utc(payload.end_time, user_tz)
 
     log_entry = TimeLog(
         user_id=user_id,

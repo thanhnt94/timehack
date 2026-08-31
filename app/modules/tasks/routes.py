@@ -7,7 +7,8 @@ from pydantic import BaseModel
 
 from app.core.database import get_db
 from app.core.security import get_current_user_id
-from app.models import Task, Subtask, Category
+from app.core.timezone_utils import parse_to_utc, utc_now
+from app.models import Task, Subtask, Category, User
 
 router = APIRouter(prefix="/api/v1/tasks", tags=["Tasks"])
 
@@ -128,13 +129,11 @@ async def get_tasks(
 @router.post("")
 async def create_task(payload: TaskCreateSchema, request: Request, db: AsyncSession = Depends(get_db)):
     user_id = get_current_user_id(request)
+    u_res = await db.execute(select(User).where(User.id == user_id))
+    user = u_res.scalar_one_or_none()
+    user_tz = user.timezone if user else "Asia/Ho_Chi_Minh"
     
-    due_dt = None
-    if payload.due_date:
-        try:
-            due_dt = datetime.fromisoformat(payload.due_date.replace("Z", ""))
-        except Exception:
-            pass
+    due_dt = parse_to_utc(payload.due_date, user_tz) if payload.due_date else None
 
     task = Task(
         user_id=user_id,
@@ -161,6 +160,10 @@ async def create_task(payload: TaskCreateSchema, request: Request, db: AsyncSess
 @router.patch("/{task_id}")
 async def update_task(task_id: int, payload: TaskUpdateSchema, request: Request, db: AsyncSession = Depends(get_db)):
     user_id = get_current_user_id(request)
+    u_res = await db.execute(select(User).where(User.id == user_id))
+    user = u_res.scalar_one_or_none()
+    user_tz = user.timezone if user else "Asia/Ho_Chi_Minh"
+
     res = await db.execute(select(Task).where(Task.id == task_id, Task.user_id == user_id))
     task = res.scalar_one_or_none()
     if not task:
@@ -185,7 +188,7 @@ async def update_task(task_id: int, payload: TaskUpdateSchema, request: Request,
         old_status = task.status
         task.status = payload.status
         if payload.status == "completed" and old_status != "completed":
-            task.completed_at = datetime.utcnow()
+            task.completed_at = utc_now()
         elif payload.status != "completed":
             task.completed_at = None
 
@@ -193,10 +196,7 @@ async def update_task(task_id: int, payload: TaskUpdateSchema, request: Request,
         if payload.due_date == "":
             task.due_date = None
         else:
-            try:
-                task.due_date = datetime.fromisoformat(payload.due_date.replace("Z", ""))
-            except Exception:
-                pass
+            task.due_date = parse_to_utc(payload.due_date, user_tz)
 
     await db.commit()
     await db.refresh(task)

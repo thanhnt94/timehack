@@ -2,13 +2,14 @@ import React from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import {
   Sparkles, CalendarDays, CheckSquare, Zap, BarChart3,
-  Clock, LogOut, ShieldAlert
+  Clock, LogOut, ShieldAlert, Globe
 } from 'lucide-react'
 import { sounds } from '../utils/soundEffects'
 
 interface Props {
   user: any
   onLogout: () => void
+  onOpenSettings?: () => void
 }
 
 const links = [
@@ -19,8 +20,9 @@ const links = [
   { path: '/analytics', icon: BarChart3, label: 'Thống Kê' },
 ]
 
-export const Sidebar: React.FC<Props> = ({ user, onLogout }) => {
+export const Sidebar: React.FC<Props> = ({ user, onLogout, onOpenSettings }) => {
   const { pathname } = useLocation()
+  const tzLabel = user?.timezone ? user.timezone.split('/').pop()?.replace('_', ' ') : 'UTC+7'
 
   return (
     <aside className="hidden md:flex w-60 shrink-0 h-[100dvh] flex-col bg-white border-r border-slate-200 fixed left-0 top-0 z-20">
@@ -55,6 +57,22 @@ export const Sidebar: React.FC<Props> = ({ user, onLogout }) => {
             </Link>
           )
         })}
+
+        {/* Timezone button */}
+        {onOpenSettings && (
+          <button
+            onClick={() => { sounds.playTap(); onOpenSettings() }}
+            className="w-full flex items-center justify-between px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:text-violet-700 hover:bg-violet-50/60 border border-transparent transition"
+          >
+            <div className="flex items-center gap-2.5">
+              <Globe className="w-4 h-4 text-violet-600" />
+              <span>Múi Giờ</span>
+            </div>
+            <span className="text-[10px] font-mono font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
+              {tzLabel}
+            </span>
+          </button>
+        )}
 
         {user?.role === 'admin' && (
           <Link

@@ -46,6 +46,7 @@ async def get_me(request: Request, db: AsyncSession = Depends(get_db)):
         "email": user.email,
         "full_name": user.full_name,
         "avatar_url": user.avatar_url,
+        "timezone": user.timezone or settings_dict.get("timezone", "Asia/Ho_Chi_Minh"),
         "role": user.role or "user",
         "settings": settings_dict
     }
@@ -148,5 +149,12 @@ async def update_user_settings(payload: dict, request: Request, db: AsyncSession
         existing.update(payload)
         user_sett.settings = existing
 
+    # Synchronize User.timezone directly if present
+    if "timezone" in payload and payload["timezone"]:
+        u_res = await db.execute(select(User).where(User.id == user_id))
+        user = u_res.scalar_one_or_none()
+        if user:
+            user.timezone = str(payload["timezone"]).strip()
+
     await db.commit()
-    return {"status": "ok", "settings": user_sett.settings}
+    return {"status": "ok", "settings": user_sett.settings, "timezone": payload.get("timezone")}

@@ -1,183 +1,131 @@
-import React, { useEffect, useState } from 'react'
-import { 
-  BarChart3, 
-  Clock, 
-  CheckCircle2, 
-  TrendingUp, 
-  Trophy, 
-  Award, 
-  Flame, 
-  Sparkles,
-  Zap,
-  Sliders,
-  Bell,
-  ShieldCheck
-} from 'lucide-react'
-import axios from 'axios'
-import { sounds } from '../utils/soundEffects'
+import React, { useEffect, useState, useMemo } from 'react'
+import { TrendingUp, CheckCircle2, Flame, Clock } from 'lucide-react'
+import { useTaskStore } from '../store/useTaskStore'
+import { useHabitStore } from '../store/useHabitStore'
+
+type Range = 7 | 14 | 30
 
 export const ProductivityAnalytics: React.FC = () => {
-  const [data, setData] = useState<any>(null)
-  const [days, setDays] = useState(7)
-  const [isLoading, setIsLoading] = useState(true)
+  const { tasks, fetchTasks } = useTaskStore()
+  const { habits, fetchHabits } = useHabitStore()
+  const [range, setRange] = useState<Range>(7)
 
-  useEffect(() => {
-    const fetchAnalytics = async () => {
-      try {
-        setIsLoading(true)
-        const res = await axios.get(`/api/v1/analytics/summary?days=${days}`)
-        setData(res.data)
-      } catch (e) {
-        console.error('Failed to fetch analytics', e)
-      } finally {
-        setIsLoading(false)
-      }
+  useEffect(() => { fetchTasks(); fetchHabits() }, [])
+
+  const totalTasks = tasks.length
+  const doneTasks = tasks.filter(t => t.status === 'completed').length
+  const completionPct = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0
+
+  const totalFocusMin = Math.round(tasks.reduce((s, t) => s + (t.spent_seconds || 0), 0) / 60)
+
+  const longestStreak = habits.reduce((max, h) => Math.max(max, h.longest_streak || 0), 0)
+
+  // SVG ring
+  const ringSize = 120
+  const strokeW = 10
+  const radius = (ringSize - strokeW) / 2
+  const circumference = 2 * Math.PI * radius
+  const offset = circumference - (completionPct / 100) * circumference
+
+  // Fake bar chart data (7 days based on task created_at)
+  const barData = useMemo(() => {
+    const days: { label: string; count: number }[] = []
+    for (let i = range - 1; i >= 0; i--) {
+      const d = new Date()
+      d.setDate(d.getDate() - i)
+      const dateStr = d.toISOString().split('T')[0]
+      const dayLabel = d.toLocaleDateString('vi-VN', { weekday: 'short' }).replace('Th ', 'T')
+      const count = tasks.filter(t => {
+        if (!t.completed_at) return false
+        return t.completed_at.startsWith(dateStr)
+      }).length
+      days.push({ label: dayLabel, count })
     }
-    fetchAnalytics()
-  }, [days])
+    return days
+  }, [tasks, range])
 
-  if (isLoading || !data) {
-    return (
-      <div className="p-12 text-center text-slate-400 text-xs font-bold space-y-2">
-        <div className="w-8 h-8 rounded-full border-2 border-indigo-500 border-t-transparent animate-spin mx-auto" />
-        <div>Đang tổng hợp báo cáo năng suất...</div>
-      </div>
-    )
-  }
-
-  const maxMinutes = Math.max(...data.daily_productivity.map((d: any) => d.minutes), 1)
-  const totalFocusHours = (data.total_focus_minutes / 60).toFixed(1)
-  const totalXP = (data.total_focus_minutes * 2) + (data.completed_tasks_count * 10)
-  const userLevel = Math.floor(totalXP / 100) + 1
-  const levelProgress = totalXP % 100
+  const maxBar = Math.max(...barData.map(d => d.count), 1)
 
   return (
-    <div className="space-y-4 sm:space-y-6 animate-in fade-in duration-300 select-none pb-6">
-      {/* 1. GAMIFIED PRODUCTIVITY LEVEL HERO */}
-      <div className="glass-card rounded-3xl p-4 sm:p-6 border border-indigo-500/30 bg-gradient-to-br from-indigo-950/40 via-slate-900/90 to-purple-950/30 shadow-2xl relative overflow-hidden">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-yellow-400 text-slate-950 flex items-center justify-center font-black shadow-lg shadow-amber-500/30">
-              <Trophy className="w-6 h-6 stroke-[2.5]" />
-            </div>
-            <div>
-              <div className="text-[10px] font-black text-amber-400 uppercase tracking-wider flex items-center gap-1">
-                <Sparkles className="w-3 h-3" />
-                <span>Cấp Độ Năng Suất</span>
-              </div>
-              <h2 className="text-base sm:text-lg font-black text-white leading-tight">
-                Level {userLevel} • Focus Master
-              </h2>
-            </div>
-          </div>
+    <div className="space-y-5">
+      <h1 className="text-xl font-black text-white">Thống Kê</h1>
 
-          <div className="text-right">
-            <div className="text-xs font-mono font-black text-amber-300">{totalXP} XP</div>
-            <div className="text-[9px] text-slate-400 font-bold">Điểm rèn luyện</div>
-          </div>
-        </div>
-
-        {/* Level XP Progress Bar */}
-        <div className="mt-4 space-y-1">
-          <div className="flex items-center justify-between text-[10px] font-bold text-slate-400">
-            <span>Tiến độ lên Level {userLevel + 1}</span>
-            <span>{levelProgress} / 100 XP</span>
-          </div>
-          <div className="h-2 rounded-full bg-slate-800 overflow-hidden">
-            <div 
-              className="h-full rounded-full bg-gradient-to-r from-amber-500 to-yellow-400 transition-all duration-500"
-              style={{ width: `${levelProgress}%` }}
-            />
-          </div>
-        </div>
+      {/* Range selector */}
+      <div className="flex gap-1.5">
+        {([7, 14, 30] as Range[]).map(r => (
+          <button
+            key={r}
+            onClick={() => setRange(r)}
+            className={`px-3 py-1.5 rounded-xl text-[11px] font-bold transition ${
+              range === r
+                ? 'bg-violet-600 text-white'
+                : 'glass text-slate-400'
+            }`}
+          >
+            {r} ngày
+          </button>
+        ))}
       </div>
 
-      {/* 2. TIME RANGE SELECTOR PILLS */}
-      <div className="flex items-center justify-between px-1">
-        <h3 className="text-xs font-black text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-          <BarChart3 className="w-4 h-4 text-indigo-400" />
-          <span>Báo Cáo Hoạt Động</span>
-        </h3>
-        <div className="flex items-center gap-1 p-1 glass-card rounded-2xl border border-white/[0.08]">
-          {[7, 14, 30].map(d => (
-            <button
-              key={d}
-              onClick={() => { sounds.playTap(); setDays(d); }}
-              className={`px-3 py-1 rounded-xl text-[10px] font-bold transition-all ${
-                days === d 
-                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30' 
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              {d} ngày
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* 3. 3-GRID SUMMARY METRIC CARDS */}
-      <div className="grid grid-cols-3 gap-2 sm:gap-3">
-        <div className="p-3 rounded-2xl glass-card border border-white/[0.08] text-center">
-          <Clock className="w-4 h-4 text-cyan-400 mx-auto mb-1" />
-          <div className="text-[10px] text-slate-400 font-semibold">Tập trung</div>
-          <div className="text-sm sm:text-base font-black text-white mt-0.5 font-mono">{totalFocusHours}h</div>
-        </div>
-
-        <div className="p-3 rounded-2xl glass-card border border-white/[0.08] text-center">
+      {/* Summary row */}
+      <div className="grid grid-cols-3 gap-2">
+        <div className="glass rounded-2xl p-3 text-center">
           <CheckCircle2 className="w-4 h-4 text-emerald-400 mx-auto mb-1" />
-          <div className="text-[10px] text-slate-400 font-semibold">Đã xong</div>
-          <div className="text-sm sm:text-base font-black text-emerald-400 mt-0.5 font-mono">{data.completed_tasks_count} tasks</div>
+          <div className="text-lg font-black text-white font-mono">{doneTasks}</div>
+          <div className="text-[9px] text-slate-400 font-semibold">Hoàn thành</div>
         </div>
-
-        <div className="p-3 rounded-2xl glass-card border border-white/[0.08] text-center">
-          <TrendingUp className="w-4 h-4 text-rose-400 mx-auto mb-1" />
-          <div className="text-[10px] text-slate-400 font-semibold">Tỷ lệ xong</div>
-          <div className="text-sm sm:text-base font-black text-rose-300 mt-0.5 font-mono">{data.completion_rate}%</div>
+        <div className="glass rounded-2xl p-3 text-center">
+          <Clock className="w-4 h-4 text-cyan-400 mx-auto mb-1" />
+          <div className="text-lg font-black text-white font-mono">{totalFocusMin}<span className="text-xs text-slate-400">m</span></div>
+          <div className="text-[9px] text-slate-400 font-semibold">Tập trung</div>
+        </div>
+        <div className="glass rounded-2xl p-3 text-center">
+          <Flame className="w-4 h-4 text-orange-400 mx-auto mb-1" />
+          <div className="text-lg font-black text-white font-mono">{longestStreak}</div>
+          <div className="text-[9px] text-slate-400 font-semibold">Streak dài nhất</div>
         </div>
       </div>
 
-      {/* 4. DAILY PRODUCTIVITY BAR CHART */}
-      <div className="glass-card rounded-3xl p-4 sm:p-6 border border-white/[0.08] space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="text-xs font-black text-white">Biểu Đồ Phút Tập Trung Hàng Ngày</div>
-          <span className="text-[10px] font-bold text-slate-400">Đơn vị: Phút</span>
+      {/* Completion ring + bar chart side by side on desktop, stacked on mobile */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {/* Ring */}
+        <div className="glass rounded-2xl p-5 flex flex-col items-center justify-center">
+          <svg width={ringSize} height={ringSize} className="-rotate-90">
+            <circle cx={ringSize / 2} cy={ringSize / 2} r={radius}
+              stroke="rgba(255,255,255,0.06)" strokeWidth={strokeW} fill="none" />
+            <circle cx={ringSize / 2} cy={ringSize / 2} r={radius}
+              stroke="url(#grad)" strokeWidth={strokeW} fill="none"
+              strokeLinecap="round" strokeDasharray={circumference}
+              strokeDashoffset={offset}
+              className="transition-all duration-700" />
+            <defs>
+              <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#8B5CF6" />
+                <stop offset="100%" stopColor="#06B6D4" />
+              </linearGradient>
+            </defs>
+          </svg>
+          <div className="mt-2 text-center">
+            <div className="text-2xl font-black text-white font-mono">{completionPct}%</div>
+            <div className="text-[10px] text-slate-400 font-semibold">Hoàn thành</div>
+          </div>
         </div>
 
-        <div className="flex items-end justify-between gap-1.5 sm:gap-2 h-44 pt-6 pb-2 border-b border-white/[0.06]">
-          {data.daily_productivity.map((d: any) => {
-            const barHeight = Math.max(8, (d.minutes / maxMinutes) * 100)
-            const isTop = d.minutes === maxMinutes && d.minutes > 0
-
-            return (
-              <div key={d.date} className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end group">
-                <div className="text-[9px] font-mono text-slate-400 opacity-0 group-hover:opacity-100 transition">
-                  {d.minutes}p
-                </div>
-                <div 
-                  className={`w-full rounded-t-xl transition-all duration-500 ${
-                    isTop 
-                      ? 'bg-gradient-to-t from-indigo-600 via-violet-500 to-cyan-400 shadow-md shadow-indigo-500/30' 
-                      : 'bg-slate-800 hover:bg-slate-700'
-                  }`}
-                  style={{ height: `${barHeight}%` }}
-                />
-                <div className="text-[9px] text-slate-500 font-semibold mt-1 truncate max-w-full">
-                  {d.date.slice(5)}
-                </div>
+        {/* Bar chart */}
+        <div className="glass rounded-2xl p-4">
+          <div className="flex items-center gap-1.5 mb-3">
+            <TrendingUp className="w-3.5 h-3.5 text-violet-400" />
+            <span className="text-[11px] font-bold text-slate-300">Task hoàn thành</span>
+          </div>
+          <div className="flex items-end gap-1 h-24">
+            {barData.slice(-7).map((d, i) => (
+              <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                <div className="w-full rounded-t-lg bg-gradient-to-t from-violet-600 to-cyan-500 transition-all duration-300"
+                  style={{ height: `${Math.max((d.count / maxBar) * 80, 4)}%` }} />
+                <span className="text-[8px] text-slate-500 font-mono">{d.label}</span>
               </div>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* 5. DATABASE SYNC & PRIVACY BADGE */}
-      <div className="p-3.5 rounded-2xl glass-card border border-white/[0.08] flex items-center gap-3">
-        <div className="p-2 rounded-xl bg-violet-600/20 text-violet-400">
-          <ShieldCheck className="w-5 h-5" />
-        </div>
-        <div className="text-[11px] text-slate-300">
-          <div className="font-bold text-white">Bảo Mật & Đồng Bộ Realtime</div>
-          <div className="text-slate-400 text-[10px]">Tất cả tiến độ được lưu trên Database Ecosystem Server (Zero localStorage).</div>
+            ))}
+          </div>
         </div>
       </div>
     </div>

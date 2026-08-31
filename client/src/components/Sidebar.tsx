@@ -1,94 +1,92 @@
 import React from 'react'
-import { NavLink } from 'react-router-dom'
-import { 
-  CalendarDays, 
-  CheckSquare, 
-  Zap, 
-  Clock, 
-  BarChart3, 
-  Timer, 
-  Sparkles, 
-  UserCheck,
-  Shield
+import { Link, useLocation } from 'react-router-dom'
+import {
+  Sparkles, CalendarDays, CheckSquare, Zap, BarChart3,
+  Clock, LogOut, ShieldAlert
 } from 'lucide-react'
-import { useAuthStore } from '../store/useAuthStore'
+import { sounds } from '../utils/soundEffects'
 
-export const Sidebar: React.FC = () => {
-  const { user } = useAuthStore()
+interface Props {
+  user: any
+  onLogout: () => void
+}
 
-  const navItems = [
-    { to: '/', label: 'Hôm Nay', icon: CalendarDays, color: 'text-cyan-400' },
-    { to: '/tasks', label: 'Công Việc', icon: CheckSquare, color: 'text-violet-400' },
-    { to: '/habits', label: 'Thói Quen', icon: Zap, color: 'text-emerald-400' },
-    { to: '/schedule', label: 'Thời Gian Biểu', icon: Clock, color: 'text-amber-400' },
-    { to: '/focus', label: 'Tập Trung Pomodoro', icon: Timer, color: 'text-rose-400' },
-    { to: '/analytics', label: 'Thống Kê Năng Suất', icon: BarChart3, color: 'text-indigo-400' }
-  ]
+const links = [
+  { path: '/', icon: CalendarDays, label: 'Hôm Nay' },
+  { path: '/tasks', icon: CheckSquare, label: 'Nhiệm Vụ' },
+  { path: '/habits', icon: Zap, label: 'Thói Quen' },
+  { path: '/schedule', icon: Clock, label: 'Lịch Trình' },
+  { path: '/analytics', icon: BarChart3, label: 'Thống Kê' },
+]
 
-  if (user?.role === 'admin') {
-    navItems.push({ to: '/admin', label: 'Quản Trị Admin', icon: Shield, color: 'text-amber-400' })
-  }
+export const Sidebar: React.FC<Props> = ({ user, onLogout }) => {
+  const { pathname } = useLocation()
 
   return (
-    <aside className="hidden md:flex w-64 h-screen fixed left-0 top-0 bg-[#0F172A]/90 backdrop-blur-xl border-r border-slate-800 flex-col justify-between z-30 select-none">
-      {/* App Header / Brand */}
-      <div>
-        <div className="p-6 flex items-center gap-3 border-b border-slate-800/80">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-violet-600 via-indigo-600 to-cyan-500 flex items-center justify-center shadow-lg shadow-violet-500/25">
-            <Sparkles className="w-5 h-5 text-white animate-pulse" />
-          </div>
-          <div>
-            <h1 className="font-black text-lg text-white tracking-wider uppercase font-mono">
-              TIME<span className="text-cyan-400">HACK</span>
-            </h1>
-            <p className="text-[10px] font-semibold text-slate-400 tracking-tight">Productivity All-In-One</p>
-          </div>
+    <aside className="hidden md:flex w-60 shrink-0 h-[100dvh] flex-col bg-[#080C18] border-r border-[var(--border-subtle)] fixed left-0 top-0 z-20">
+      {/* Brand */}
+      <div className="flex items-center gap-2.5 px-5 h-14 border-b border-[var(--border-subtle)]">
+        <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-violet-600 to-cyan-500 flex items-center justify-center">
+          <Sparkles className="w-4 h-4 text-white" />
         </div>
-
-        {/* Navigation Items */}
-        <nav className="p-4 space-y-1.5">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-bold transition-all ${
-                  isActive
-                    ? 'bg-gradient-to-r from-violet-600/30 to-cyan-600/20 text-white border border-violet-500/40 shadow-lg shadow-violet-500/10'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-                }`
-              }
-            >
-              <item.icon className={`w-4 h-4 ${item.color}`} />
-              <span>{item.label}</span>
-            </NavLink>
-          ))}
-        </nav>
+        <span className="font-black text-sm tracking-wider font-mono">
+          TIME<span className="text-cyan-400">HACK</span>
+        </span>
       </div>
 
-      {/* User Footer Profile */}
-      <div className="p-4 border-t border-slate-800/80">
-        <div className="p-3 glass-card rounded-2xl flex items-center justify-between">
-          <div className="flex items-center gap-2.5 overflow-hidden">
-            <div className="w-8 h-8 rounded-full bg-violet-600/30 border border-violet-500/40 flex items-center justify-center text-xs font-bold text-violet-300 shrink-0">
+      {/* Nav links */}
+      <nav className="flex-1 py-3 px-3 space-y-0.5 overflow-y-auto">
+        {links.map(link => {
+          const Icon = link.icon
+          const active = pathname === link.path
+          return (
+            <Link
+              key={link.path}
+              to={link.path}
+              onClick={() => sounds.playTap()}
+              className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
+                active
+                  ? 'bg-violet-600/15 text-violet-300 border border-violet-500/20'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] border border-transparent'
+              }`}
+            >
+              <Icon className="w-4 h-4" />
+              <span>{link.label}</span>
+            </Link>
+          )
+        })}
+
+        {user?.role === 'admin' && (
+          <Link
+            to="/admin"
+            onClick={() => sounds.playTap()}
+            className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-colors mt-4 ${
+              pathname === '/admin'
+                ? 'bg-rose-600/15 text-rose-300 border border-rose-500/20'
+                : 'text-slate-500 hover:text-slate-300 hover:bg-white/[0.04] border border-transparent'
+            }`}
+          >
+            <ShieldAlert className="w-4 h-4" />
+            <span>Admin</span>
+          </Link>
+        )}
+      </nav>
+
+      {/* User + logout */}
+      <div className="px-3 py-3 border-t border-[var(--border-subtle)]">
+        <div className="flex items-center justify-between px-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-[10px] font-black text-white shrink-0">
               {user?.full_name?.charAt(0) || user?.username?.charAt(0) || 'U'}
             </div>
-            <div className="truncate">
-              <div className="text-xs font-bold text-slate-200 truncate">{user?.full_name || user?.username || 'Thành viên'}</div>
-              <div className="text-[9px] text-slate-400 flex items-center gap-1">
-                <UserCheck className="w-2.5 h-2.5 text-emerald-400" />
-                <span className="capitalize">{user?.role || 'User'}</span>
-              </div>
-            </div>
+            <span className="text-xs font-semibold text-slate-300 truncate">{user?.username}</span>
           </div>
           <button
-            onClick={() => useAuthStore.getState().logout()}
+            onClick={() => { sounds.playTap(); onLogout() }}
+            className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 transition active:scale-90"
             title="Đăng xuất"
-            className="p-1.5 rounded-xl hover:bg-rose-500/20 text-slate-400 hover:text-rose-300 transition shrink-0"
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
+            <LogOut className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>

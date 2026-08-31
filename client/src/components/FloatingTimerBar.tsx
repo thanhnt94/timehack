@@ -1,79 +1,100 @@
 import React from 'react'
-import { Play, Pause, Square, Timer, Flame } from 'lucide-react'
+import { Play, Pause, Maximize2, Flame } from 'lucide-react'
 import { useTimerStore } from '../store/useTimerStore'
-import { motion, AnimatePresence } from 'framer-motion'
-import { useNavigate } from 'react-router-dom'
+import { sounds } from '../utils/soundEffects'
 
-export const FloatingTimerBar: React.FC = () => {
-  const { isRunning, isPaused, mode, secondsRemaining, elapsedSeconds, activeTitle, pauseTimer, resumeTimer, stopTimer } = useTimerStore()
-  const navigate = useNavigate()
+interface Props {
+  onTap: () => void
+}
 
-  if (!isRunning && !isPaused) return null
+export const FloatingTimerBar: React.FC<Props> = ({ onTap }) => {
+  const {
+    isRunning,
+    isPaused,
+    mode,
+    currentPhase,
+    secondsRemaining,
+    elapsedSeconds,
+    activeTitle,
+    pauseTimer,
+    resumeTimer
+  } = useTimerStore()
 
-  const formatTime = (secs: number) => {
-    const m = Math.floor(secs / 60)
-    const s = secs % 60
+  if (!isRunning) return null
+
+  const formatTime = (totalSec: number) => {
+    const m = Math.floor(totalSec / 60)
+    const s = totalSec % 60
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
   }
 
-  const timeDisplay = mode === 'pomodoro' ? formatTime(secondsRemaining) : formatTime(elapsedSeconds)
+  const timeText = mode === 'pomodoro' ? formatTime(secondsRemaining) : formatTime(elapsedSeconds)
+
+  const handleTogglePlay = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    sounds.playTap()
+    if (isPaused) {
+      resumeTimer()
+    } else {
+      pauseTimer()
+    }
+  }
 
   return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ y: 80, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        exit={{ y: 80, opacity: 0 }}
-        className="fixed bottom-16 left-4 right-4 md:left-auto md:right-6 md:bottom-6 z-50 glass-card px-4 md:px-5 py-3 rounded-2xl border border-violet-500/40 shadow-2xl shadow-violet-950/50 flex items-center justify-between md:justify-start gap-2 md:gap-4 bg-[#0F172A]/95"
-      >
-        <div 
-          onClick={() => navigate('/focus')}
-          className="flex items-center gap-3 cursor-pointer group"
-        >
-          <div className="w-9 h-9 rounded-xl bg-violet-600/30 border border-violet-500/40 flex items-center justify-center text-violet-400 group-hover:scale-105 transition-transform">
-            <Timer className="w-5 h-5 animate-pulse" />
+    <div
+      onClick={() => { sounds.playTap(); onTap() }}
+      className="fixed bottom-[calc(62px+var(--safe-bottom))] left-3 right-3 md:left-64 md:right-8 z-30 cursor-pointer animate-slide-up"
+    >
+      <div className="glass-elevated rounded-2xl px-4 py-2.5 flex items-center justify-between border border-violet-500/40 bg-[#0C1222]/95 shadow-xl shadow-violet-950/40 hover:border-violet-400/60 transition active:scale-[0.98]">
+        {/* Left: Indicator & Info */}
+        <div className="flex items-center gap-2.5 min-w-0">
+          {/* Pulsing Dot */}
+          <div className="relative flex items-center justify-center shrink-0">
+            <span className={`w-2.5 h-2.5 rounded-full ${
+              isPaused ? 'bg-amber-400' : 'bg-rose-500'
+            }`} />
+            {!isPaused && (
+              <span className="absolute w-4 h-4 rounded-full bg-rose-500/50 animate-ping" />
+            )}
           </div>
-          <div>
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-              <Flame className="w-3 h-3 text-rose-400" />
-              <span>Đang tập trung ({mode})</span>
+
+          {/* Title & Phase */}
+          <div className="min-w-0">
+            <div className="text-xs font-bold text-white truncate max-w-[150px] sm:max-w-[240px]">
+              {activeTitle || 'Phiên tập trung'}
             </div>
-            <div className="text-xs font-bold text-white truncate max-w-[180px]">{activeTitle}</div>
+            <div className="text-[10px] text-slate-400 font-semibold flex items-center gap-1">
+              <span className={currentPhase === 'work' ? 'text-rose-400' : 'text-emerald-400'}>
+                {mode === 'pomodoro' ? (currentPhase === 'work' ? 'Làm việc' : 'Nghỉ ngơi') : 'Bấm giờ'}
+              </span>
+            </div>
           </div>
         </div>
 
-        <div className="text-xl font-black font-mono text-cyan-400 tracking-wider px-2">
-          {timeDisplay}
-        </div>
+        {/* Right: Time & Actions */}
+        <div className="flex items-center gap-3 shrink-0">
+          <span className="text-base font-black text-white font-mono tracking-tight drop-shadow">
+            {timeText}
+          </span>
 
-        <div className="flex items-center gap-1.5 border-l border-slate-800 pl-3">
-          {isPaused ? (
-            <button
-              onClick={resumeTimer}
-              className="p-2 rounded-xl bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border border-emerald-500/30 transition-all"
-              title="Tiếp tục"
-            >
-              <Play className="w-4 h-4" />
-            </button>
-          ) : (
-            <button
-              onClick={pauseTimer}
-              className="p-2 rounded-xl bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 border border-amber-500/30 transition-all"
-              title="Tạm dừng"
-            >
-              <Pause className="w-4 h-4" />
-            </button>
-          )}
-
+          {/* Play/Pause toggle */}
           <button
-            onClick={() => stopTimer()}
-            className="p-2 rounded-xl bg-rose-500/20 text-rose-400 hover:bg-rose-500/30 border border-rose-500/30 transition-all"
-            title="Kết thúc phiên"
+            onClick={handleTogglePlay}
+            className="w-8 h-8 rounded-xl bg-violet-600/20 border border-violet-500/30 text-violet-300 flex items-center justify-center hover:bg-violet-600 hover:text-white active:scale-90 transition"
           >
-            <Square className="w-4 h-4" />
+            {isPaused ? (
+              <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
+            ) : (
+              <Pause className="w-3.5 h-3.5 fill-current" />
+            )}
           </button>
+
+          {/* Expand icon */}
+          <div className="text-slate-500 hover:text-slate-300 p-1">
+            <Maximize2 className="w-4 h-4" />
+          </div>
         </div>
-      </motion.div>
-    </AnimatePresence>
+      </div>
+    </div>
   )
 }

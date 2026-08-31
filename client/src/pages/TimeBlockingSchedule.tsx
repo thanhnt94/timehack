@@ -1,22 +1,42 @@
-import React, { useEffect, useState } from 'react'
-import { Plus, Check, Trash2, Clock, Calendar, Sparkles, X } from 'lucide-react'
-import { useScheduleStore } from '../store/useScheduleStore'
-import { useTaskStore } from '../store/useTaskStore'
+import React, { useEffect, useState, useMemo } from 'react'
+import {
+  Calendar as CalendarIcon, Plus, Check, Clock, Trash2, X, ChevronRight
+} from 'lucide-react'
+import { useScheduleStore, type ScheduleSlot } from '../store/useScheduleStore'
 import { sounds } from '../utils/soundEffects'
 
 export const TimeBlockingSchedule: React.FC = () => {
   const { slots, selectedDate, setSelectedDate, fetchSlots, createSlot, toggleSlotDone, deleteSlot } = useScheduleStore()
-  const { fetchTasks } = useTaskStore()
 
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [startTime, setStartTime] = useState('09:00')
-  const [endTime, setEndTime] = useState('10:00')
+  const [sheetOpen, setSheetOpen] = useState(false)
   const [title, setTitle] = useState('')
+  const [startTime, setStartTime] = useState('09:00')
+  const [endTime, setEndTime] = useState('10:30')
+  const [notes, setNotes] = useState('')
 
   useEffect(() => {
     fetchSlots(selectedDate)
-    fetchTasks()
   }, [selectedDate])
+
+  // Generate week date selector (7 days around current selected date)
+  const datePills = useMemo(() => {
+    const dates = []
+    const base = new Date()
+    for (let i = -1; i < 6; i++) {
+      const d = new Date(base)
+      d.setDate(base.getDate() + i)
+      const iso = d.toISOString().split('T')[0]
+      const label =
+        i === 0
+          ? 'Hôm nay'
+          : i === 1
+          ? 'Ngày mai'
+          : d.toLocaleDateString('vi-VN', { weekday: 'short' }).replace('Th ', 'T')
+      const dayNum = d.getDate()
+      dates.push({ iso, label, dayNum })
+    }
+    return dates
+  }, [])
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -26,169 +46,204 @@ export const TimeBlockingSchedule: React.FC = () => {
       date: selectedDate,
       start_time: startTime,
       end_time: endTime,
-      title
+      title,
+      notes: notes.trim() || undefined
     })
     sounds.playSuccess()
     setTitle('')
-    setIsModalOpen(false)
+    setNotes('')
+    setSheetOpen(false)
   }
 
+  const handleToggle = (slot: ScheduleSlot) => {
+    sounds.playTap()
+    toggleSlotDone(slot.id, !slot.is_done)
+    if (!slot.is_done) sounds.playSuccess()
+  }
+
+  // Sorted slots by start_time
+  const sortedSlots = useMemo(() => {
+    return [...slots].sort((a, b) => a.start_time.localeCompare(b.start_time))
+  }, [slots])
+
   return (
-    <div className="space-y-4 sm:space-y-6 animate-in fade-in duration-300 select-none pb-6">
-      {/* 1. HEADER WITH DATE PICKER */}
+    <div className="space-y-4">
+      {/* ── Top Header ──────────────── */}
       <div className="flex items-center justify-between">
         <div>
-          <div className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest flex items-center gap-1">
-            <Clock className="w-3 h-3" />
-            <span>Kế Hoạch Khung Giờ</span>
-          </div>
-          <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">Lịch Time-Blocking</h1>
+          <h1 className="text-xl font-black text-white">Lịch Trình</h1>
+          <p className="text-[11px] text-slate-400 font-semibold mt-0.5">Time-blocking theo khung giờ</p>
         </div>
-
         <button
-          onClick={() => setIsModalOpen(true)}
-          className="px-3.5 py-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-xs rounded-2xl shadow-lg shadow-cyan-600/30 transition-all flex items-center gap-1.5 active:scale-95"
+          onClick={() => { sounds.playTap(); setSheetOpen(true) }}
+          className="px-3 py-2 rounded-xl bg-gradient-to-r from-violet-600 to-cyan-600 text-white text-xs font-bold flex items-center gap-1 active:scale-95 transition shadow-lg shadow-violet-600/20"
         >
-          <Plus className="w-3.5 h-3.5" />
-          <span>Thêm Khung</span>
+          <Plus className="w-3.5 h-3.5 stroke-[2.5]" /> Thêm khung giờ
         </button>
       </div>
 
-      {/* Date Selector */}
-      <div className="flex items-center gap-2 p-2 glass-card rounded-2xl border border-white/[0.08]">
-        <Calendar className="w-4 h-4 text-cyan-400 ml-1" />
-        <input
-          type="date"
-          value={selectedDate}
-          onChange={e => setSelectedDate(e.target.value)}
-          className="bg-transparent text-xs sm:text-sm text-white font-bold outline-none flex-1"
-        />
+      {/* ── Date Pills Horizontal Carousel ── */}
+      <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+        {datePills.map(d => {
+          const isSelected = selectedDate === d.iso
+          return (
+            <button
+              key={d.iso}
+              onClick={() => { sounds.playTap(); setSelectedDate(d.iso) }}
+              className={`shrink-0 flex flex-col items-center justify-center w-14 py-2 rounded-2xl border transition active:scale-95 ${
+                isSelected
+                  ? 'bg-violet-600/20 border-violet-500/50 text-white shadow-lg shadow-violet-950/40'
+                  : 'glass border-[var(--border-subtle)] text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <span className="text-[10px] font-bold uppercase">{d.label}</span>
+              <span className={`text-base font-black font-mono mt-0.5 ${isSelected ? 'text-cyan-400' : 'text-slate-300'}`}>
+                {d.dayNum}
+              </span>
+            </button>
+          )
+        })}
       </div>
 
-      {/* 2. TIMELINE SLOTS LIST */}
-      <div className="space-y-2.5">
-        {slots.length === 0 ? (
-          <div className="glass-card rounded-3xl p-8 border border-white/[0.08] text-center space-y-2">
-            <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 mx-auto flex items-center justify-center text-cyan-400">
+      {/* ── Structured-style Vertical Timeline ── */}
+      <div className="space-y-3 pt-2">
+        {sortedSlots.length === 0 ? (
+          <div className="glass rounded-2xl p-8 text-center">
+            <div className="w-12 h-12 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center mx-auto mb-3 text-slate-500">
               <Clock className="w-6 h-6" />
             </div>
-            <div className="text-sm font-bold text-white">Chưa Có Khung Giờ Nào</div>
-            <p className="text-xs text-slate-400">Phân bổ khung giờ làm việc tập trung (Deep Work) giúp tăng 200% hiệu suất.</p>
+            <p className="text-sm text-slate-300 font-semibold">Chưa có khung giờ nào</p>
+            <p className="text-xs text-slate-500 mt-1">Lên kế hoạch các khoảng thời gian tập trung trong ngày.</p>
           </div>
         ) : (
-          slots.map((slot) => {
-            const isDone = !!slot.is_done
-
-            return (
-              <div
-                key={slot.id}
-                className={`glass-card rounded-2xl p-3.5 border transition-all flex items-center justify-between gap-3 ${
-                  isDone 
-                    ? 'opacity-60 border-slate-800' 
-                    : 'border-white/[0.08] hover:border-cyan-500/30'
-                }`}
-              >
-                {/* 1-Tap Toggle */}
-                <button
-                  onClick={() => {
-                    sounds.playTap()
-                    toggleSlotDone(slot.id)
-                  }}
-                  className={`w-6 h-6 rounded-xl border flex items-center justify-center transition-all active:scale-90 shrink-0 ${
-                    isDone 
-                      ? 'bg-emerald-500 border-emerald-400 text-slate-950 font-black shadow-sm' 
-                      : 'border-slate-600 bg-slate-900/80 hover:border-cyan-400'
-                  }`}
-                >
-                  {isDone && <Check className="w-3.5 h-3.5 stroke-[3]" />}
-                </button>
-
-                {/* Slot Details */}
-                <div className="flex-1 min-w-0">
-                  <div className={`text-xs sm:text-sm font-bold truncate ${
-                    isDone ? 'line-through text-slate-500' : 'text-white'
+          <div className="relative pl-6 space-y-3 before:absolute before:left-2 before:top-3 before:bottom-3 before:w-0.5 before:bg-slate-800">
+            {sortedSlots.map(slot => {
+              const isDone = !!slot.is_done
+              return (
+                <div key={slot.id} className="relative group">
+                  {/* Timeline dot */}
+                  <div className={`absolute -left-6 top-4 w-4 h-4 rounded-full border-2 flex items-center justify-center transition ${
+                    isDone
+                      ? 'bg-emerald-500 border-emerald-500'
+                      : 'bg-slate-950 border-violet-500'
                   }`}>
-                    {slot.title}
+                    {isDone && <Check className="w-2.5 h-2.5 text-white stroke-[3]" />}
                   </div>
-                  <div className="text-[10px] font-mono text-cyan-400 font-bold mt-0.5">
-                    {slot.start_time} - {slot.end_time}
+
+                  {/* Slot Card */}
+                  <div className={`glass rounded-2xl p-3.5 flex items-center gap-3 transition ${
+                    isDone ? 'opacity-40' : 'hover:border-violet-500/30'
+                  }`}>
+                    {/* Checkbox */}
+                    <button
+                      onClick={() => handleToggle(slot)}
+                      className={`w-6 h-6 rounded-xl border flex items-center justify-center shrink-0 active:scale-90 transition ${
+                        isDone
+                          ? 'bg-emerald-500 border-emerald-500 text-white'
+                          : 'border-slate-700 hover:border-slate-500 text-transparent'
+                      }`}
+                    >
+                      <Check className="w-3.5 h-3.5 stroke-[3]" />
+                    </button>
+
+                    {/* Slot Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-mono font-bold text-cyan-400">
+                          {slot.start_time} - {slot.end_time}
+                        </span>
+                      </div>
+                      <h3 className={`text-sm font-semibold truncate mt-0.5 ${
+                        isDone ? 'line-through text-slate-500' : 'text-white'
+                      }`}>
+                        {slot.title}
+                      </h3>
+                      {slot.notes && (
+                        <p className="text-[11px] text-slate-400 truncate mt-0.5">{slot.notes}</p>
+                      )}
+                    </div>
+
+                    {/* Delete */}
+                    <button
+                      onClick={() => { sounds.playTap(); deleteSlot(slot.id) }}
+                      className="p-2 text-slate-600 hover:text-rose-400 active:scale-90 transition shrink-0"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
-
-                <button
-                  onClick={() => deleteSlot(slot.id)}
-                  className="p-1.5 text-slate-500 hover:text-rose-400 transition"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            )
-          })
+              )
+            })}
+          </div>
         )}
       </div>
 
-      {/* 3. CREATE MODAL */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in">
-          <div className="w-full max-w-md bg-[#0F172A] border border-slate-800 rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl space-y-4 relative">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-xl bg-cyan-600/20 text-cyan-400">
-                  <Clock className="w-4 h-4" />
-                </div>
-                <h3 className="text-sm font-black text-white">Thêm Khung Giờ Time-Blocking</h3>
-              </div>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="p-1 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition"
-              >
+      {/* ── Create Slot Bottom Sheet ── */}
+      {sheetOpen && (
+        <>
+          <div className="sheet-backdrop" onClick={() => setSheetOpen(false)} />
+          <div className="sheet-content">
+            <div className="sheet-handle" />
+
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-black text-white">Thêm Khung Giờ Mới</h2>
+              <button onClick={() => setSheetOpen(false)} className="p-1 text-slate-400 hover:text-white">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <form onSubmit={handleCreate} className="space-y-3">
-              <div className="space-y-1">
-                <label className="text-[11px] font-bold text-slate-300">Tên Khung Giờ</label>
-                <input
-                  type="text"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Ví dụ: Deep Work Coding, Luyện Từ Vựng..."
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
-                />
-              </div>
+              <input
+                type="text"
+                value={title}
+                onChange={e => setTitle(e.target.value)}
+                placeholder="Tên hoạt động..."
+                autoFocus
+                className="w-full px-4 py-3 rounded-xl bg-slate-900 border border-[var(--border-default)] text-sm text-white placeholder-slate-500 outline-none focus:border-violet-500"
+              />
 
               <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-slate-300">Bắt đầu</label>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                    Bắt đầu
+                  </label>
                   <input
                     type="time"
                     value={startTime}
-                    onChange={(e) => setStartTime(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-cyan-500"
+                    onChange={e => setStartTime(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl bg-slate-900 border border-[var(--border-default)] text-sm text-white font-mono outline-none focus:border-violet-500"
                   />
                 </div>
-                <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-slate-300">Kết thúc</label>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                    Kết thúc
+                  </label>
                   <input
                     type="time"
                     value={endTime}
-                    onChange={(e) => setEndTime(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-cyan-500"
+                    onChange={e => setEndTime(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl bg-slate-900 border border-[var(--border-default)] text-sm text-white font-mono outline-none focus:border-violet-500"
                   />
                 </div>
               </div>
 
+              <textarea
+                value={notes}
+                onChange={e => setNotes(e.target.value)}
+                placeholder="Ghi chú thêm (tuỳ chọn)..."
+                rows={2}
+                className="w-full px-4 py-2.5 rounded-xl bg-slate-900 border border-[var(--border-default)] text-sm text-white placeholder-slate-500 outline-none focus:border-violet-500 resize-none"
+              />
+
               <button
                 type="submit"
-                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-xs shadow-md shadow-cyan-600/30 flex items-center justify-center gap-1.5 transition active:scale-95"
+                className="w-full py-3 rounded-xl bg-gradient-to-r from-violet-600 to-cyan-600 text-white font-bold text-sm active:scale-[0.97] transition shadow-lg shadow-violet-600/30"
               >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Lưu Khung Giờ</span>
+                Lên Lịch
               </button>
             </form>
           </div>
-        </div>
+        </>
       )}
     </div>
   )

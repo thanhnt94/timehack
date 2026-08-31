@@ -1,259 +1,334 @@
 import React, { useState } from 'react'
-import { 
-  X, 
-  CheckSquare, 
-  Zap, 
-  Clock, 
-  Timer, 
-  Plus, 
-  ArrowRight,
-  Flame
+import {
+  X, ArrowLeft, CheckSquare, Zap, Play, Calendar,
+  Sparkles, Check
 } from 'lucide-react'
 import { useTaskStore } from '../store/useTaskStore'
 import { useHabitStore } from '../store/useHabitStore'
+import { useScheduleStore } from '../store/useScheduleStore'
 import { useTimerStore } from '../store/useTimerStore'
-import { useNavigate } from 'react-router-dom'
 import { sounds } from '../utils/soundEffects'
 
-interface QuickActionSheetProps {
+interface Props {
   isOpen: boolean
   onClose: () => void
+  onStartFocus: () => void
 }
 
-export const QuickActionSheet: React.FC<QuickActionSheetProps> = ({ isOpen, onClose }) => {
-  const navigate = useNavigate()
-  const { createTask } = useTaskStore()
-  const { createHabit } = useHabitStore()
-  const { startTimer } = useTimerStore()
+type SubView = 'menu' | 'task' | 'habit' | 'schedule'
 
-  const [mode, setMode] = useState<'menu' | 'task' | 'habit' | 'timer'>('menu')
+const HABIT_COLORS = ['#8B5CF6', '#06B6D4', '#10B981', '#F59E0B', '#F43F5E', '#6366F1']
+
+const EISENHOWER_QUADRANTS = [
+  { key: 'do_first', label: 'Q1 · Khẩn cấp & Quan trọng', color: 'border-rose-500/40 text-rose-400' },
+  { key: 'schedule', label: 'Q2 · Quan trọng, chưa gấp', color: 'border-violet-500/40 text-violet-400' },
+  { key: 'delegate', label: 'Q3 · Gấp, ít quan trọng', color: 'border-amber-500/40 text-amber-400' },
+  { key: 'eliminate', label: 'Q4 · Không gấp & quan trọng', color: 'border-slate-700 text-slate-500' },
+] as const
+
+export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocus }) => {
+  const [subView, setSubView] = useState<SubView>('menu')
+
+  // Task form state
   const [taskTitle, setTaskTitle] = useState('')
-  const [taskEisenhower, setTaskEisenhower] = useState<'do_first' | 'schedule' | 'delegate' | 'eliminate'>('do_first')
+  const [taskEisen, setTaskEisen] = useState<'do_first' | 'schedule' | 'delegate' | 'eliminate'>('do_first')
+  const { createTask } = useTaskStore()
+
+  // Habit form state
   const [habitTitle, setHabitTitle] = useState('')
+  const [habitColor, setHabitColor] = useState(HABIT_COLORS[0])
+  const { createHabit } = useHabitStore()
+
+  // Schedule form state
+  const [scheduleTitle, setScheduleTitle] = useState('')
+  const [scheduleStart, setScheduleStart] = useState('09:00')
+  const [scheduleEnd, setScheduleEnd] = useState('10:00')
+  const { createSlot, selectedDate } = useScheduleStore()
+
+  const { startTimer } = useTimerStore()
 
   if (!isOpen) return null
 
   const handleClose = () => {
-    setMode('menu')
-    setTaskTitle('')
-    setHabitTitle('')
+    setSubView('menu')
     onClose()
   }
 
+  // Handle Task Submit
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!taskTitle.trim()) return
     sounds.playTap()
-    await createTask({
-      title: taskTitle,
-      priority: taskEisenhower === 'do_first' ? 'high' : 'medium',
-      eisenhower: taskEisenhower
-    })
+    await createTask({ title: taskTitle.trim(), eisenhower: taskEisen })
     sounds.playSuccess()
+    setTaskTitle('')
     handleClose()
   }
 
+  // Handle Habit Submit
   const handleCreateHabit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!habitTitle.trim()) return
     sounds.playTap()
     await createHabit({
-      title: habitTitle,
-      icon: 'zap',
-      color: '#10B981'
+      title: habitTitle.trim(),
+      color: habitColor,
+      icon: '⚡',
+      target_count: 1,
+      unit: 'lần',
+      frequency_type: 'daily'
     })
     sounds.playSuccess()
+    setHabitTitle('')
     handleClose()
   }
 
-  const handleQuickStartTimer = (mins: number) => {
+  // Handle Schedule Submit
+  const handleCreateSchedule = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!scheduleTitle.trim()) return
     sounds.playTap()
-    startTimer(`Phiên tập trung ${mins} phút`, 'pomodoro')
+    await createSlot({
+      date: selectedDate,
+      start_time: scheduleStart,
+      end_time: scheduleEnd,
+      title: scheduleTitle.trim()
+    })
+    sounds.playSuccess()
+    setScheduleTitle('')
     handleClose()
-    navigate('/focus')
+  }
+
+  // Handle Quick Focus Tap
+  const handleDirectFocus = () => {
+    sounds.playTap()
+    startTimer({ title: 'Phiên tập trung nhanh' })
+    handleClose()
+    onStartFocus()
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in select-none">
-      <div className="w-full max-w-md bg-[#0C1222] border border-white/[0.1] rounded-t-[32px] sm:rounded-[32px] p-6 shadow-2xl space-y-4 relative animate-in slide-in-from-bottom duration-200">
-        {/* Header bar with grab indicator on mobile */}
-        <div className="w-10 h-1 rounded-full bg-slate-700 mx-auto -mt-2 mb-2 sm:hidden" />
+    <>
+      {/* Backdrop */}
+      <div className="sheet-backdrop" onClick={handleClose} />
 
-        <div className="flex items-center justify-between pb-2 border-b border-white/[0.08]">
-          <h3 className="text-sm font-black text-white tracking-wide flex items-center gap-2">
-            {mode === 'menu' && <span>⚡ Hành Động Nhanh</span>}
-            {mode === 'task' && <span>🎯 Thêm Nhiệm Vụ Mới</span>}
-            {mode === 'habit' && <span>🔥 Thêm Thói Quen Mới</span>}
-            {mode === 'timer' && <span>⏱️ Khởi Chạy Pomodoro</span>}
-          </h3>
-          <button
-            onClick={handleClose}
-            className="p-1.5 text-slate-400 hover:text-white rounded-xl bg-slate-900 border border-slate-800 transition"
-          >
-            <X className="w-4 h-4" />
+      {/* Sheet Content */}
+      <div className="sheet-content">
+        <div className="sheet-handle" />
+
+        {/* ── Menu Header ───────────────── */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            {subView !== 'menu' && (
+              <button
+                onClick={() => { sounds.playTap(); setSubView('menu') }}
+                className="p-1 -ml-1 text-slate-400 hover:text-white"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+            )}
+            <h2 className="text-sm font-black text-white">
+              {subView === 'menu' && 'Tạo Mới Nhanh'}
+              {subView === 'task' && 'Tạo Nhiệm Vụ Mới'}
+              {subView === 'habit' && 'Tạo Thói Quen Mới'}
+              {subView === 'schedule' && 'Lên Lịch Khung Giờ'}
+            </h2>
+          </div>
+          <button onClick={handleClose} className="p-1 text-slate-400 hover:text-white">
+            <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* 1. MAIN MENU SELECTION */}
-        {mode === 'menu' && (
-          <div className="grid grid-cols-2 gap-2.5">
+        {/* ── View 1: 2x2 Action Cards Menu ── */}
+        {subView === 'menu' && (
+          <div className="grid grid-cols-2 gap-2.5 pb-2">
+            {/* 1. Nhiệm vụ */}
             <button
-              onClick={() => { sounds.playTap(); setMode('task'); }}
-              className="p-4 rounded-2xl bg-gradient-to-br from-violet-600/20 to-indigo-600/10 border border-violet-500/30 hover:border-violet-400 flex flex-col items-start gap-2 transition-all active:scale-95 text-left"
+              onClick={() => { sounds.playTap(); setSubView('task') }}
+              className="glass rounded-2xl p-4 flex flex-col items-start gap-2 border border-violet-500/20 hover:border-violet-500/50 active:scale-95 transition text-left"
             >
-              <div className="p-2.5 rounded-xl bg-violet-600 text-white shadow-md shadow-violet-600/30">
+              <div className="w-10 h-10 rounded-xl bg-violet-600/20 text-violet-400 flex items-center justify-center">
                 <CheckSquare className="w-5 h-5" />
               </div>
               <div>
-                <div className="text-xs font-black text-white">Nhiệm Vụ Mới</div>
-                <div className="text-[10px] text-slate-400">Ma trận Eisenhower</div>
+                <div className="text-xs font-bold text-white">Nhiệm Vụ</div>
+                <div className="text-[10px] text-slate-400 mt-0.5">Thêm việc cần làm</div>
               </div>
             </button>
 
+            {/* 2. Thói quen */}
             <button
-              onClick={() => { sounds.playTap(); setMode('habit'); }}
-              className="p-4 rounded-2xl bg-gradient-to-br from-emerald-600/20 to-teal-600/10 border border-emerald-500/30 hover:border-emerald-400 flex flex-col items-start gap-2 transition-all active:scale-95 text-left"
+              onClick={() => { sounds.playTap(); setSubView('habit') }}
+              className="glass rounded-2xl p-4 flex flex-col items-start gap-2 border border-emerald-500/20 hover:border-emerald-500/50 active:scale-95 transition text-left"
             >
-              <div className="p-2.5 rounded-xl bg-emerald-600 text-white shadow-md shadow-emerald-600/30">
+              <div className="w-10 h-10 rounded-xl bg-emerald-600/20 text-emerald-400 flex items-center justify-center">
                 <Zap className="w-5 h-5" />
               </div>
               <div>
-                <div className="text-xs font-black text-white">Thói Quen Mới</div>
-                <div className="text-[10px] text-slate-400">Duy trì chuỗi streak</div>
+                <div className="text-xs font-bold text-white">Thói Quen</div>
+                <div className="text-[10px] text-slate-400 mt-0.5">Xây dựng chuỗi streak</div>
               </div>
             </button>
 
+            {/* 3. Bắt đầu Focus */}
             <button
-              onClick={() => { sounds.playTap(); setMode('timer'); }}
-              className="p-4 rounded-2xl bg-gradient-to-br from-rose-600/20 to-pink-600/10 border border-rose-500/30 hover:border-rose-400 flex flex-col items-start gap-2 transition-all active:scale-95 text-left"
+              onClick={handleDirectFocus}
+              className="glass rounded-2xl p-4 flex flex-col items-start gap-2 border border-rose-500/20 hover:border-rose-500/50 active:scale-95 transition text-left"
             >
-              <div className="p-2.5 rounded-xl bg-rose-600 text-white shadow-md shadow-rose-600/30">
-                <Timer className="w-5 h-5" />
+              <div className="w-10 h-10 rounded-xl bg-rose-600/20 text-rose-400 flex items-center justify-center">
+                <Play className="w-5 h-5 fill-current ml-0.5" />
               </div>
               <div>
-                <div className="text-xs font-black text-white">Bắt Đầu Focus</div>
-                <div className="text-[10px] text-slate-400">Đếm giờ Pomodoro</div>
+                <div className="text-xs font-bold text-white">Tập Trung</div>
+                <div className="text-[10px] text-slate-400 mt-0.5">Bắt đầu Pomodoro ngay</div>
               </div>
             </button>
 
+            {/* 4. Lên Lịch */}
             <button
-              onClick={() => {
-                sounds.playTap()
-                handleClose()
-                navigate('/schedule')
-              }}
-              className="p-4 rounded-2xl bg-gradient-to-br from-cyan-600/20 to-blue-600/10 border border-cyan-500/30 hover:border-cyan-400 flex flex-col items-start gap-2 transition-all active:scale-95 text-left"
+              onClick={() => { sounds.playTap(); setSubView('schedule') }}
+              className="glass rounded-2xl p-4 flex flex-col items-start gap-2 border border-cyan-500/20 hover:border-cyan-500/50 active:scale-95 transition text-left"
             >
-              <div className="p-2.5 rounded-xl bg-cyan-600 text-white shadow-md shadow-cyan-600/30">
-                <Clock className="w-5 h-5" />
+              <div className="w-10 h-10 rounded-xl bg-cyan-600/20 text-cyan-400 flex items-center justify-center">
+                <Calendar className="w-5 h-5" />
               </div>
               <div>
-                <div className="text-xs font-black text-white">Lên Lịch Trình</div>
-                <div className="text-[10px] text-slate-400">Time-blocking ngày</div>
+                <div className="text-xs font-bold text-white">Khung Giờ</div>
+                <div className="text-[10px] text-slate-400 mt-0.5">Khóa thời gian trong ngày</div>
               </div>
             </button>
           </div>
         )}
 
-        {/* 2. CREATE TASK FORM */}
-        {mode === 'task' && (
+        {/* ── View 2: Form Tạo Task ─────── */}
+        {subView === 'task' && (
           <form onSubmit={handleCreateTask} className="space-y-3">
-            <div className="space-y-1">
-              <label className="text-[11px] font-bold text-slate-300">Tiêu đề nhiệm vụ</label>
-              <input
-                type="text"
-                autoFocus
-                value={taskTitle}
-                onChange={(e) => setTaskTitle(e.target.value)}
-                placeholder="Ví dụ: Làm báo cáo tiến độ quý..."
-                className="w-full bg-slate-900 border border-slate-800 rounded-2xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-violet-500"
-              />
-            </div>
+            <input
+              type="text"
+              value={taskTitle}
+              onChange={e => setTaskTitle(e.target.value)}
+              placeholder="Tên nhiệm vụ cần làm..."
+              autoFocus
+              className="w-full px-4 py-3 rounded-xl bg-slate-900 border border-[var(--border-default)] text-sm text-white placeholder-slate-500 outline-none focus:border-violet-500"
+            />
 
-            <div className="space-y-1">
-              <label className="text-[11px] font-bold text-slate-300">Phân loại Eisenhower</label>
-              <div className="grid grid-cols-2 gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => setTaskEisenhower('do_first')}
-                  className={`p-2 rounded-xl text-left text-[11px] font-bold border transition ${
-                    taskEisenhower === 'do_first' 
-                      ? 'bg-rose-500/20 text-rose-300 border-rose-500/40' 
-                      : 'bg-slate-900 border-slate-800 text-slate-400'
-                  }`}
-                >
-                  🚨 Q1: Do First (Khẩn cấp)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTaskEisenhower('schedule')}
-                  className={`p-2 rounded-xl text-left text-[11px] font-bold border transition ${
-                    taskEisenhower === 'schedule' 
-                      ? 'bg-violet-500/20 text-violet-300 border-violet-500/40' 
-                      : 'bg-slate-900 border-slate-800 text-slate-400'
-                  }`}
-                >
-                  📅 Q2: Schedule (Kế hoạch)
-                </button>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                Mức độ ưu tiên (Eisenhower)
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                {EISENHOWER_QUADRANTS.map(q => (
+                  <button
+                    key={q.key}
+                    type="button"
+                    onClick={() => setTaskEisen(q.key)}
+                    className={`p-2.5 rounded-xl border text-xs font-bold text-left transition ${
+                      taskEisen === q.key
+                        ? `bg-violet-600/20 ${q.color}`
+                        : 'bg-slate-900/80 border-slate-800 text-slate-400'
+                    }`}
+                  >
+                    {q.label}
+                  </button>
+                ))}
               </div>
             </div>
 
             <button
               type="submit"
-              disabled={!taskTitle.trim()}
-              className="w-full py-3 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-bold text-xs shadow-lg shadow-violet-600/30 flex items-center justify-center gap-1.5 disabled:opacity-40 active:scale-95 transition"
+              className="w-full py-3 rounded-xl bg-violet-600 text-white font-bold text-sm active:scale-[0.97] transition shadow-lg shadow-violet-600/30"
             >
-              <Plus className="w-4 h-4" />
-              <span>Tạo Nhiệm Vụ Ngay</span>
+              Lưu Nhiệm Vụ
             </button>
           </form>
         )}
 
-        {/* 3. CREATE HABIT FORM */}
-        {mode === 'habit' && (
+        {/* ── View 3: Form Tạo Habit ────── */}
+        {subView === 'habit' && (
           <form onSubmit={handleCreateHabit} className="space-y-3">
-            <div className="space-y-1">
-              <label className="text-[11px] font-bold text-slate-300">Tên thói quen mới</label>
-              <input
-                type="text"
-                autoFocus
-                value={habitTitle}
-                onChange={(e) => setHabitTitle(e.target.value)}
-                placeholder="Ví dụ: Đọc sách 15 phút, Chạy bộ 2km..."
-                className="w-full bg-slate-900 border border-slate-800 rounded-2xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
-              />
+            <input
+              type="text"
+              value={habitTitle}
+              onChange={e => setHabitTitle(e.target.value)}
+              placeholder="Tên thói quen mới (ví dụ: Đọc sách 20p)..."
+              autoFocus
+              className="w-full px-4 py-3 rounded-xl bg-slate-900 border border-[var(--border-default)] text-sm text-white placeholder-slate-500 outline-none focus:border-emerald-500"
+            />
+
+            <div>
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
+                Chọn màu sắc nhận diện
+              </label>
+              <div className="flex gap-2">
+                {HABIT_COLORS.map(c => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => setHabitColor(c)}
+                    className={`w-8 h-8 rounded-xl transition active:scale-90 ${
+                      habitColor === c ? 'ring-2 ring-white ring-offset-2 ring-offset-slate-900 scale-110' : ''
+                    }`}
+                    style={{ backgroundColor: c }}
+                  />
+                ))}
+              </div>
             </div>
 
             <button
               type="submit"
-              disabled={!habitTitle.trim()}
-              className="w-full py-3 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold text-xs shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-1.5 disabled:opacity-40 active:scale-95 transition"
+              className="w-full py-3 rounded-xl bg-emerald-600 text-white font-bold text-sm active:scale-[0.97] transition shadow-lg shadow-emerald-600/30"
             >
-              <Plus className="w-4 h-4" />
-              <span>Bắt Đầu Thói Quen</span>
+              Lưu Thói Quen
             </button>
           </form>
         )}
 
-        {/* 4. QUICK TIMER LAUNCH */}
-        {mode === 'timer' && (
-          <div className="space-y-2">
-            <div className="text-[11px] font-bold text-slate-400">Chọn thời lượng tập trung:</div>
-            <div className="grid grid-cols-3 gap-2">
-              {[15, 25, 45, 60, 90].map(mins => (
-                <button
-                  key={mins}
-                  onClick={() => handleQuickStartTimer(mins)}
-                  className="p-3 rounded-2xl bg-slate-900/90 border border-slate-800 hover:border-rose-500/40 text-center transition active:scale-95"
-                >
-                  <div className="text-base font-black font-mono text-white">{mins}m</div>
-                  <div className="text-[9px] text-rose-400 font-bold">Pomodoro</div>
-                </button>
-              ))}
+        {/* ── View 4: Form Lên Lịch ──────── */}
+        {subView === 'schedule' && (
+          <form onSubmit={handleCreateSchedule} className="space-y-3">
+            <input
+              type="text"
+              value={scheduleTitle}
+              onChange={e => setScheduleTitle(e.target.value)}
+              placeholder="Tên công việc trong khung giờ..."
+              autoFocus
+              className="w-full px-4 py-3 rounded-xl bg-slate-900 border border-[var(--border-default)] text-sm text-white placeholder-slate-500 outline-none focus:border-cyan-500"
+            />
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                  Bắt đầu
+                </label>
+                <input
+                  type="time"
+                  value={scheduleStart}
+                  onChange={e => setScheduleStart(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-xl bg-slate-900 border border-[var(--border-default)] text-sm text-white font-mono outline-none focus:border-cyan-500"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                  Kết thúc
+                </label>
+                <input
+                  type="time"
+                  value={scheduleEnd}
+                  onChange={e => setScheduleEnd(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-xl bg-slate-900 border border-[var(--border-default)] text-sm text-white font-mono outline-none focus:border-cyan-500"
+                />
+              </div>
             </div>
-          </div>
+
+            <button
+              type="submit"
+              className="w-full py-3 rounded-xl bg-cyan-600 text-white font-bold text-sm active:scale-[0.97] transition shadow-lg shadow-cyan-600/30"
+            >
+              Lưu Khung Giờ
+            </button>
+          </form>
         )}
       </div>
-    </div>
+    </>
   )
 }

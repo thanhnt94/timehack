@@ -1,7 +1,7 @@
 import React from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { CalendarDays, CheckSquare, Zap, BarChart3, Plus } from 'lucide-react'
+import { CalendarDays, Clock, CheckSquare, Zap, Plus } from 'lucide-react'
 import { sounds } from '../utils/soundEffects'
 
 interface Props {
@@ -10,10 +10,10 @@ interface Props {
 
 const tabs = [
   { path: '/', icon: CalendarDays, label: 'Hôm nay' },
-  { path: '/tasks', icon: CheckSquare, label: 'Nhiệm vụ' },
+  { path: '/schedule', icon: Clock, label: 'Lịch trình' },
   { path: '__fab__', icon: Plus, label: '' },
+  { path: '/tasks', icon: CheckSquare, label: 'Nhiệm vụ' },
   { path: '/habits', icon: Zap, label: 'Thói quen' },
-  { path: '/analytics', icon: BarChart3, label: 'Thống kê' },
 ]
 
 export const BottomNav: React.FC<Props> = ({ onFabTap }) => {
@@ -28,7 +28,7 @@ export const BottomNav: React.FC<Props> = ({ onFabTap }) => {
               key="fab"
               onClick={() => { sounds.playTap(); onFabTap() }}
               className="relative -top-3 w-12 h-12 rounded-2xl bg-violet-600 hover:bg-violet-700 flex items-center justify-center shadow-lg shadow-violet-600/30 active:scale-90 transition-transform"
-              aria-label="Tạo nhanh"
+              aria-label="Tạo nhanh 4 món"
             >
               <Plus className="w-6 h-6 text-white stroke-[2.5]" />
             </button>

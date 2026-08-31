@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom'
-import { Sparkles, Globe } from 'lucide-react'
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Link } from 'react-router-dom'
+import { Sparkles, Globe, BarChart3 } from 'lucide-react'
 import { Sidebar } from './components/Sidebar'
 import { BottomNav } from './components/BottomNav'
 import { FloatingTimerBar } from './components/FloatingTimerBar'
@@ -47,21 +47,31 @@ const AppShell: React.FC = () => {
             </span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
+            {/* Analytics button */}
+            <Link
+              to="/analytics"
+              onClick={() => sounds.playTap()}
+              className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:text-violet-700 hover:bg-violet-50 active:scale-95 transition"
+              title="Thống kê"
+            >
+              <BarChart3 className="w-3.5 h-3.5" />
+            </Link>
+
             {/* Timezone button */}
             <button
               onClick={() => { sounds.playTap(); setSettingsOpen(true) }}
-              className="flex items-center gap-1 text-[11px] font-bold text-violet-700 bg-violet-50 hover:bg-violet-100 px-2.5 py-1 rounded-lg border border-violet-200 active:scale-95 transition"
+              className="flex items-center gap-1 text-[11px] font-bold text-violet-700 bg-violet-50 hover:bg-violet-100 px-2 py-1 rounded-lg border border-violet-200 active:scale-95 transition"
               title="Cài đặt múi giờ"
             >
               <Globe className="w-3 h-3 text-violet-600" />
-              <span className="truncate max-w-[80px]">{tzShort}</span>
+              <span className="truncate max-w-[70px]">{tzShort}</span>
             </button>
 
             {/* Logout button */}
             <button
               onClick={() => logout()}
-              className="text-[11px] font-bold text-slate-600 hover:text-rose-600 px-2.5 py-1 rounded-lg border border-slate-200 bg-slate-50 active:scale-95 transition"
+              className="text-[11px] font-bold text-slate-600 hover:text-rose-600 px-2 py-1 rounded-lg border border-slate-200 bg-slate-50 active:scale-95 transition"
             >
               Đăng xuất
             </button>

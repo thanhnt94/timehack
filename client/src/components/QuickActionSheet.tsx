@@ -1,7 +1,6 @@
 import React, { useState } from 'react'
 import {
-  X, ArrowLeft, CheckSquare, Zap, Play, Calendar,
-  Sparkles, Check
+  X, ArrowLeft, CheckSquare, Zap, Play, Calendar
 } from 'lucide-react'
 import { useTaskStore } from '../store/useTaskStore'
 import { useHabitStore } from '../store/useHabitStore'
@@ -17,29 +16,26 @@ interface Props {
 
 type SubView = 'menu' | 'task' | 'habit' | 'schedule'
 
-const HABIT_COLORS = ['#8B5CF6', '#06B6D4', '#10B981', '#F59E0B', '#F43F5E', '#6366F1']
+const HABIT_COLORS = ['#7C3AED', '#0284C7', '#10B981', '#D97706', '#E11D48', '#6366F1']
 
 const EISENHOWER_QUADRANTS = [
-  { key: 'do_first', label: 'Q1 · Khẩn cấp & Quan trọng', color: 'border-rose-500/40 text-rose-400' },
-  { key: 'schedule', label: 'Q2 · Quan trọng, chưa gấp', color: 'border-violet-500/40 text-violet-400' },
-  { key: 'delegate', label: 'Q3 · Gấp, ít quan trọng', color: 'border-amber-500/40 text-amber-400' },
-  { key: 'eliminate', label: 'Q4 · Không gấp & quan trọng', color: 'border-slate-700 text-slate-500' },
+  { key: 'do_first', label: 'Q1 · Khẩn cấp & Quan trọng', color: 'border-rose-300 text-rose-700 bg-rose-50/70' },
+  { key: 'schedule', label: 'Q2 · Quan trọng, chưa gấp', color: 'border-violet-300 text-violet-700 bg-violet-50/70' },
+  { key: 'delegate', label: 'Q3 · Gấp, ít quan trọng', color: 'border-amber-300 text-amber-800 bg-amber-50/70' },
+  { key: 'eliminate', label: 'Q4 · Không gấp & quan trọng', color: 'border-slate-200 text-slate-600 bg-slate-50' },
 ] as const
 
 export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocus }) => {
   const [subView, setSubView] = useState<SubView>('menu')
 
-  // Task form state
   const [taskTitle, setTaskTitle] = useState('')
   const [taskEisen, setTaskEisen] = useState<'do_first' | 'schedule' | 'delegate' | 'eliminate'>('do_first')
   const { createTask } = useTaskStore()
 
-  // Habit form state
   const [habitTitle, setHabitTitle] = useState('')
   const [habitColor, setHabitColor] = useState(HABIT_COLORS[0])
   const { createHabit } = useHabitStore()
 
-  // Schedule form state
   const [scheduleTitle, setScheduleTitle] = useState('')
   const [scheduleStart, setScheduleStart] = useState('09:00')
   const [scheduleEnd, setScheduleEnd] = useState('10:00')
@@ -54,7 +50,6 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
     onClose()
   }
 
-  // Handle Task Submit
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!taskTitle.trim()) return
@@ -65,7 +60,6 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
     handleClose()
   }
 
-  // Handle Habit Submit
   const handleCreateHabit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!habitTitle.trim()) return
@@ -83,7 +77,6 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
     handleClose()
   }
 
-  // Handle Schedule Submit
   const handleCreateSchedule = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!scheduleTitle.trim()) return
@@ -99,7 +92,6 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
     handleClose()
   }
 
-  // Handle Quick Focus Tap
   const handleDirectFocus = () => {
     sounds.playTap()
     startTimer({ title: 'Phiên tập trung nhanh' })
@@ -109,10 +101,8 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
 
   return (
     <>
-      {/* Backdrop */}
       <div className="sheet-backdrop" onClick={handleClose} />
 
-      {/* Sheet Content */}
       <div className="sheet-content">
         <div className="sheet-handle" />
 
@@ -122,19 +112,19 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
             {subView !== 'menu' && (
               <button
                 onClick={() => { sounds.playTap(); setSubView('menu') }}
-                className="p-1 -ml-1 text-slate-400 hover:text-white"
+                className="p-1 -ml-1 text-slate-400 hover:text-slate-700"
               >
                 <ArrowLeft className="w-5 h-5" />
               </button>
             )}
-            <h2 className="text-sm font-black text-white">
+            <h2 className="text-sm font-black text-slate-900">
               {subView === 'menu' && 'Tạo Mới Nhanh'}
               {subView === 'task' && 'Tạo Nhiệm Vụ Mới'}
               {subView === 'habit' && 'Tạo Thói Quen Mới'}
               {subView === 'schedule' && 'Lên Lịch Khung Giờ'}
             </h2>
           </div>
-          <button onClick={handleClose} className="p-1 text-slate-400 hover:text-white">
+          <button onClick={handleClose} className="p-1 text-slate-400 hover:text-slate-700">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -145,56 +135,56 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
             {/* 1. Nhiệm vụ */}
             <button
               onClick={() => { sounds.playTap(); setSubView('task') }}
-              className="glass rounded-2xl p-4 flex flex-col items-start gap-2 border border-violet-500/20 hover:border-violet-500/50 active:scale-95 transition text-left"
+              className="bg-white rounded-2xl p-4 flex flex-col items-start gap-2 border border-slate-200 hover:border-violet-400 active:scale-95 transition text-left shadow-xs"
             >
-              <div className="w-10 h-10 rounded-xl bg-violet-600/20 text-violet-400 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-xl bg-violet-50 text-violet-700 border border-violet-100 flex items-center justify-center">
                 <CheckSquare className="w-5 h-5" />
               </div>
               <div>
-                <div className="text-xs font-bold text-white">Nhiệm Vụ</div>
-                <div className="text-[10px] text-slate-400 mt-0.5">Thêm việc cần làm</div>
+                <div className="text-xs font-bold text-slate-900">Nhiệm Vụ</div>
+                <div className="text-[10px] text-slate-500 mt-0.5">Thêm việc cần làm</div>
               </div>
             </button>
 
             {/* 2. Thói quen */}
             <button
               onClick={() => { sounds.playTap(); setSubView('habit') }}
-              className="glass rounded-2xl p-4 flex flex-col items-start gap-2 border border-emerald-500/20 hover:border-emerald-500/50 active:scale-95 transition text-left"
+              className="bg-white rounded-2xl p-4 flex flex-col items-start gap-2 border border-slate-200 hover:border-emerald-400 active:scale-95 transition text-left shadow-xs"
             >
-              <div className="w-10 h-10 rounded-xl bg-emerald-600/20 text-emerald-400 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center">
                 <Zap className="w-5 h-5" />
               </div>
               <div>
-                <div className="text-xs font-bold text-white">Thói Quen</div>
-                <div className="text-[10px] text-slate-400 mt-0.5">Xây dựng chuỗi streak</div>
+                <div className="text-xs font-bold text-slate-900">Thói Quen</div>
+                <div className="text-[10px] text-slate-500 mt-0.5">Xây dựng chuỗi streak</div>
               </div>
             </button>
 
             {/* 3. Bắt đầu Focus */}
             <button
               onClick={handleDirectFocus}
-              className="glass rounded-2xl p-4 flex flex-col items-start gap-2 border border-rose-500/20 hover:border-rose-500/50 active:scale-95 transition text-left"
+              className="bg-white rounded-2xl p-4 flex flex-col items-start gap-2 border border-slate-200 hover:border-rose-400 active:scale-95 transition text-left shadow-xs"
             >
-              <div className="w-10 h-10 rounded-xl bg-rose-600/20 text-rose-400 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 border border-rose-100 flex items-center justify-center">
                 <Play className="w-5 h-5 fill-current ml-0.5" />
               </div>
               <div>
-                <div className="text-xs font-bold text-white">Tập Trung</div>
-                <div className="text-[10px] text-slate-400 mt-0.5">Bắt đầu Pomodoro ngay</div>
+                <div className="text-xs font-bold text-slate-900">Tập Trung</div>
+                <div className="text-[10px] text-slate-500 mt-0.5">Bắt đầu Pomodoro ngay</div>
               </div>
             </button>
 
             {/* 4. Lên Lịch */}
             <button
               onClick={() => { sounds.playTap(); setSubView('schedule') }}
-              className="glass rounded-2xl p-4 flex flex-col items-start gap-2 border border-cyan-500/20 hover:border-cyan-500/50 active:scale-95 transition text-left"
+              className="bg-white rounded-2xl p-4 flex flex-col items-start gap-2 border border-slate-200 hover:border-sky-400 active:scale-95 transition text-left shadow-xs"
             >
-              <div className="w-10 h-10 rounded-xl bg-cyan-600/20 text-cyan-400 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-xl bg-sky-50 text-sky-600 border border-sky-100 flex items-center justify-center">
                 <Calendar className="w-5 h-5" />
               </div>
               <div>
-                <div className="text-xs font-bold text-white">Khung Giờ</div>
-                <div className="text-[10px] text-slate-400 mt-0.5">Khóa thời gian trong ngày</div>
+                <div className="text-xs font-bold text-slate-900">Khung Giờ</div>
+                <div className="text-[10px] text-slate-500 mt-0.5">Khóa thời gian trong ngày</div>
               </div>
             </button>
           </div>
@@ -209,11 +199,11 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
               onChange={e => setTaskTitle(e.target.value)}
               placeholder="Tên nhiệm vụ cần làm..."
               autoFocus
-              className="w-full px-4 py-3 rounded-xl bg-slate-900 border border-[var(--border-default)] text-sm text-white placeholder-slate-500 outline-none focus:border-violet-500"
+              className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-900 placeholder-slate-400 outline-none focus:border-violet-500 focus:bg-white transition"
             />
 
             <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
                 Mức độ ưu tiên (Eisenhower)
               </label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
@@ -224,8 +214,8 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
                     onClick={() => setTaskEisen(q.key)}
                     className={`p-2.5 rounded-xl border text-xs font-bold text-left transition ${
                       taskEisen === q.key
-                        ? `bg-violet-600/20 ${q.color}`
-                        : 'bg-slate-900/80 border-slate-800 text-slate-400'
+                        ? `${q.color} ring-2 ring-violet-500`
+                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                     }`}
                   >
                     {q.label}
@@ -236,7 +226,7 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
 
             <button
               type="submit"
-              className="w-full py-3 rounded-xl bg-violet-600 text-white font-bold text-sm active:scale-[0.97] transition shadow-lg shadow-violet-600/30"
+              className="w-full py-3 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-sm active:scale-[0.98] transition shadow-md shadow-violet-600/20"
             >
               Lưu Nhiệm Vụ
             </button>
@@ -252,11 +242,11 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
               onChange={e => setHabitTitle(e.target.value)}
               placeholder="Tên thói quen mới (ví dụ: Đọc sách 20p)..."
               autoFocus
-              className="w-full px-4 py-3 rounded-xl bg-slate-900 border border-[var(--border-default)] text-sm text-white placeholder-slate-500 outline-none focus:border-emerald-500"
+              className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-900 placeholder-slate-400 outline-none focus:border-violet-500 focus:bg-white transition"
             />
 
             <div>
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
                 Chọn màu sắc nhận diện
               </label>
               <div className="flex gap-2">
@@ -266,7 +256,7 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
                     type="button"
                     onClick={() => setHabitColor(c)}
                     className={`w-8 h-8 rounded-xl transition active:scale-90 ${
-                      habitColor === c ? 'ring-2 ring-white ring-offset-2 ring-offset-slate-900 scale-110' : ''
+                      habitColor === c ? 'ring-2 ring-violet-600 ring-offset-2 scale-110' : ''
                     }`}
                     style={{ backgroundColor: c }}
                   />
@@ -276,7 +266,7 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
 
             <button
               type="submit"
-              className="w-full py-3 rounded-xl bg-emerald-600 text-white font-bold text-sm active:scale-[0.97] transition shadow-lg shadow-emerald-600/30"
+              className="w-full py-3 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-sm active:scale-[0.98] transition shadow-md shadow-violet-600/20"
             >
               Lưu Thói Quen
             </button>
@@ -292,37 +282,37 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
               onChange={e => setScheduleTitle(e.target.value)}
               placeholder="Tên công việc trong khung giờ..."
               autoFocus
-              className="w-full px-4 py-3 rounded-xl bg-slate-900 border border-[var(--border-default)] text-sm text-white placeholder-slate-500 outline-none focus:border-cyan-500"
+              className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-900 placeholder-slate-400 outline-none focus:border-violet-500 focus:bg-white transition"
             />
 
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
                   Bắt đầu
                 </label>
                 <input
                   type="time"
                   value={scheduleStart}
                   onChange={e => setScheduleStart(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-xl bg-slate-900 border border-[var(--border-default)] text-sm text-white font-mono outline-none focus:border-cyan-500"
+                  className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-900 font-mono outline-none focus:border-violet-500 focus:bg-white transition"
                 />
               </div>
               <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
                   Kết thúc
                 </label>
                 <input
                   type="time"
                   value={scheduleEnd}
                   onChange={e => setScheduleEnd(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-xl bg-slate-900 border border-[var(--border-default)] text-sm text-white font-mono outline-none focus:border-cyan-500"
+                  className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-900 font-mono outline-none focus:border-violet-500 focus:bg-white transition"
                 />
               </div>
             </div>
 
             <button
               type="submit"
-              className="w-full py-3 rounded-xl bg-cyan-600 text-white font-bold text-sm active:scale-[0.97] transition shadow-lg shadow-cyan-600/30"
+              className="w-full py-3 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-sm active:scale-[0.98] transition shadow-md shadow-violet-600/20"
             >
               Lưu Khung Giờ
             </button>

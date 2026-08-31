@@ -25,33 +25,33 @@ const AppShell: React.FC = () => {
   const location = useLocation()
 
   return (
-    <div className="h-[100dvh] flex flex-col md:flex-row bg-[var(--surface-base)] text-[var(--text-primary)] overflow-hidden">
+    <div className="h-[100dvh] flex flex-col md:flex-row bg-[#F8FAFC] text-slate-900 overflow-hidden">
       {/* Desktop sidebar */}
       <Sidebar user={user} onLogout={logout} />
 
       {/* Main content column */}
       <div className="flex-1 flex flex-col min-h-0 md:ml-60">
         {/* Mobile top bar */}
-        <header className="md:hidden shrink-0 flex items-center justify-between px-4 h-12 bg-[var(--surface-base)]/95 backdrop-blur-xl border-b border-[var(--border-subtle)] z-20">
+        <header className="md:hidden shrink-0 flex items-center justify-between px-4 h-13 bg-white border-b border-slate-200 z-20">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-xl bg-gradient-to-tr from-violet-600 to-cyan-500 flex items-center justify-center">
+            <div className="w-7 h-7 rounded-xl bg-violet-600 flex items-center justify-center shadow-sm">
               <Sparkles className="w-3.5 h-3.5 text-white" />
             </div>
-            <span className="font-black text-sm tracking-wider font-mono">
-              TIME<span className="text-cyan-400">HACK</span>
+            <span className="font-black text-sm tracking-wider font-mono text-slate-900">
+              TIME<span className="text-violet-600">HACK</span>
             </span>
           </div>
 
           <button
             onClick={() => logout()}
-            className="text-[10px] font-bold text-slate-400 px-2.5 py-1 rounded-lg border border-[var(--border-subtle)] active:scale-95 transition"
+            className="text-[11px] font-bold text-slate-600 hover:text-rose-600 px-3 py-1 rounded-lg border border-slate-200 bg-slate-50 active:scale-95 transition"
           >
             Đăng xuất
           </button>
         </header>
 
         {/* Scrollable content area */}
-        <main className="flex-1 overflow-y-auto overflow-x-hidden">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden bg-[#F8FAFC]">
           <div className="max-w-lg mx-auto px-4 py-4 md:max-w-5xl md:px-8 md:py-6">
             <Routes>
               <Route path="/" element={<TodayPlanner onOpenFocus={() => setFocusOpen(true)} />} />
@@ -97,11 +97,11 @@ export const App: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="h-[100dvh] flex flex-col items-center justify-center bg-[var(--surface-base)] gap-3">
-        <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-violet-600 to-cyan-500 flex items-center justify-center anim-pulse-ring">
+      <div className="h-[100dvh] flex flex-col items-center justify-center bg-[#F8FAFC] gap-3">
+        <div className="w-10 h-10 rounded-2xl bg-violet-600 flex items-center justify-center shadow-md shadow-violet-600/20 anim-pulse-ring">
           <Sparkles className="w-5 h-5 text-white" />
         </div>
-        <span className="text-xs font-bold text-slate-400 font-mono tracking-widest uppercase">Loading...</span>
+        <span className="text-xs font-bold text-slate-500 font-mono tracking-widest uppercase">Loading...</span>
       </div>
     )
   }

@@ -4,14 +4,27 @@ import sys
 
 def build_vite():
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    frontend_dir = os.path.join(script_dir, "frontend")
+    client_dir = os.path.join(script_dir, "client")
+    if not os.path.exists(client_dir):
+        client_dir = os.path.join(script_dir, "frontend")
     
-    print(f" [VITE] Building TimeHack Frontend at {frontend_dir}...")
+    print(f" [VITE] Building TimeHack Client at {client_dir}...")
     
-    # Run npm run build
     npm_cmd = "npm.cmd" if sys.platform == "win32" else "npm"
+    npx_cmd = "npx.cmd" if sys.platform == "win32" else "npx"
+    
     try:
-        res = subprocess.run([npm_cmd, "run", "build"], cwd=frontend_dir, check=True)
+        bin_vite = os.path.join(client_dir, "node_modules", ".bin", "vite.cmd" if sys.platform == "win32" else "vite")
+        if not os.path.exists(bin_vite):
+            print(" [VITE] Installing dependencies...")
+            subprocess.run([npm_cmd, "install"], cwd=client_dir, check=True)
+            
+        try:
+            subprocess.run([npm_cmd, "run", "build"], cwd=client_dir, check=True)
+        except Exception:
+            print(" [VITE] Retrying with npx vite build...")
+            subprocess.run([npx_cmd, "vite", "build"], cwd=client_dir, check=True)
+            
         print(" [VITE] Build successful!")
     except subprocess.CalledProcessError as e:
         print(f" [VITE] Build failed: {e}")

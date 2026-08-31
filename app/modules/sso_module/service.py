@@ -1,0 +1,58 @@
+import httpx
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from .models import SSOConfig
+from app.core.config import settings
+from fastapi import HTTPException
+
+class SSOService:
+    @staticmethod
+    async def get_config(db: AsyncSession) -> SSOConfig:
+        result = await db.execute(select(SSOConfig))
+        config = result.scalar_one_or_none()
+        if not config:
+            config = SSOConfig(
+                is_enabled=True,
+                server_url=settings.CENTRAL_AUTH_URL,
+                client_id=settings.CLIENT_ID,
+                client_secret=settings.CLIENT_SECRET,
+                redirect_uri=f"{settings.APP_BASE_URL.rstrip('/')}/auth-center/callback" if settings.APP_BASE_URL else "/auth-center/callback"
+            )
+            db.add(config)
+            await db.commit()
+            await db.refresh(config)
+        return config
+
+    @staticmethod
+    async def verify_sso_code(db: AsyncSession, code: str):
+        config = await SSOService.get_config(db)
+        if not config.is_enabled:
+            raise HTTPException(status_code=400, detail="SSO is disabled locally")
+
+        server_url = config.server_url or settings.CENTRAL_AUTH_URL
+        client_id = config.client_id or settings.CLIENT_ID
+        client_secret = config.client_secret or settings.CLIENT_SECRET
+
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            # Exchange code for token at CentralAuth
+            res = await client.post(
+                f"{server_url.rstrip('/')}/api/auth/token",
+                json={
+                    "code": code,
+                    "client_id": client_id,
+                    "client_secret": client_secret
+                }
+            )
+            if res.status_code != 200:
+                return None, f"Token exchange failed: {res.text}"
+            
+            token_data = res.json()
+            # Verify and get user info
+            v_res = await client.get(
+                f"{server_url.rstrip('/')}/api/auth/verify-token",
+                headers={"Authorization": f"Bearer {token_data['access_token']}"}
+            )
+            if v_res.status_code != 200:
+                return None, "Verification failed"
+                
+            return v_res.json().get("user"), None

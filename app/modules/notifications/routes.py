@@ -58,3 +58,22 @@ async def link_telegram_chat(payload: dict, request: Request, db: AsyncSession =
 
     await db.commit()
     return {"status": "ok", "telegram_chat_id": chat_id}
+
+@router.post("/telegram/test")
+async def send_test_telegram(request: Request, db: AsyncSession = Depends(get_db)):
+    from app.modules.notifications.telegram_service import TelegramService
+    user_id = get_current_user_id(request)
+    sett_res = await db.execute(select(UserSettings).where(UserSettings.user_id == user_id))
+    user_sett = sett_res.scalar_one_or_none()
+    chat_id = user_sett.settings.get("telegram_chat_id") if user_sett and user_sett.settings else None
+    
+    if not chat_id:
+        raise HTTPException(status_code=400, detail="Chưa liên kết Telegram Chat ID trong Cài đặt")
+        
+    sent = await TelegramService.send_message(
+        chat_id=str(chat_id),
+        text="<b>🔔 [TimeHack] Thông báo thử nghiệm</b>\nKết nối Telegram Bot với TimeHack thành công!",
+        user_id=user_id
+    )
+    return {"status": "ok" if sent else "failed", "sent": sent}
+

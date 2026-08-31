@@ -4,10 +4,10 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 
 from app.core.config import settings
-from app.core.database import engine, Base, AsyncSessionLocal
+from app.modules.sso_module.routes import router as sso_router
 from app.modules.auth.routes import router as auth_router
 from app.modules.tasks.routes import router as tasks_router
 from app.modules.habits.routes import router as habits_router
@@ -25,9 +25,6 @@ if not ASSETS_DIR.exists():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Ensure database tables exist
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
     yield
 
 app = FastAPI(
@@ -35,6 +32,44 @@ app = FastAPI(
     version=settings.VERSION,
     lifespan=lifespan
 )
+
+# Middleware: Verify & Clean HMAC signed user_id cookie
+@app.middleware("http")
+async def clean_user_id_cookie(request: Request, call_next):
+    headers = request.scope.get("headers", [])
+    cookie_idx = -1
+    cookie_val = None
+    for i, (k, v) in enumerate(headers):
+        if k == b"cookie":
+            cookie_idx = i
+            cookie_val = v.decode("utf-8", errors="ignore")
+            break
+            
+    if cookie_idx != -1 and cookie_val:
+        from app.modules.sso_module.cookie_signer import verify_cookie
+        items = cookie_val.split(";")
+        new_items = []
+        modified = False
+        for item in items:
+            parts = item.strip().split("=", 1)
+            if len(parts) == 2 and parts[0] == "user_id":
+                val = parts[1]
+                verified_id = verify_cookie(val, settings.SECRET_KEY)
+                if verified_id:
+                    new_items.append(f"user_id={verified_id}")
+                modified = True
+                continue
+            new_items.append(item.strip())
+            
+        if modified:
+            new_cookie_str = "; ".join(new_items)
+            new_headers = list(headers)
+            new_headers[cookie_idx] = (b"cookie", new_cookie_str.encode("utf-8"))
+            request.scope["headers"] = new_headers
+            if hasattr(request, "_cookies"):
+                delattr(request, "_cookies")
+
+    return await call_next(request)
 
 # Configure CORS
 app.add_middleware(
@@ -46,6 +81,7 @@ app.add_middleware(
 )
 
 # Include Routers
+app.include_router(sso_router)
 app.include_router(auth_router)
 app.include_router(tasks_router)
 app.include_router(habits_router)
@@ -68,7 +104,7 @@ async def serve_spa(full_path: str):
     if index_path.exists():
         return FileResponse(str(index_path))
     
-    return {"message": "TimeHack API is running. Build frontend to view UI."}
+    return {"message": "TimeHack API is running. Build client to view UI."}
 
 if __name__ == "__main__":
     import uvicorn

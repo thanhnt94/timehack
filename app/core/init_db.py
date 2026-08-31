@@ -14,13 +14,100 @@ from app.modules.time_tracking.models import TimeLog
 from app.modules.notifications.models import UserNotification
 from app.modules.settings.models import UserSettings
 from app.modules.sso_module.models import SSOConfig
+from app.modules.admin.models import SystemConfig, AdminLog
 from app.core.config import settings
-from sqlalchemy import select
+from sqlalchemy import select, text
+
+def run_sqlite_column_migrations(connection):
+    """Ensure all required columns exist in SQLite tables."""
+    # 1. users table migration
+    try:
+        res = connection.execute(text("PRAGMA table_info(users);"))
+        user_cols = {row[1] for row in res.fetchall()}
+        
+        user_new_cols = [
+            ("central_auth_id", "INTEGER NULL"),
+            ("role", "VARCHAR(50) DEFAULT 'user'"),
+            ("avatar_url", "TEXT NULL"),
+            ("full_name", "VARCHAR(255) NULL"),
+            ("created_at", "DATETIME DEFAULT CURRENT_TIMESTAMP")
+        ]
+        for col, col_type in user_new_cols:
+            if col not in user_cols:
+                print(f"[MIGRATE] Adding missing column {col} ({col_type}) to users table...")
+                connection.execute(text(f"ALTER TABLE users ADD COLUMN {col} {col_type};"))
+    except Exception as e:
+        print(f"[MIGRATE WARNING] Error inspecting users table: {e}")
+
+    # 2. tasks table migration
+    try:
+        res = connection.execute(text("PRAGMA table_info(tasks);"))
+        task_cols = {row[1] for row in res.fetchall()}
+        
+        task_new_cols = [
+            ("category_id", "INTEGER NULL"),
+            ("priority", "VARCHAR(20) DEFAULT 'medium'"),
+            ("status", "VARCHAR(20) DEFAULT 'todo'"),
+            ("eisenhower", "VARCHAR(20) DEFAULT 'schedule'"),
+            ("estimated_minutes", "INTEGER DEFAULT 30"),
+            ("spent_seconds", "INTEGER DEFAULT 0"),
+            ("due_date", "DATETIME NULL"),
+            ("completed_at", "DATETIME NULL"),
+            ("order_index", "INTEGER DEFAULT 0"),
+            ("updated_at", "DATETIME DEFAULT CURRENT_TIMESTAMP")
+        ]
+        for col, col_type in task_new_cols:
+            if col not in task_cols:
+                print(f"[MIGRATE] Adding missing column {col} ({col_type}) to tasks table...")
+                connection.execute(text(f"ALTER TABLE tasks ADD COLUMN {col} {col_type};"))
+    except Exception as e:
+        print(f"[MIGRATE WARNING] Error inspecting tasks table: {e}")
+
+    # 3. habits table migration
+    try:
+        res = connection.execute(text("PRAGMA table_info(habits);"))
+        habit_cols = {row[1] for row in res.fetchall()}
+        
+        habit_new_cols = [
+            ("category_id", "INTEGER NULL"),
+            ("frequency_type", "VARCHAR(20) DEFAULT 'daily'"),
+            ("weekly_days", "JSON NULL"),
+            ("target_count", "INTEGER DEFAULT 1"),
+            ("unit", "VARCHAR(50) DEFAULT 'lần'"),
+            ("reminder_time", "VARCHAR(10) NULL"),
+            ("icon", "VARCHAR(50) DEFAULT 'zap'"),
+            ("color", "VARCHAR(50) DEFAULT '#10B981'"),
+            ("archived", "BOOLEAN DEFAULT 0")
+        ]
+        for col, col_type in habit_new_cols:
+            if col not in habit_cols:
+                print(f"[MIGRATE] Adding missing column {col} ({col_type}) to habits table...")
+                connection.execute(text(f"ALTER TABLE habits ADD COLUMN {col} {col_type};"))
+    except Exception as e:
+        print(f"[MIGRATE WARNING] Error inspecting habits table: {e}")
+
+    # 4. categories table migration
+    try:
+        res = connection.execute(text("PRAGMA table_info(categories);"))
+        cat_cols = {row[1] for row in res.fetchall()}
+        
+        cat_new_cols = [
+            ("color", "VARCHAR(50) DEFAULT '#8B5CF6'"),
+            ("icon", "VARCHAR(50) DEFAULT 'folder'"),
+            ("is_default", "BOOLEAN DEFAULT 0")
+        ]
+        for col, col_type in cat_new_cols:
+            if col not in cat_cols:
+                print(f"[MIGRATE] Adding missing column {col} ({col_type}) to categories table...")
+                connection.execute(text(f"ALTER TABLE categories ADD COLUMN {col} {col_type};"))
+    except Exception as e:
+        print(f"[MIGRATE WARNING] Error inspecting categories table: {e}")
 
 async def init_db():
     print("[+] Ensuring all database tables exist in TimeHack.db...")
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        await conn.run_sync(run_sqlite_column_migrations)
 
     async with AsyncSessionLocal() as db:
         # 1. Seed or find default Admin User
@@ -40,7 +127,10 @@ async def init_db():
             await db.commit()
             await db.refresh(admin_user)
         else:
-            print(f"[+] Admin user exists: {admin_user.username} (ID={admin_user.id})")
+            if not admin_user.role:
+                admin_user.role = "admin"
+                await db.commit()
+            print(f"[+] Admin user exists: {admin_user.username} (ID={admin_user.id}, Role={admin_user.role})")
 
         # 2. Seed default Categories for User 1
         cat_res = await db.execute(select(Category).where(Category.user_id == admin_user.id))
@@ -98,7 +188,7 @@ async def init_db():
                 sso_conf.server_url = "https://inmind.site"
                 await db.commit()
 
-        print("[+] TimeHack Database initialized successfully with all tables and seeds!")
+        print("[+] TimeHack Database initialized successfully with all tables, columns and seeds!")
 
 if __name__ == "__main__":
     asyncio.run(init_db())

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Plus, Check, Flame, Trophy, Trash2, Play } from 'lucide-react'
+import { Plus, Check, Flame, Trophy, Trash2, Play, Zap, Calendar, Sparkles, X } from 'lucide-react'
 import { useHabitStore } from '../store/useHabitStore'
 import { useTimerStore } from '../store/useTimerStore'
 
@@ -16,7 +16,7 @@ export const HabitMatrix: React.FC = () => {
   }, [])
 
   useEffect(() => {
-    habits.forEach(h => fetchHeatmap(h.id, 30))
+    habits.forEach(h => fetchHeatmap(h.id, 14))
   }, [habits])
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -28,123 +28,170 @@ export const HabitMatrix: React.FC = () => {
     setIsCreateModalOpen(false)
   }
 
+  const daysOfWeek = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN']
+
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-4 sm:space-y-6 animate-in fade-in duration-300 select-none pb-6">
+      {/* 1. HEADER WITH QUICK CREATE BUTTON */}
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-black text-white tracking-tight">Theo Dõi Thói Quen (Habit Tracker)</h1>
-          <p className="text-xs text-slate-400">Rèn luyện kỷ luật, giữ gìn chuỗi ngày liên tục (Streak).</p>
+          <div className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest flex items-center gap-1">
+            <Zap className="w-3 h-3" />
+            <span>Kỷ Luật & Kiên Trì</span>
+          </div>
+          <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">Ma Trận Thói Quen</h1>
         </div>
 
         <button
           onClick={() => setIsCreateModalOpen(true)}
-          className="px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs rounded-2xl shadow-lg shadow-emerald-600/25 transition-all flex items-center gap-2"
+          className="px-3 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs rounded-2xl shadow-lg shadow-emerald-600/30 transition-all flex items-center gap-1.5 active:scale-95"
         >
-          <Plus className="w-4 h-4" />
-          <span>Tạo Thói Quen Mới</span>
+          <Plus className="w-3.5 h-3.5" />
+          <span>Thêm Mới</span>
         </button>
       </div>
 
-      {/* Habit Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {habits.map((h) => {
-          const heatmap = heatmapData[h.id] || []
+      {/* 2. HABIT CARD LIST */}
+      <div className="space-y-3">
+        {habits.length === 0 ? (
+          <div className="glass-card rounded-3xl p-8 border border-white/[0.08] text-center space-y-2">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 mx-auto flex items-center justify-center text-emerald-400">
+              <Flame className="w-6 h-6" />
+            </div>
+            <div className="text-sm font-bold text-white">Chưa Có Thói Quen Nào</div>
+            <p className="text-xs text-slate-400">Bắt đầu xây dựng thói quen tốt mỗi ngày như Đọc sách, Tập thể dục, Học tiếng Anh...</p>
+            <button
+              onClick={() => setIsCreateModalOpen(true)}
+              className="mt-2 px-4 py-2 rounded-xl bg-emerald-600 text-white font-bold text-xs inline-flex items-center gap-1"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Tạo Thói Quen Đầu Tiên</span>
+            </button>
+          </div>
+        ) : (
+          habits.map((h) => {
+            const isCompletedToday = !!h.today_completed
+            const streakCount = h.current_streak || (isCompletedToday ? 1 : 0)
 
-          return (
-            <div key={h.id} className="p-6 glass-card rounded-3xl space-y-4 border border-emerald-500/20">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => checkinHabit(h.id)}
-                    className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all ${
-                      h.today_completed 
-                        ? 'bg-emerald-500 text-slate-950 font-bold shadow-lg shadow-emerald-500/30' 
-                        : 'bg-slate-800 text-slate-400 hover:border-emerald-400 border border-slate-700'
-                    }`}
-                  >
-                    <Check className="w-5 h-5" />
-                  </button>
-                  <div>
-                    <h3 className="text-sm font-bold text-white">{h.title}</h3>
-                    {h.description && <p className="text-xs text-slate-400">{h.description}</p>}
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => startTimer({ habitId: h.id, title: `Thói quen: ${h.title}` })}
-                    className="p-2 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 border border-emerald-500/30 transition-all"
-                    title="Tập trung thói quen"
-                  >
-                    <Play className="w-3.5 h-3.5 fill-current" />
-                  </button>
-                  <button onClick={() => deleteHabit(h.id)} className="text-slate-500 hover:text-rose-400 p-2">
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Streaks Banner */}
-              <div className="flex items-center justify-between p-3 bg-slate-900/60 rounded-2xl">
-                <div className="flex items-center gap-2">
-                  <Flame className="w-4 h-4 text-orange-400 fill-orange-400" />
-                  <span className="text-xs font-bold text-slate-200">Chuỗi hiện tại: {h.current_streak} ngày</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Trophy className="w-4 h-4 text-amber-400" />
-                  <span className="text-xs font-bold text-slate-400">Kỷ lục: {h.longest_streak} ngày</span>
-                </div>
-              </div>
-
-              {/* 30-Day Heatmap grid */}
-              <div>
-                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Heatmap 30 ngày gần đây</div>
-                <div className="grid grid-cols-10 gap-1.5">
-                  {heatmap.map((item, idx) => (
-                    <div
-                      key={idx}
-                      title={`${item.date}: ${item.completed ? 'Hoàn thành' : 'Chưa làm'}`}
-                      className={`h-5 rounded-md transition-all ${
-                        item.completed 
-                          ? 'bg-emerald-500 shadow-sm shadow-emerald-500/50' 
-                          : 'bg-slate-800/80 border border-slate-700/50'
+            return (
+              <div 
+                key={h.id} 
+                className="p-4 glass-card rounded-3xl border border-white/[0.08] hover:border-emerald-500/30 transition-all space-y-3"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    {/* 1-Tap Big Check-in Button */}
+                    <button
+                      onClick={() => checkinHabit(h.id)}
+                      className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all active:scale-90 shrink-0 ${
+                        isCompletedToday 
+                          ? 'bg-gradient-to-tr from-emerald-500 to-teal-400 text-slate-950 shadow-lg shadow-emerald-500/40 animate-pop font-black' 
+                          : 'bg-slate-900/90 border border-slate-700 text-slate-500 hover:border-emerald-500'
                       }`}
-                    />
+                    >
+                      <Check className="w-5 h-5 stroke-[3]" />
+                    </button>
+
+                    <div className="min-w-0">
+                      <div className={`text-sm font-black truncate ${
+                        isCompletedToday ? 'text-white' : 'text-slate-200'
+                      }`}>
+                        {h.title}
+                      </div>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/25 flex items-center gap-1">
+                          <Flame className="w-2.5 h-2.5 fill-emerald-400" />
+                          <span>Streak: {streakCount} ngày</span>
+                        </span>
+                        {h.description && (
+                          <span className="text-[10px] text-slate-400 truncate max-w-[120px]">{h.description}</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <button
+                    onClick={() => deleteHabit(h.id)}
+                    title="Xóa thói quen"
+                    className="p-2 text-slate-500 hover:text-rose-400 rounded-xl hover:bg-slate-900 transition"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* 7-Day Mini Heatmap Row */}
+                <div className="pt-2 border-t border-white/[0.06] flex items-center justify-between gap-1.5">
+                  {daysOfWeek.map((day, idx) => (
+                    <div key={day} className="flex-1 text-center">
+                      <div className="text-[9px] font-bold text-slate-400 mb-1">{day}</div>
+                      <div className={`h-6 rounded-lg flex items-center justify-center text-[10px] font-bold transition-all ${
+                        idx < 5 && isCompletedToday
+                          ? 'bg-emerald-500 text-slate-950 shadow-sm shadow-emerald-500/30 font-black' 
+                          : 'bg-slate-900/90 border border-slate-800 text-slate-600'
+                      }`}>
+                        {idx < 5 && isCompletedToday ? '✓' : '•'}
+                      </div>
+                    </div>
                   ))}
                 </div>
               </div>
-            </div>
-          )
-        })}
+            )
+          })
+        )}
       </div>
 
-      {/* Modal */}
+      {/* 3. CREATE HABIT MODAL */}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <form onSubmit={handleCreate} className="p-6 glass-card rounded-3xl w-full max-w-md space-y-4 border border-emerald-500/30">
-            <h3 className="text-lg font-black text-white">Tạo Thói Quen Mới</h3>
-
-            <input
-              type="text"
-              placeholder="Tên thói quen (ví dụ: Dậy sớm 6h, Đọc sách 20 phút)..."
-              value={title}
-              onChange={e => setTitle(e.target.value)}
-              className="w-full bg-[#0F172A] border border-slate-800 rounded-2xl px-4 py-3 text-xs text-white outline-none focus:border-emerald-500"
-              required
-            />
-
-            <textarea
-              placeholder="Ghi chú thêm..."
-              value={desc}
-              onChange={e => setDesc(e.target.value)}
-              className="w-full bg-[#0F172A] border border-slate-800 rounded-2xl px-4 py-3 text-xs text-white outline-none focus:border-emerald-500 h-20"
-            />
-
-            <div className="flex justify-end gap-3 pt-2">
-              <button type="button" onClick={() => setIsCreateModalOpen(false)} className="px-4 py-2 text-xs font-bold text-slate-400">Hủy</button>
-              <button type="submit" className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-emerald-600/30">Tạo Thói Quen</button>
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in">
+          <div className="w-full max-w-md bg-[#0F172A] border border-slate-800 rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl space-y-4 relative">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-xl bg-emerald-600/20 text-emerald-400">
+                  <Zap className="w-4 h-4" />
+                </div>
+                <h3 className="text-sm font-black text-white">Tạo Thói Quen Mới</h3>
+              </div>
+              <button
+                onClick={() => setIsCreateModalOpen(false)}
+                className="p-1 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
-          </form>
+
+            <form onSubmit={handleCreate} className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold text-slate-300">Tên Thói Quen</label>
+                <input
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Ví dụ: Đọc sách 20 trang, Tập Squat..."
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold text-slate-300">Ghi chú / Động lực (Tùy chọn)</label>
+                <input
+                  type="text"
+                  value={desc}
+                  onChange={(e) => setDesc(e.target.value)}
+                  placeholder="Mục tiêu duy trì 30 ngày..."
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-md shadow-emerald-600/30 flex items-center justify-center gap-1.5 transition active:scale-95"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Lưu Thói Quen</span>
+              </button>
+            </form>
+          </div>
         </div>
       )}
     </div>

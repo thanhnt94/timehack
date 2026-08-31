@@ -8,7 +8,13 @@ import {
   Flame, 
   Check, 
   ChevronRight,
-  Target
+  Target,
+  Plus,
+  ArrowUpRight,
+  TrendingUp,
+  Award,
+  Calendar,
+  AlertCircle
 } from 'lucide-react'
 import { useTaskStore } from '../store/useTaskStore'
 import { useHabitStore } from '../store/useHabitStore'
@@ -24,6 +30,8 @@ export const TodayPlanner: React.FC = () => {
   const navigate = useNavigate()
 
   const [quickTaskTitle, setQuickTaskTitle] = useState('')
+  const [quickEisenhower, setQuickEisenhower] = useState<'do_first' | 'schedule' | 'delegate' | 'eliminate'>('do_first')
+  const [activeTab, setActiveTab] = useState<'all' | 'priority' | 'habits' | 'schedule'>('all')
 
   useEffect(() => {
     fetchTasks()
@@ -31,7 +39,7 @@ export const TodayPlanner: React.FC = () => {
     fetchSlots()
   }, [])
 
-  const todayDateStr = new Date().toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })
+  const todayDateStr = new Date().toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit' })
   const completedTasksCount = tasks.filter(t => t.status === 'completed').length
   const totalTasksCount = tasks.length
   const taskProgressPercent = totalTasksCount > 0 ? Math.round((completedTasksCount / totalTasksCount) * 100) : 0
@@ -39,201 +47,272 @@ export const TodayPlanner: React.FC = () => {
   const handleQuickAddTask = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!quickTaskTitle.trim()) return
-    await createTask({ title: quickTaskTitle, priority: 'medium', eisenhower: 'schedule' })
+    await createTask({ 
+      title: quickTaskTitle, 
+      priority: quickEisenhower === 'do_first' ? 'high' : 'medium', 
+      eisenhower: quickEisenhower 
+    })
     setQuickTaskTitle('')
   }
 
-  return (
-    <div className="space-y-6 md:space-y-8 animate-in fade-in duration-300">
-      {/* Header Banner */}
-      <div className="p-5 md:p-8 glass-card rounded-3xl border border-violet-500/20 bg-gradient-to-r from-violet-900/30 via-slate-900/80 to-cyan-900/20 relative overflow-hidden">
-        <div className="absolute right-0 top-0 w-96 h-96 bg-gradient-to-br from-violet-600/10 to-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
+  const handleStartTaskFocus = (taskTitle: string) => {
+    startTimer(taskTitle, 'pomodoro')
+    navigate('/focus')
+  }
 
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div>
-            <div className="text-[11px] font-bold text-cyan-400 uppercase tracking-widest mb-1 flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>{todayDateStr}</span>
+  const filteredTasks = tasks.filter(task => {
+    if (activeTab === 'priority') return task.eisenhower === 'do_first' || task.priority === 'high'
+    return true
+  })
+
+  return (
+    <div className="space-y-4 md:space-y-6 animate-in fade-in duration-300 select-none pb-6">
+      {/* 1. COMPACT HERO PRODUCTIVITY GAUGE */}
+      <div className="glass-card rounded-3xl p-4 sm:p-6 border border-violet-500/20 bg-gradient-to-br from-violet-900/30 via-slate-900/90 to-cyan-900/20 relative overflow-hidden shadow-2xl">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-violet-500/15 via-cyan-500/10 to-transparent rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 flex items-center justify-between">
+          <div className="space-y-1">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-violet-500/15 border border-violet-500/30 text-violet-300 text-[10px] font-bold">
+              <Sparkles className="w-3 h-3 text-cyan-400" />
+              <span className="capitalize">{todayDateStr}</span>
             </div>
-            <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-white tracking-tight leading-snug">Hôm Nay Bạn Muốn Chinh Phục Gì?</h1>
-            <p className="text-xs md:text-sm text-slate-400 mt-1 max-w-xl">
-              Tối ưu hóa thời gian, xây dựng thói quen tốt và đạt hiệu suất cao nhất trong ngày.
+            <h1 className="text-lg sm:text-2xl font-black text-white leading-tight">
+              Hôm Nay Chinh Phục Gì?
+            </h1>
+            <p className="text-[11px] sm:text-xs text-slate-400 font-medium">
+              Hoàn thành các nhiệm vụ cốt lõi & giữ vững chuỗi thói quen.
             </p>
           </div>
 
-          <div className="flex items-center gap-4">
-            <div className="w-full md:w-auto p-3.5 md:p-4 glass-card rounded-2xl border border-slate-800 flex items-center gap-3">
-              <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-violet-600/20 border border-violet-500/30 flex items-center justify-center text-violet-400 font-bold shrink-0">
-                <Target className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="text-[11px] text-slate-400 font-bold">Tiến độ Task</div>
-                <div className="text-base md:text-lg font-black text-white">{completedTasksCount} / {totalTasksCount} ({taskProgressPercent}%)</div>
-              </div>
+          {/* Activity Progress Circular Widget */}
+          <div className="relative flex items-center justify-center shrink-0 w-16 h-16 sm:w-20 sm:h-20">
+            <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
+              <path
+                className="text-slate-800"
+                strokeWidth="3.5"
+                stroke="currentColor"
+                fill="none"
+                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+              />
+              <path
+                className="text-gradient"
+                strokeWidth="3.5"
+                strokeDasharray={`${taskProgressPercent}, 100`}
+                strokeLinecap="round"
+                stroke="url(#progressGrad)"
+                fill="none"
+                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+              />
+              <defs>
+                <linearGradient id="progressGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#8B5CF6" />
+                  <stop offset="100%" stopColor="#06B6D4" />
+                </linearGradient>
+              </defs>
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+              <span className="text-xs sm:text-sm font-black text-white">{taskProgressPercent}%</span>
+              <span className="text-[8px] font-bold text-slate-400">Tiến độ</span>
             </div>
+          </div>
+        </div>
+
+        {/* Quick 3 Stat Pills */}
+        <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-white/[0.08]">
+          <div className="p-2 rounded-2xl bg-slate-900/60 border border-slate-800/80 text-center">
+            <div className="text-[10px] text-slate-400 font-semibold">Nhiệm vụ</div>
+            <div className="text-xs sm:text-sm font-black text-white mt-0.5">{completedTasksCount}/{totalTasksCount}</div>
+          </div>
+          <div className="p-2 rounded-2xl bg-slate-900/60 border border-slate-800/80 text-center">
+            <div className="text-[10px] text-slate-400 font-semibold">Thói quen</div>
+            <div className="text-xs sm:text-sm font-black text-emerald-400 mt-0.5">{habits.length} đang theo dõi</div>
+          </div>
+          <div className="p-2 rounded-2xl bg-slate-900/60 border border-slate-800/80 text-center">
+            <div className="text-[10px] text-slate-400 font-semibold">Lịch trình</div>
+            <div className="text-xs sm:text-sm font-black text-cyan-400 mt-0.5">{slots.length} khung giờ</div>
           </div>
         </div>
       </div>
 
-      {/* Grid Layout 3 Columns */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Column 1: Today Tasks */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm md:text-base font-bold text-white uppercase tracking-wider flex items-center gap-2">
-              <CheckSquare className="w-4 h-4 text-violet-400" />
-              <span>Công Việc Cần Làm</span>
-            </h2>
-            <button 
-              onClick={() => navigate('/tasks')}
-              className="text-xs text-violet-400 hover:text-violet-300 font-semibold flex items-center gap-1"
-            >
-              <span>Xem tất cả</span>
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
-          {/* Quick add task input */}
-          <form onSubmit={handleQuickAddTask} className="flex gap-2">
-            <input
-              type="text"
-              placeholder="+ Thêm nhanh công việc mới..."
-              value={quickTaskTitle}
-              onChange={(e) => setQuickTaskTitle(e.target.value)}
-              className="w-full bg-[#151D2A] border border-slate-800 focus:border-violet-500/50 rounded-2xl px-4 py-2.5 text-xs text-white placeholder-slate-500 outline-none transition-all"
-            />
-          </form>
-
-          {/* Tasks List */}
-          <div className="space-y-2.5">
-            {tasks.filter(t => t.status !== 'completed').slice(0, 6).map((t) => (
-              <div 
-                key={t.id} 
-                className="p-3.5 glass-card glass-card-hover rounded-2xl flex items-center justify-between gap-3 group"
-              >
-                <div className="flex items-center gap-3 truncate">
-                  <button
-                    onClick={() => toggleTaskStatus(t.id)}
-                    className="w-5 h-5 rounded-lg border border-slate-700 hover:border-violet-500 flex items-center justify-center text-transparent hover:text-violet-400 transition-colors shrink-0"
-                  >
-                    <Check className="w-3.5 h-3.5" />
-                  </button>
-                  <span className="text-xs font-semibold text-slate-200 truncate">{t.title}</span>
-                </div>
-
-                <button
-                  onClick={() => startTimer({ taskId: t.id, title: t.title })}
-                  className="p-2 rounded-xl bg-violet-600/20 hover:bg-violet-600/40 text-violet-300 border border-violet-500/30 transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100 shrink-0"
-                  title="Bắt đầu đếm giờ"
-                >
-                  <Play className="w-3.5 h-3.5 fill-current" />
-                </button>
-              </div>
-            ))}
-
-            {tasks.filter(t => t.status !== 'completed').length === 0 && (
-              <div className="p-6 text-center glass-card rounded-2xl">
-                <p className="text-xs text-slate-400">Tuyệt vời! Tuyệt đối không còn task dở dang.</p>
-              </div>
-            )}
-          </div>
+      {/* 2. QUICK ADD TASK ACTION BAR (1-TAP INPUT) */}
+      <form onSubmit={handleQuickAddTask} className="glass-card rounded-2xl p-2 border border-white/[0.08] flex items-center gap-2 shadow-lg">
+        <div className="p-2 rounded-xl bg-violet-600/20 text-violet-400 shrink-0">
+          <Plus className="w-4 h-4" />
         </div>
+        <input
+          type="text"
+          value={quickTaskTitle}
+          onChange={(e) => setQuickTaskTitle(e.target.value)}
+          placeholder="+ Thêm nhanh nhiệm vụ hôm nay..."
+          className="flex-1 bg-transparent text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none"
+        />
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setQuickEisenhower(prev => prev === 'do_first' ? 'schedule' : 'do_first')}
+            className={`px-2 py-1 rounded-xl text-[10px] font-bold border transition ${
+              quickEisenhower === 'do_first' 
+                ? 'bg-rose-500/20 text-rose-300 border-rose-500/30' 
+                : 'bg-slate-800 text-slate-400 border-slate-700'
+            }`}
+          >
+            {quickEisenhower === 'do_first' ? '🚨 Gấp (Q1)' : '📅 Kế hoạch (Q2)'}
+          </button>
+          <button
+            type="submit"
+            disabled={!quickTaskTitle.trim()}
+            className="p-2 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-bold text-xs disabled:opacity-40 active:scale-95 transition"
+          >
+            Lưu
+          </button>
+        </div>
+      </form>
 
-        {/* Column 2: Today Habits */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm md:text-base font-bold text-white uppercase tracking-wider flex items-center gap-2">
-              <Zap className="w-4 h-4 text-emerald-400" />
-              <span>Thói Quen Mỗi Ngày</span>
-            </h2>
-            <button 
+      {/* 3. TACTILE HABIT STREAK STRIP (HORIZONTAL SWIPEABLE / 1-TAP CHECK-IN) */}
+      {habits.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between px-1">
+            <h3 className="text-xs font-black uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+              <Zap className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Điểm Danh Thói Quen Hôm Nay</span>
+            </h3>
+            <button
               onClick={() => navigate('/habits')}
-              className="text-xs text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-1"
+              className="text-[11px] font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-0.5"
             >
               <span>Xem ma trận</span>
-              <ChevronRight className="w-3.5 h-3.5" />
+              <ChevronRight className="w-3 h-3" />
             </button>
           </div>
 
-          <div className="space-y-2.5">
-            {habits.map((h) => (
-              <div 
-                key={h.id}
-                className="p-3.5 glass-card glass-card-hover rounded-2xl flex items-center justify-between gap-3"
+          <div className="flex items-center gap-2.5 overflow-x-auto pb-1 no-scrollbar">
+            {habits.slice(0, 5).map((habit) => (
+              <button
+                key={habit.id}
+                onClick={() => checkinHabit(habit.id)}
+                className="shrink-0 p-3 rounded-2xl glass-card border border-white/[0.08] hover:border-emerald-500/30 transition-all flex items-center gap-2.5 active:scale-95 text-left min-w-[150px]"
               >
-                <div className="flex items-center gap-3 truncate">
-                  <button
-                    onClick={() => checkinHabit(h.id)}
-                    className={`w-6 h-6 rounded-xl flex items-center justify-center transition-all ${
-                      h.today_completed 
-                        ? 'bg-emerald-500 text-slate-950 font-bold shadow-lg shadow-emerald-500/30' 
-                        : 'border border-slate-700 text-transparent hover:border-emerald-400'
-                    }`}
-                  >
-                    <Check className="w-4 h-4" />
-                  </button>
-                  <div>
-                    <div className={`text-xs font-bold ${h.today_completed ? 'line-through text-slate-500' : 'text-slate-200'}`}>
-                      {h.title}
-                    </div>
-                    <div className="text-[10px] text-slate-400 flex items-center gap-1">
-                      <Flame className="w-3 h-3 text-orange-400 fill-orange-400" />
-                      <span>Streak: {h.current_streak} ngày</span>
-                    </div>
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-300 font-bold shrink-0">
+                  <Check className="w-4 h-4" />
+                </div>
+                <div className="truncate">
+                  <div className="text-xs font-bold text-white truncate max-w-[100px]">{habit.title}</div>
+                  <div className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1">
+                    <Flame className="w-2.5 h-2.5 fill-emerald-400" />
+                    <span>Streak</span>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 4. SMART SEGMENTED TAB CONTROLS */}
+      <div className="flex items-center gap-1.5 p-1 glass-card rounded-2xl border border-white/[0.08]">
+        <button
+          onClick={() => setActiveTab('all')}
+          className={`flex-1 py-2 rounded-xl text-xs font-bold transition ${
+            activeTab === 'all' ? 'bg-violet-600 text-white shadow-md shadow-violet-600/30' : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          Tất cả ({tasks.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('priority')}
+          className={`flex-1 py-2 rounded-xl text-xs font-bold transition ${
+            activeTab === 'priority' ? 'bg-rose-600 text-white shadow-md shadow-rose-600/30' : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          🚨 Ưu tiên cao
+        </button>
+        <button
+          onClick={() => navigate('/schedule')}
+          className="flex-1 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-cyan-300 transition flex items-center justify-center gap-1"
+        >
+          <Clock className="w-3.5 h-3.5 text-cyan-400" />
+          <span>Lịch trình</span>
+        </button>
+      </div>
+
+      {/* 5. TASK ITEM CARDS (1-TAP CHECKBOX + 1-TAP START FOCUS) */}
+      <div className="space-y-2">
+        {filteredTasks.length === 0 ? (
+          <div className="glass-card rounded-3xl p-8 border border-white/[0.08] text-center space-y-2">
+            <div className="w-12 h-12 rounded-2xl bg-slate-800/80 mx-auto flex items-center justify-center text-slate-500">
+              <CheckSquare className="w-6 h-6" />
+            </div>
+            <div className="text-sm font-bold text-slate-300">Chưa có nhiệm vụ nào</div>
+            <p className="text-xs text-slate-500">Hãy thêm nhiệm vụ mới ở thanh phía trên để bắt đầu ngày làm việc hiệu quả!</p>
+          </div>
+        ) : (
+          filteredTasks.map((task) => {
+            const isDone = task.status === 'completed'
+            const isQ1 = task.eisenhower === 'do_first'
+
+            return (
+              <div
+                key={task.id}
+                className={`glass-card rounded-2xl p-3 border transition-all flex items-center justify-between gap-3 ${
+                  isDone 
+                    ? 'opacity-60 bg-slate-900/40 border-slate-800/50' 
+                    : 'border-white/[0.08] hover:border-violet-500/30'
+                }`}
+              >
+                {/* 1-Tap Toggle Checkbox */}
+                <button
+                  onClick={() => toggleTaskStatus(task.id)}
+                  className={`w-6 h-6 rounded-xl border flex items-center justify-center transition-all active:scale-90 shrink-0 ${
+                    isDone 
+                      ? 'bg-emerald-500 border-emerald-400 text-slate-950 shadow-sm shadow-emerald-500/30 animate-pop' 
+                      : 'border-slate-600 bg-slate-900/80 hover:border-violet-400'
+                  }`}
+                >
+                  {isDone && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                </button>
+
+                {/* Task Details */}
+                <div className="flex-1 min-w-0">
+                  <div className={`text-xs sm:text-sm font-bold truncate ${
+                    isDone ? 'line-through text-slate-500' : 'text-white'
+                  }`}>
+                    {task.title}
+                  </div>
+                  <div className="flex items-center gap-2 mt-1">
+                    {isQ1 ? (
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                        🚨 Q1: Do First
+                      </span>
+                    ) : (
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-violet-500/20 text-violet-300 border border-violet-500/30">
+                        📅 Q2: Schedule
+                      </span>
+                    )}
+                    {task.spent_seconds > 0 && (
+                      <span className="text-[9px] font-medium text-slate-400 flex items-center gap-1 font-mono">
+                        <Clock className="w-2.5 h-2.5 text-cyan-400" />
+                        <span>{Math.round(task.spent_seconds / 60)} phút</span>
+                      </span>
+                    )}
                   </div>
                 </div>
 
-                <button
-                  onClick={() => startTimer({ habitId: h.id, title: `Thói quen: ${h.title}` })}
-                  className="p-2 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 border border-emerald-500/30 transition-all shrink-0"
-                  title="Tập trung thói quen"
-                >
-                  <Play className="w-3.5 h-3.5 fill-current" />
-                </button>
+                {/* 1-Tap Focus Action Button */}
+                {!isDone && (
+                  <button
+                    onClick={() => handleStartTaskFocus(task.title)}
+                    title="Bắt đầu Pomodoro cho task này"
+                    className="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-rose-600/20 to-pink-600/20 border border-rose-500/30 text-rose-300 hover:from-rose-600 hover:to-pink-600 hover:text-white text-[11px] font-bold flex items-center gap-1 transition active:scale-95 shrink-0"
+                  >
+                    <Play className="w-3 h-3 fill-current" />
+                    <span className="hidden sm:inline">Tập trung</span>
+                  </button>
+                )}
               </div>
-            ))}
-
-            {habits.length === 0 && (
-              <div className="p-6 text-center glass-card rounded-2xl">
-                <p className="text-xs text-slate-400">Chưa có thói quen nào. Tạo thói quen ngay!</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Column 3: Today Time-Blocking Schedule */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm md:text-base font-bold text-white uppercase tracking-wider flex items-center gap-2">
-              <Clock className="w-4 h-4 text-amber-400" />
-              <span>Thời Gian Biểu Hàng Ngày</span>
-            </h2>
-            <button 
-              onClick={() => navigate('/schedule')}
-              className="text-xs text-amber-400 hover:text-amber-300 font-semibold flex items-center gap-1"
-            >
-              <span>Xem lịch</span>
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
-          <div className="space-y-2.5">
-            {slots.map((s) => (
-              <div key={s.id} className="p-3.5 glass-card rounded-2xl flex items-center justify-between gap-3">
-                <div>
-                  <div className="text-[10px] font-mono font-bold text-amber-400">{s.start_time} - {s.end_time}</div>
-                  <div className="text-xs font-bold text-slate-200">{s.title}</div>
-                </div>
-              </div>
-            ))}
-
-            {slots.length === 0 && (
-              <div className="p-6 text-center glass-card rounded-2xl">
-                <p className="text-xs text-slate-400">Chưa xếp lịch time-blocking hôm nay.</p>
-              </div>
-            )}
-          </div>
-        </div>
+            )
+          })
+        )}
       </div>
     </div>
   )

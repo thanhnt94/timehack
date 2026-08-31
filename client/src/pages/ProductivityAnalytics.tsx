@@ -1,6 +1,20 @@
 import React, { useEffect, useState } from 'react'
-import { BarChart3, Clock, CheckCircle2, TrendingUp } from 'lucide-react'
+import { 
+  BarChart3, 
+  Clock, 
+  CheckCircle2, 
+  TrendingUp, 
+  Trophy, 
+  Award, 
+  Flame, 
+  Sparkles,
+  Zap,
+  Sliders,
+  Bell,
+  ShieldCheck
+} from 'lucide-react'
 import axios from 'axios'
+import { sounds } from '../utils/soundEffects'
 
 export const ProductivityAnalytics: React.FC = () => {
   const [data, setData] = useState<any>(null)
@@ -23,99 +37,149 @@ export const ProductivityAnalytics: React.FC = () => {
   }, [days])
 
   if (isLoading || !data) {
-    return <div className="p-12 text-center text-slate-400 text-xs font-bold">Đang tải báo cáo thống kê...</div>
+    return (
+      <div className="p-12 text-center text-slate-400 text-xs font-bold space-y-2">
+        <div className="w-8 h-8 rounded-full border-2 border-indigo-500 border-t-transparent animate-spin mx-auto" />
+        <div>Đang tổng hợp báo cáo năng suất...</div>
+      </div>
+    )
   }
 
   const maxMinutes = Math.max(...data.daily_productivity.map((d: any) => d.minutes), 1)
+  const totalFocusHours = (data.total_focus_minutes / 60).toFixed(1)
+  const totalXP = (data.total_focus_minutes * 2) + (data.completed_tasks_count * 10)
+  const userLevel = Math.floor(totalXP / 100) + 1
+  const levelProgress = totalXP % 100
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-300">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-black text-white tracking-tight">Thống Kê & Báo Cáo Năng Suất (Analytics)</h1>
-          <p className="text-xs text-slate-400">Đánh giá thời gian làm việc thực tế, tỷ lệ hoàn thành công việc.</p>
+    <div className="space-y-4 sm:space-y-6 animate-in fade-in duration-300 select-none pb-6">
+      {/* 1. GAMIFIED PRODUCTIVITY LEVEL HERO */}
+      <div className="glass-card rounded-3xl p-4 sm:p-6 border border-indigo-500/30 bg-gradient-to-br from-indigo-950/40 via-slate-900/90 to-purple-950/30 shadow-2xl relative overflow-hidden">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-yellow-400 text-slate-950 flex items-center justify-center font-black shadow-lg shadow-amber-500/30">
+              <Trophy className="w-6 h-6 stroke-[2.5]" />
+            </div>
+            <div>
+              <div className="text-[10px] font-black text-amber-400 uppercase tracking-wider flex items-center gap-1">
+                <Sparkles className="w-3 h-3" />
+                <span>Cấp Độ Năng Suất</span>
+              </div>
+              <h2 className="text-base sm:text-lg font-black text-white leading-tight">
+                Level {userLevel} • Focus Master
+              </h2>
+            </div>
+          </div>
+
+          <div className="text-right">
+            <div className="text-xs font-mono font-black text-amber-300">{totalXP} XP</div>
+            <div className="text-[9px] text-slate-400 font-bold">Điểm rèn luyện</div>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2 p-1 glass-card rounded-2xl">
+        {/* Level XP Progress Bar */}
+        <div className="mt-4 space-y-1">
+          <div className="flex items-center justify-between text-[10px] font-bold text-slate-400">
+            <span>Tiến độ lên Level {userLevel + 1}</span>
+            <span>{levelProgress} / 100 XP</span>
+          </div>
+          <div className="h-2 rounded-full bg-slate-800 overflow-hidden">
+            <div 
+              className="h-full rounded-full bg-gradient-to-r from-amber-500 to-yellow-400 transition-all duration-500"
+              style={{ width: `${levelProgress}%` }}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* 2. TIME RANGE SELECTOR PILLS */}
+      <div className="flex items-center justify-between px-1">
+        <h3 className="text-xs font-black text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+          <BarChart3 className="w-4 h-4 text-indigo-400" />
+          <span>Báo Cáo Hoạt Động</span>
+        </h3>
+        <div className="flex items-center gap-1 p-1 glass-card rounded-2xl border border-white/[0.08]">
           {[7, 14, 30].map(d => (
             <button
               key={d}
-              onClick={() => setDays(d)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                days === d ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'text-slate-400 hover:text-slate-200'
+              onClick={() => { sounds.playTap(); setDays(d); }}
+              className={`px-3 py-1 rounded-xl text-[10px] font-bold transition-all ${
+                days === d 
+                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30' 
+                  : 'text-slate-400 hover:text-white'
               }`}
             >
-              {d} ngày qua
+              {d} ngày
             </button>
           ))}
         </div>
       </div>
 
-      {/* Overview Stat Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="p-6 glass-card rounded-3xl border border-indigo-500/20 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
-            <Clock className="w-6 h-6" />
-          </div>
-          <div>
-            <div className="text-xs font-bold text-slate-400">Tổng Giờ Làm Việc</div>
-            <div className="text-2xl font-black text-white">{data.total_hours} <span className="text-sm font-normal text-slate-400">Giờ</span></div>
-          </div>
+      {/* 3. 3-GRID SUMMARY METRIC CARDS */}
+      <div className="grid grid-cols-3 gap-2 sm:gap-3">
+        <div className="p-3 rounded-2xl glass-card border border-white/[0.08] text-center">
+          <Clock className="w-4 h-4 text-cyan-400 mx-auto mb-1" />
+          <div className="text-[10px] text-slate-400 font-semibold">Tập trung</div>
+          <div className="text-sm sm:text-base font-black text-white mt-0.5 font-mono">{totalFocusHours}h</div>
         </div>
 
-        <div className="p-6 glass-card rounded-3xl border border-emerald-500/20 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-emerald-600/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-            <CheckCircle2 className="w-6 h-6" />
-          </div>
-          <div>
-            <div className="text-xs font-bold text-slate-400">Tasks Đã Hoàn Thành</div>
-            <div className="text-2xl font-black text-white">{data.completed_tasks_count} / {data.total_tasks_count}</div>
-          </div>
+        <div className="p-3 rounded-2xl glass-card border border-white/[0.08] text-center">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 mx-auto mb-1" />
+          <div className="text-[10px] text-slate-400 font-semibold">Đã xong</div>
+          <div className="text-sm sm:text-base font-black text-emerald-400 mt-0.5 font-mono">{data.completed_tasks_count} tasks</div>
         </div>
 
-        <div className="p-6 glass-card rounded-3xl border border-cyan-500/20 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-cyan-600/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
-            <TrendingUp className="w-6 h-6" />
-          </div>
-          <div>
-            <div className="text-xs font-bold text-slate-400">Trung Bình Mỗi Ngày</div>
-            <div className="text-2xl font-black text-white">
-              {roundTwo(data.total_hours / days)} <span className="text-sm font-normal text-slate-400">Giờ/Ngày</span>
-            </div>
-          </div>
+        <div className="p-3 rounded-2xl glass-card border border-white/[0.08] text-center">
+          <TrendingUp className="w-4 h-4 text-rose-400 mx-auto mb-1" />
+          <div className="text-[10px] text-slate-400 font-semibold">Tỷ lệ xong</div>
+          <div className="text-sm sm:text-base font-black text-rose-300 mt-0.5 font-mono">{data.completion_rate}%</div>
         </div>
       </div>
 
-      {/* Daily Time Bar Chart */}
-      <div className="p-6 glass-card rounded-3xl space-y-4 border border-indigo-500/20">
-        <h3 className="text-sm font-bold text-white flex items-center gap-2">
-          <BarChart3 className="w-4 h-4 text-indigo-400" />
-          <span>Biểu Đồ Thời Gian Làm Việc Theo Ngày (Phút)</span>
-        </h3>
+      {/* 4. DAILY PRODUCTIVITY BAR CHART */}
+      <div className="glass-card rounded-3xl p-4 sm:p-6 border border-white/[0.08] space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="text-xs font-black text-white">Biểu Đồ Phút Tập Trung Hàng Ngày</div>
+          <span className="text-[10px] font-bold text-slate-400">Đơn vị: Phút</span>
+        </div>
 
-        <div className="h-64 flex items-end justify-between gap-2 pt-6 pb-2 px-4 border-b border-slate-800">
-          {data.daily_productivity.map((d: any, idx: number) => {
-            const heightPercent = Math.max(8, Math.round((d.minutes / maxMinutes) * 100))
+        <div className="flex items-end justify-between gap-1.5 sm:gap-2 h-44 pt-6 pb-2 border-b border-white/[0.06]">
+          {data.daily_productivity.map((d: any) => {
+            const barHeight = Math.max(8, (d.minutes / maxMinutes) * 100)
+            const isTop = d.minutes === maxMinutes && d.minutes > 0
 
             return (
-              <div key={idx} className="flex-1 flex flex-col items-center gap-2 group h-full justify-end">
-                <div className="text-[10px] font-mono font-bold text-cyan-400 opacity-0 group-hover:opacity-100 transition-opacity">
-                  {d.minutes}m
+              <div key={d.date} className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end group">
+                <div className="text-[9px] font-mono text-slate-400 opacity-0 group-hover:opacity-100 transition">
+                  {d.minutes}p
                 </div>
-                <div
-                  style={{ height: `${heightPercent}%` }}
-                  className="w-full max-w-[36px] bg-gradient-to-t from-violet-600 to-cyan-400 rounded-t-xl group-hover:brightness-125 transition-all shadow-lg shadow-violet-600/20"
+                <div 
+                  className={`w-full rounded-t-xl transition-all duration-500 ${
+                    isTop 
+                      ? 'bg-gradient-to-t from-indigo-600 via-violet-500 to-cyan-400 shadow-md shadow-indigo-500/30' 
+                      : 'bg-slate-800 hover:bg-slate-700'
+                  }`}
+                  style={{ height: `${barHeight}%` }}
                 />
-                <div className="text-[10px] font-bold text-slate-400">{d.day_name}</div>
+                <div className="text-[9px] text-slate-500 font-semibold mt-1 truncate max-w-full">
+                  {d.date.slice(5)}
+                </div>
               </div>
             )
           })}
         </div>
       </div>
+
+      {/* 5. DATABASE SYNC & PRIVACY BADGE */}
+      <div className="p-3.5 rounded-2xl glass-card border border-white/[0.08] flex items-center gap-3">
+        <div className="p-2 rounded-xl bg-violet-600/20 text-violet-400">
+          <ShieldCheck className="w-5 h-5" />
+        </div>
+        <div className="text-[11px] text-slate-300">
+          <div className="font-bold text-white">Bảo Mật & Đồng Bộ Realtime</div>
+          <div className="text-slate-400 text-[10px]">Tất cả tiến độ được lưu trên Database Ecosystem Server (Zero localStorage).</div>
+        </div>
+      </div>
     </div>
   )
-}
-
-function roundTwo(num: number) {
-  return Math.round(num * 10) / 10
 }

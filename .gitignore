@@ -6,5 +6,5 @@ instance/
 *.db
 *.db-shm
 *.db-wal
-migrations/
+node_modules/
 .vscode/

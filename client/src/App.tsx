@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react'
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
-import { Sparkles } from 'lucide-react'
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { Sparkles, LogOut } from 'lucide-react'
 import { Sidebar } from './components/Sidebar'
 import { BottomNav } from './components/BottomNav'
 import { FloatingTimerBar } from './components/FloatingTimerBar'
@@ -10,14 +10,34 @@ import { HabitMatrix } from './pages/HabitMatrix'
 import { TimeBlockingSchedule } from './pages/TimeBlockingSchedule'
 import { PomodoroFocus } from './pages/PomodoroFocus'
 import { ProductivityAnalytics } from './pages/ProductivityAnalytics'
+import { LandingPage } from './pages/LandingPage'
+import { Admin } from './pages/Admin'
 import { useAuthStore } from './store/useAuthStore'
 
 export const App: React.FC = () => {
-  const { user, fetchUser } = useAuthStore()
+  const { user, isLoading, fetchUser, logout } = useAuthStore()
 
   useEffect(() => {
     fetchUser()
   }, [])
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#070A13] flex flex-col items-center justify-center text-slate-200">
+        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-600 to-cyan-500 flex items-center justify-center shadow-xl shadow-violet-500/30 animate-bounce mb-4">
+          <Sparkles className="w-6 h-6 text-white" />
+        </div>
+        <div className="text-sm font-bold tracking-wider font-mono uppercase text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-cyan-400">
+          TIMEHACK LOADING...
+        </div>
+      </div>
+    )
+  }
+
+  // If user is not logged in, render the Landing & Login Gateway
+  if (!user) {
+    return <LandingPage />
+  }
 
   return (
     <Router>
@@ -38,13 +58,22 @@ export const App: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 px-2.5 py-1 glass-card rounded-xl border border-slate-800">
-            <div className="w-6 h-6 rounded-full bg-violet-600/30 border border-violet-500/40 flex items-center justify-center text-[10px] font-bold text-violet-300">
-              {user?.full_name?.charAt(0) || user?.username?.charAt(0) || 'U'}
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 px-2.5 py-1 glass-card rounded-xl border border-slate-800">
+              <div className="w-6 h-6 rounded-full bg-violet-600/30 border border-violet-500/40 flex items-center justify-center text-[10px] font-bold text-violet-300">
+                {user?.full_name?.charAt(0) || user?.username?.charAt(0) || 'U'}
+              </div>
+              <span className="text-xs font-bold text-slate-200 truncate max-w-[90px]">
+                {user?.username || 'User'}
+              </span>
             </div>
-            <span className="text-xs font-bold text-slate-200 truncate max-w-[90px]">
-              {user?.username || 'Guest'}
-            </span>
+            <button
+              onClick={() => logout()}
+              title="Đăng xuất"
+              className="p-1.5 rounded-xl bg-slate-800 border border-slate-700 text-slate-400 hover:text-rose-400 transition"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+            </button>
           </div>
         </header>
 
@@ -58,11 +87,13 @@ export const App: React.FC = () => {
               <Route path="/schedule" element={<TimeBlockingSchedule />} />
               <Route path="/focus" element={<PomodoroFocus />} />
               <Route path="/analytics" element={<ProductivityAnalytics />} />
+              <Route path="/admin" element={<Admin />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </div>
         </main>
 
-        {/* Mobile Bottom Navigation Bar (RemiNote / Vocaburn App-Like Style) */}
+        {/* Mobile Bottom Navigation Bar */}
         <BottomNav />
 
         {/* Global Floating Focus Timer Bar */}

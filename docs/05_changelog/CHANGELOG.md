@@ -18,6 +18,7 @@ Toàn bộ các mốc phát triển, nâng cấp kiến trúc và các bản vá
 * **Tự động Migrate khi Deploy**: Cập nhật `remote_update_timehack.py` tự động chạy `alembic upgrade head` trên VPS.
 
 ### 🔒 Bảo Mật Xác Thực & SSO CentralAuth
+* **Trang Landing Page & Cổng Đăng Nhập Đa Phương Thức**: Khởi tạo `LandingPage.tsx` tích hợp 1-click SSO CentralAuth, form đăng nhập nội bộ và nút đăng nhập nhanh quyền Admin (Backdoor), bảo vệ toàn bộ không gian làm việc trước khi xác thực.
 * **Module `sso_module`**: Tích hợp luồng xác thực CentralAuth SSO, endpoint callback `/auth-center/callback`, và endpoint cấu hình `/api/v1/auth/config`.
 * **Cookie Chữ Ký Số**: Triệt tiêu lỗ hổng giả mạo cookie với thuật toán HMAC-SHA256 trong `cookie_signer.py` và middleware `clean_user_id_cookie`.
 * **Dynamic DB Discovery**: Bổ sung endpoint `POST /api/admin/sso/handshake` phục vụ CentralAuth Admin Hub.

@@ -15,6 +15,10 @@ from app.modules.settings.models import UserSettings
 
 router = APIRouter(prefix="/api/v1/auth", tags=["Auth"])
 
+class LoginRequest(BaseModel):
+    username: str
+    password: Optional[str] = None
+
 class BackdoorLoginRequest(BaseModel):
     username: str = "admin"
     password: Optional[str] = None
@@ -23,23 +27,7 @@ class BackdoorLoginRequest(BaseModel):
 async def get_me(request: Request, db: AsyncSession = Depends(get_db)):
     user_id = get_current_user_id(request)
     if not user_id:
-        # Check if single default user exists or return 401
-        res = await db.execute(select(User).order_by(User.id.asc()))
-        first_user = res.scalars().first()
-        if first_user:
-            user_id = first_user.id
-        else:
-            user = User(
-                id=1,
-                username="admin",
-                email="admin@inmind.site",
-                full_name="Administrator",
-                role="admin"
-            )
-            db.add(user)
-            await db.commit()
-            await db.refresh(user)
-            user_id = user.id
+        raise HTTPException(status_code=401, detail="Unauthenticated")
 
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
@@ -60,6 +48,52 @@ async def get_me(request: Request, db: AsyncSession = Depends(get_db)):
         "avatar_url": user.avatar_url,
         "role": user.role or "user",
         "settings": settings_dict
+    }
+
+@router.post("/login")
+async def local_login(payload: LoginRequest, response: Response, db: AsyncSession = Depends(get_db)):
+    """Local account login endpoint."""
+    username = payload.username.strip()
+    if not username:
+        raise HTTPException(status_code=400, detail="Vui lòng nhập tên đăng nhập")
+
+    result = await db.execute(select(User).where(User.username == username))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        # Create user for local login
+        user = User(
+            username=username,
+            email=f"{username}@timehack.local",
+            full_name=username.capitalize(),
+            role="admin" if username.lower() in ["admin", "root"] else "user"
+        )
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+
+        # Seed default categories
+        default_categories = [
+            Category(user_id=user.id, name="Công việc", color="#8B5CF6", icon="briefcase", is_default=True),
+            Category(user_id=user.id, name="Học tập", color="#3B82F6", icon="book", is_default=True),
+            Category(user_id=user.id, name="Sức khỏe & Thể thao", color="#10B981", icon="activity", is_default=True),
+            Category(user_id=user.id, name="Cá nhân", color="#F59E0B", icon="user", is_default=True)
+        ]
+        db.add_all(default_categories)
+        await db.commit()
+
+    signed_id = sign_cookie(str(user.id), settings.SECRET_KEY)
+    response.set_cookie(key="user_id", value=signed_id, httponly=True, path="/", samesite="lax", max_age=2592000)
+    
+    return {
+        "status": "ok",
+        "user": {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "full_name": user.full_name,
+            "role": user.role
+        }
     }
 
 @router.post("/backdoor-login")
@@ -99,7 +133,10 @@ async def logout(response: Response):
 @router.post("/settings")
 @router.post("/user/settings")
 async def update_user_settings(payload: dict, request: Request, db: AsyncSession = Depends(get_db)):
-    user_id = get_current_user_id(request) or 1
+    user_id = get_current_user_id(request)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Unauthenticated")
+
     sett_res = await db.execute(select(UserSettings).where(UserSettings.user_id == user_id))
     user_sett = sett_res.scalar_one_or_none()
 

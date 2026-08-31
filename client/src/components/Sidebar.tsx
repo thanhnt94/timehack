@@ -7,8 +7,9 @@ import {
   Clock, 
   BarChart3, 
   Timer, 
-  Sparkles,
-  UserCheck
+  Sparkles, 
+  UserCheck,
+  Shield
 } from 'lucide-react'
 import { useAuthStore } from '../store/useAuthStore'
 
@@ -23,6 +24,10 @@ export const Sidebar: React.FC = () => {
     { to: '/focus', label: 'Tập Trung Pomodoro', icon: Timer, color: 'text-rose-400' },
     { to: '/analytics', label: 'Thống Kê Năng Suất', icon: BarChart3, color: 'text-indigo-400' }
   ]
+
+  if (user?.role === 'admin') {
+    navItems.push({ to: '/admin', label: 'Quản Trị Admin', icon: Shield, color: 'text-amber-400' })
+  }
 
   return (
     <aside className="hidden md:flex w-64 h-screen fixed left-0 top-0 bg-[#0F172A]/90 backdrop-blur-xl border-r border-slate-800 flex-col justify-between z-30 select-none">
@@ -72,10 +77,19 @@ export const Sidebar: React.FC = () => {
               <div className="text-xs font-bold text-slate-200 truncate">{user?.full_name || user?.username || 'Thành viên'}</div>
               <div className="text-[9px] text-slate-400 flex items-center gap-1">
                 <UserCheck className="w-2.5 h-2.5 text-emerald-400" />
-                <span>CentralAuth Logged</span>
+                <span className="capitalize">{user?.role || 'User'}</span>
               </div>
             </div>
           </div>
+          <button
+            onClick={() => useAuthStore.getState().logout()}
+            title="Đăng xuất"
+            className="p-1.5 rounded-xl hover:bg-rose-500/20 text-slate-400 hover:text-rose-300 transition shrink-0"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+          </button>
         </div>
       </div>
     </aside>

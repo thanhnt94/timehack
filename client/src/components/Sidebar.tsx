@@ -1,8 +1,8 @@
 import React from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import {
-  Sparkles, CalendarDays, CheckSquare, Zap, BarChart3,
-  Clock, LogOut, ShieldAlert, Settings
+  Sparkles, Home, CheckSquare, Zap, Calendar, BarChart3,
+  LogOut, ShieldAlert, Settings
 } from 'lucide-react'
 import { sounds } from '../utils/soundEffects'
 
@@ -13,11 +13,11 @@ interface Props {
 }
 
 const links = [
-  { path: '/', icon: CalendarDays, label: 'Hôm Nay' },
-  { path: '/schedule', icon: Clock, label: 'Lịch Trình' },
-  { path: '/tasks', icon: CheckSquare, label: 'Nhiệm Vụ' },
-  { path: '/habits', icon: Zap, label: 'Thói Quen' },
-  { path: '/analytics', icon: BarChart3, label: 'Thống Kê' },
+  { path: '/', icon: Home, label: 'Home' },
+  { path: '/tasks', icon: CheckSquare, label: 'Task' },
+  { path: '/habits', icon: Zap, label: 'Habit' },
+  { path: '/calendar', icon: Calendar, label: 'Calendar' },
+  { path: '/analytics', icon: BarChart3, label: 'Analytics' },
 ]
 
 export const Sidebar: React.FC<Props> = ({ user, onLogout, onOpenSettings }) => {
@@ -39,7 +39,7 @@ export const Sidebar: React.FC<Props> = ({ user, onLogout, onOpenSettings }) => 
       <nav className="flex-1 py-3 px-3 space-y-1 overflow-y-auto">
         {links.map(link => {
           const Icon = link.icon
-          const active = pathname === link.path
+          const active = pathname === link.path || (link.path === '/calendar' && pathname === '/schedule')
           return (
             <Link
               key={link.path}
@@ -64,7 +64,7 @@ export const Sidebar: React.FC<Props> = ({ user, onLogout, onOpenSettings }) => 
             className="w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-violet-700 hover:bg-violet-50/60 border border-transparent transition"
           >
             <Settings className="w-4 h-4 text-slate-500" />
-            <span>Cài Đặt</span>
+            <span>Settings</span>
           </button>
         )}
 

@@ -1,12 +1,13 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Sun, Moon, Coffee, Play, Check, Flame, Clock,
-  Calendar, ArrowRight, Sparkles, Plus
+  Calendar as CalendarIcon, ArrowRight, Sparkles, Plus
 } from 'lucide-react'
 import { useTaskStore } from '../store/useTaskStore'
 import { useHabitStore } from '../store/useHabitStore'
 import { useScheduleStore, type ScheduleSlot } from '../store/useScheduleStore'
+import { useTimeLogStore } from '../store/useTimeLogStore'
 import { useTimerStore } from '../store/useTimerStore'
 import { sounds } from '../utils/soundEffects'
 
@@ -17,13 +18,15 @@ interface Props {
 export const TodayPlanner: React.FC<Props> = ({ onOpenFocus }) => {
   const { tasks, fetchTasks, toggleTaskStatus } = useTaskStore()
   const { habits, fetchHabits, checkinHabit } = useHabitStore()
-  const { slots, fetchSlots, toggleSlotDone, selectedDate } = useScheduleStore()
-  const { startTimer, isRunning, mode, currentPhase } = useTimerStore()
+  const { slots, fetchSlots, toggleSlotDone } = useScheduleStore()
+  const { logs, fetchLogs } = useTimeLogStore()
+  const { startTimer, isRunning, currentPhase } = useTimerStore()
 
   useEffect(() => {
     fetchTasks()
     fetchHabits()
     fetchSlots()
+    fetchLogs()
   }, [])
 
   const hour = new Date().getHours()
@@ -32,7 +35,21 @@ export const TodayPlanner: React.FC<Props> = ({ onOpenFocus }) => {
 
   const doneTasks = tasks.filter(t => t.status === 'completed').length
   const totalTasks = tasks.length
+  const doneHabits = habits.filter(h => !!h.today_completed).length
   const doneSlots = slots.filter(s => s.is_done).length
+
+  // Total Real Time Spent Today
+  const totalLogSeconds = useMemo(() => {
+    return logs.reduce((acc, cur) => acc + (cur.duration_seconds || 0), 0)
+  }, [logs])
+
+  const totalLogFormatted = useMemo(() => {
+    const hours = Math.floor(totalLogSeconds / 3600)
+    const mins = Math.floor((totalLogSeconds % 3600) / 60)
+    if (hours === 0 && mins === 0) return '0p'
+    if (hours === 0) return `${mins}p`
+    return `${hours}h${mins > 0 ? `${mins}p` : ''}`
+  }, [totalLogSeconds])
 
   const todayStr = new Date().toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'numeric' })
 
@@ -54,8 +71,17 @@ export const TodayPlanner: React.FC<Props> = ({ onOpenFocus }) => {
     if (!slot.is_done) sounds.playSuccess()
   }
 
+  const formatLocalTime = (isoString: string) => {
+    try {
+      const d = new Date(isoString)
+      return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false })
+    } catch {
+      return ''
+    }
+  }
+
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {/* ── Top: Greeting & Date ───────── */}
       <div>
         <div className="flex items-center gap-1.5 text-slate-500 text-xs font-semibold uppercase tracking-wider">
@@ -65,19 +91,23 @@ export const TodayPlanner: React.FC<Props> = ({ onOpenFocus }) => {
         <h1 className="text-2xl font-black text-slate-900 mt-0.5 capitalize">{todayStr}</h1>
       </div>
 
-      {/* ── 3 Stat Overview Pills ───────── */}
-      <div className="grid grid-cols-3 gap-2.5">
-        <Link to="/tasks" className="glass rounded-2xl p-3 text-center border border-slate-200 hover:border-violet-300 transition active:scale-95">
-          <div className="text-xl font-black text-slate-900 font-mono">{doneTasks}/{totalTasks}</div>
-          <div className="text-[11px] text-slate-500 font-medium mt-0.5">Nhiệm vụ</div>
+      {/* ── 4 Stat Overview Pills ───────── */}
+      <div className="grid grid-cols-4 gap-2">
+        <Link to="/tasks" className="glass rounded-2xl p-2.5 text-center border border-slate-200 hover:border-violet-300 transition active:scale-95">
+          <div className="text-base font-black text-slate-900 font-mono">{doneTasks}/{totalTasks}</div>
+          <div className="text-[10px] text-slate-500 font-bold mt-0.5">Task</div>
         </Link>
-        <Link to="/habits" className="glass rounded-2xl p-3 text-center border border-slate-200 hover:border-violet-300 transition active:scale-95">
-          <div className="text-xl font-black text-violet-700 font-mono">{habits.length}</div>
-          <div className="text-[11px] text-slate-500 font-medium mt-0.5">Thói quen</div>
+        <Link to="/habits" className="glass rounded-2xl p-2.5 text-center border border-slate-200 hover:border-violet-300 transition active:scale-95">
+          <div className="text-base font-black text-emerald-700 font-mono">{doneHabits}/{habits.length}</div>
+          <div className="text-[10px] text-slate-500 font-bold mt-0.5">Habit</div>
         </Link>
-        <Link to="/schedule" className="glass rounded-2xl p-3 text-center border border-slate-200 hover:border-violet-300 transition active:scale-95">
-          <div className="text-xl font-black text-sky-600 font-mono">{doneSlots}/{slots.length}</div>
-          <div className="text-[11px] text-slate-500 font-medium mt-0.5">Khung giờ</div>
+        <Link to="/calendar" className="glass rounded-2xl p-2.5 text-center border border-slate-200 hover:border-violet-300 transition active:scale-95">
+          <div className="text-base font-black text-sky-600 font-mono">{doneSlots}/{slots.length}</div>
+          <div className="text-[10px] text-slate-500 font-bold mt-0.5">Plan</div>
+        </Link>
+        <Link to="/calendar" className="glass rounded-2xl p-2.5 text-center border border-slate-200 hover:border-violet-300 transition active:scale-95">
+          <div className="text-base font-black text-violet-700 font-mono">{totalLogFormatted}</div>
+          <div className="text-[10px] text-slate-500 font-bold mt-0.5">Time Log</div>
         </Link>
       </div>
 
@@ -89,10 +119,10 @@ export const TodayPlanner: React.FC<Props> = ({ onOpenFocus }) => {
             <span>{isRunning ? 'Đang trong phiên' : 'Tập trung sâu'}</span>
           </div>
           <h3 className="text-base font-black truncate">
-            {isRunning ? (currentPhase === 'work' ? '🔥 Đang làm việc' : '☕ Đang nghỉ ngơi') : 'Sẵn sàng Pomodoro?'}
+            {isRunning ? (currentPhase === 'work' ? '🔥 Đang làm việc' : '☕ Đang nghỉ ngơi') : 'Bắt đầu Pomodoro?'}
           </h3>
           <p className="text-[11px] text-violet-100/80 mt-0.5 truncate">
-            {isRunning ? 'Chạm để mở đồng hồ & âm thanh nền' : '25 phút tập trung không gián đoạn'}
+            {isRunning ? 'Chạm để xem đồng hồ & âm thanh nền' : '25 phút tập trung không gián đoạn'}
           </p>
         </div>
 
@@ -105,15 +135,15 @@ export const TodayPlanner: React.FC<Props> = ({ onOpenFocus }) => {
         </button>
       </div>
 
-      {/* ── Khung Giờ Hôm Nay (Schedule Timeline) ── */}
+      {/* ── Khung Giờ Plan Hôm Nay ───────── */}
       <section>
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-1.5">
-            <Clock className="w-4 h-4 text-sky-600" />
-            <h2 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Lịch trình hôm nay</h2>
+            <CalendarIcon className="w-4 h-4 text-sky-600" />
+            <h2 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Plan hôm nay</h2>
           </div>
           <Link
-            to="/schedule"
+            to="/calendar"
             className="text-[11px] font-bold text-violet-600 hover:text-violet-800 flex items-center gap-0.5"
           >
             <span>Chi tiết</span>
@@ -123,12 +153,12 @@ export const TodayPlanner: React.FC<Props> = ({ onOpenFocus }) => {
 
         {slots.length === 0 ? (
           <div className="glass rounded-2xl p-4 text-center border border-slate-200">
-            <p className="text-xs text-slate-500 font-medium">Chưa có khung giờ nào được lên lịch hôm nay.</p>
+            <p className="text-xs text-slate-500 font-medium">Chưa có kế hoạch khung giờ nào hôm nay.</p>
             <Link
-              to="/schedule"
+              to="/calendar"
               className="inline-flex items-center gap-1 text-xs font-bold text-violet-600 hover:underline mt-1.5"
             >
-              <Plus className="w-3.5 h-3.5" /> Lên lịch khung giờ ngay
+              <Plus className="w-3.5 h-3.5" /> Lên lịch Plan ngay
             </Link>
           </div>
         ) : (
@@ -164,16 +194,57 @@ export const TodayPlanner: React.FC<Props> = ({ onOpenFocus }) => {
                 </div>
               )
             })}
-            {slots.length > 3 && (
-              <Link to="/schedule" className="block text-center text-xs font-bold text-violet-600 hover:underline py-1">
-                Xem thêm {slots.length - 3} khung giờ nữa...
-              </Link>
-            )}
           </div>
         )}
       </section>
 
-      {/* ── Dải Thói Quen (Habits Strip) ─ */}
+      {/* ── Time Log Thực Tế Hôm Nay ────── */}
+      {logs.length > 0 && (
+        <section>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-1.5">
+              <Clock className="w-4 h-4 text-violet-600" />
+              <h2 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                Time Log thực tế ({totalLogFormatted})
+              </h2>
+            </div>
+            <Link
+              to="/calendar"
+              className="text-[11px] font-bold text-violet-600 hover:text-violet-800 flex items-center gap-0.5"
+            >
+              <span>Xem tất cả</span>
+              <ArrowRight className="w-3 h-3" />
+            </Link>
+          </div>
+
+          <div className="space-y-2">
+            {logs.slice(0, 2).map(log => {
+              const durMinutes = Math.round(log.duration_seconds / 60)
+              return (
+                <div
+                  key={log.id}
+                  className="glass rounded-2xl px-3.5 py-2.5 border border-slate-200 flex items-center justify-between gap-3"
+                >
+                  <div className="w-1.5 h-6 rounded-full bg-violet-500 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-bold text-slate-900 truncate">
+                      {log.task_title || log.habit_title || log.notes || 'Phiên làm việc'}
+                    </div>
+                    <div className="text-[10px] text-slate-400 font-mono mt-0.5">
+                      {formatLocalTime(log.start_time)} - {formatLocalTime(log.end_time)}
+                    </div>
+                  </div>
+                  <span className="text-xs font-black font-mono text-violet-700 bg-violet-50 px-2 py-0.5 rounded-lg border border-violet-100 shrink-0">
+                    {durMinutes}p
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* ── Thói Quen Hôm Nay (Habit) ───── */}
       {habits.length > 0 && (
         <section>
           <div className="flex items-center justify-between mb-2">
@@ -185,7 +256,7 @@ export const TodayPlanner: React.FC<Props> = ({ onOpenFocus }) => {
               to="/habits"
               className="text-[11px] font-bold text-violet-600 hover:text-violet-800 flex items-center gap-0.5"
             >
-              <span>Xem tất cả</span>
+              <span>Tất cả</span>
               <ArrowRight className="w-3 h-3" />
             </Link>
           </div>
@@ -225,7 +296,7 @@ export const TodayPlanner: React.FC<Props> = ({ onOpenFocus }) => {
         </section>
       )}
 
-      {/* ── Danh Sách Nhiệm Vụ (Tasks) ──── */}
+      {/* ── Nhiệm Vụ Hôm Nay (Task) ─────── */}
       <section>
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-1.5">
@@ -236,19 +307,19 @@ export const TodayPlanner: React.FC<Props> = ({ onOpenFocus }) => {
             to="/tasks"
             className="text-[11px] font-bold text-violet-600 hover:text-violet-800 flex items-center gap-0.5"
           >
-            <span>Ma trận</span>
+            <span>Xem Task</span>
             <ArrowRight className="w-3 h-3" />
           </Link>
         </div>
 
         {tasks.length === 0 ? (
-          <div className="glass rounded-2xl p-8 text-center border border-slate-200">
-            <p className="text-sm font-semibold text-slate-600">Chưa có nhiệm vụ nào.</p>
-            <p className="text-xs text-slate-400 mt-1">Chạm nút tím <strong>(+)</strong> để tạo mới.</p>
+          <div className="glass rounded-2xl p-6 text-center border border-slate-200">
+            <p className="text-xs font-semibold text-slate-600">Chưa có nhiệm vụ nào.</p>
+            <p className="text-[11px] text-slate-400 mt-0.5">Nhấn phím <strong>(+)</strong> ở giữa để thêm task.</p>
           </div>
         ) : (
           <div className="space-y-2">
-            {tasks.map(task => {
+            {tasks.slice(0, 5).map(task => {
               const isDone = task.status === 'completed'
               return (
                 <div
@@ -257,7 +328,6 @@ export const TodayPlanner: React.FC<Props> = ({ onOpenFocus }) => {
                     isDone ? 'opacity-50 bg-slate-50' : 'hover:border-violet-300'
                   }`}
                 >
-                  {/* Checkbox */}
                   <button
                     onClick={() => { sounds.playTap(); toggleTaskStatus(task.id); if (!isDone) sounds.playSuccess() }}
                     className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition active:scale-90 ${
@@ -269,7 +339,6 @@ export const TodayPlanner: React.FC<Props> = ({ onOpenFocus }) => {
                     {isDone && <Check className="w-3 h-3 stroke-[3]" />}
                   </button>
 
-                  {/* Title + badge */}
                   <div className="flex-1 min-w-0">
                     <div className={`text-sm font-semibold truncate ${isDone ? 'line-through text-slate-400' : 'text-slate-900'}`}>
                       {task.title}
@@ -287,7 +356,6 @@ export const TodayPlanner: React.FC<Props> = ({ onOpenFocus }) => {
                     )}
                   </div>
 
-                  {/* Play button */}
                   {!isDone && (
                     <button
                       onClick={() => handlePlayTask(task)}

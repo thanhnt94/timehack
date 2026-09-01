@@ -82,6 +82,7 @@ const AppShell: React.FC = () => {
               <Route path="/" element={<TodayPlanner onOpenFocus={() => setFocusOpen(true)} />} />
               <Route path="/tasks" element={<TasksBoard />} />
               <Route path="/habits" element={<HabitMatrix />} />
+              <Route path="/calendar" element={<TimeBlockingSchedule />} />
               <Route path="/schedule" element={<TimeBlockingSchedule />} />
               <Route path="/analytics" element={<ProductivityAnalytics />} />
               <Route path="/admin" element={<Admin />} />

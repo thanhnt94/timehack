@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, delete
+from sqlalchemy.orm import selectinload
 from datetime import datetime, date
 from typing import Optional
 from pydantic import BaseModel
@@ -16,8 +17,8 @@ class TimeLogCreateSchema(BaseModel):
     task_id: Optional[int] = None
     habit_id: Optional[int] = None
     category_id: Optional[int] = None
-    start_time: str # ISO string
-    end_time: str # ISO string
+    start_time: str # ISO string or YYYY-MM-DDTHH:MM:SS
+    end_time: str # ISO string or YYYY-MM-DDTHH:MM:SS
     duration_seconds: int
     timer_type: Optional[str] = "pomodoro" # pomodoro, stopwatch, manual
     notes: Optional[str] = None
@@ -35,7 +36,11 @@ async def get_time_logs(
     user = u_res.scalar_one_or_none()
     user_tz = user.timezone if user else "Asia/Ho_Chi_Minh"
 
-    stmt = select(TimeLog).where(TimeLog.user_id == user_id)
+    stmt = select(TimeLog).options(
+        selectinload(TimeLog.task),
+        selectinload(TimeLog.habit),
+        selectinload(TimeLog.category)
+    ).where(TimeLog.user_id == user_id)
 
     if task_id:
         stmt = stmt.where(TimeLog.task_id == task_id)
@@ -53,8 +58,12 @@ async def get_time_logs(
     return [{
         "id": l.id,
         "task_id": l.task_id,
+        "task_title": l.task.title if l.task else None,
         "habit_id": l.habit_id,
+        "habit_title": l.habit.title if l.habit else None,
         "category_id": l.category_id,
+        "category_name": l.category.name if l.category else None,
+        "category_color": l.category.color if l.category else None,
         "start_time": l.start_time.isoformat() + "Z", # UTC ISO format
         "end_time": l.end_time.isoformat() + "Z",
         "duration_seconds": l.duration_seconds,
@@ -99,14 +108,33 @@ async def create_time_log(payload: TimeLogCreateSchema, request: Request, db: As
         h_res = await db.execute(select(Habit).where(Habit.id == payload.habit_id, Habit.user_id == user_id))
         habit = h_res.scalar_one_or_none()
         if habit:
-            today_d = date.today()
-            hl_res = await db.execute(select(HabitLog).where(HabitLog.habit_id == habit.id, HabitLog.logged_date == today_d))
+            user_today = get_user_today(user_tz)
+            hl_res = await db.execute(select(HabitLog).where(HabitLog.habit_id == habit.id, HabitLog.logged_date == user_today))
             h_log = hl_res.scalar_one_or_none()
             if not h_log:
-                db.add(HabitLog(habit_id=habit.id, user_id=user_id, logged_date=today_d, count=1, completed=True))
+                db.add(HabitLog(habit_id=habit.id, user_id=user_id, logged_date=user_today, count=1, completed=True))
             else:
                 h_log.completed = True
 
     await db.commit()
     await db.refresh(log_entry)
     return {"status": "ok", "log_id": log_entry.id, "duration_seconds": log_entry.duration_seconds}
+
+@router.delete("/logs/{log_id}")
+async def delete_time_log(log_id: int, request: Request, db: AsyncSession = Depends(get_db)):
+    user_id = get_current_user_id(request)
+    res = await db.execute(select(TimeLog).where(TimeLog.id == log_id, TimeLog.user_id == user_id))
+    log = res.scalar_one_or_none()
+    if not log:
+        raise HTTPException(status_code=404, detail="Time log not found")
+        
+    # Subtract spent_seconds from task if needed
+    if log.task_id:
+        t_res = await db.execute(select(Task).where(Task.id == log.task_id, Task.user_id == user_id))
+        task = t_res.scalar_one_or_none()
+        if task and task.spent_seconds:
+            task.spent_seconds = max(0, task.spent_seconds - log.duration_seconds)
+            
+    await db.delete(log)
+    await db.commit()
+    return {"status": "ok"}

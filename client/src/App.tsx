@@ -36,10 +36,10 @@ const AppShell: React.FC = () => {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const location = useLocation()
 
-  const doneTasks = tasks.filter(t => t.status === 'completed').length
-  const doneHabits = habits.filter(h => !!h.today_completed).length
+  const doneTasks = (tasks || []).filter(t => t?.status === 'completed').length
+  const doneHabits = (habits || []).filter(h => !!h?.today_completed).length
 
-  const totalTrackedSec = logs.reduce((acc, cur) => acc + (cur.duration_seconds || 0), 0)
+  const totalTrackedSec = (logs || []).reduce((acc, cur) => acc + (cur?.duration_seconds || 0), 0)
   const totalTrackedH = Math.floor(totalTrackedSec / 3600)
   const totalTrackedM = Math.round((totalTrackedSec % 3600) / 60)
   const formattedTracked = totalTrackedH > 0 ? `${totalTrackedH}h ${totalTrackedM > 0 ? `${totalTrackedM}m` : ''}` : `${totalTrackedM}m`

@@ -184,7 +184,8 @@ export const useTimerStore = create<TimerState>((set, get) => ({
     try {
       set({ isLoadingTracks: true })
       const res = await axios.get('/api/v1/time-tracking/active-tracks')
-      const tracks: ActiveTrack[] = (res.data || []).map((t: any) => ({
+      const rawList = Array.isArray(res.data) ? res.data : []
+      const tracks: ActiveTrack[] = rawList.map((t: any) => ({
         id: String(t.id),
         db_id: t.db_id || Number(t.id),
         title: t.title || 'Hoạt động thực tế',
@@ -215,7 +216,7 @@ export const useTimerStore = create<TimerState>((set, get) => ({
       }
     } catch (e) {
       console.error('Failed to fetch active tracks from DB', e)
-      set({ isLoadingTracks: false })
+      set({ activeTracks: [], isLoadingTracks: false })
     }
   },
 

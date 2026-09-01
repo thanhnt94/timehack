@@ -54,10 +54,10 @@ export const useTimeLogStore = create<TimeLogState>((set, get) => ({
       const res = await axios.get('/api/v1/time-tracking/logs', {
         params: { date_str: d }
       })
-      set({ logs: res.data, isLoading: false })
+      set({ logs: Array.isArray(res.data) ? res.data : [], isLoading: false })
     } catch (e) {
       console.error('Failed to fetch time logs', e)
-      set({ isLoading: false })
+      set({ logs: [], isLoading: false })
     }
   },
 

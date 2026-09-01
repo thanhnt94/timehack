@@ -122,7 +122,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
   }
 
   const totalLoggedSeconds = useMemo(() => {
-    return logs.reduce((acc, cur) => acc + (cur.duration_seconds || 0), 0)
+    return (logs || []).reduce((acc, cur) => acc + (cur?.duration_seconds || 0), 0)
   }, [logs])
 
   const totalLoggedFormatted = useMemo(() => {
@@ -135,12 +135,12 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
     let neutralSec = 0
     let wastedSec = 0
 
-    logs.forEach(l => {
-      const cat = categories.find(c => c.id === l.category_id)
+    ;(logs || []).forEach(l => {
+      const cat = (categories || []).find(c => c?.id === l?.category_id)
       const type = cat?.category_type || 'productive'
-      if (type === 'wasted') wastedSec += l.duration_seconds || 0
-      else if (type === 'neutral') neutralSec += l.duration_seconds || 0
-      else productiveSec += l.duration_seconds || 0
+      if (type === 'wasted') wastedSec += l?.duration_seconds || 0
+      else if (type === 'neutral') neutralSec += l?.duration_seconds || 0
+      else productiveSec += l?.duration_seconds || 0
     })
 
     return {

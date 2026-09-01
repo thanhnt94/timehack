@@ -536,7 +536,7 @@ export const TasksBoard: React.FC = () => {
       </div>
 
       {/* ═══════════ VOCABURN-STYLE FIXED ACTION & PAGINATION TOOLBAR (ABOVE BOTTOM NAV) ═══════════ */}
-      <div className="fixed bottom-[calc(48px+var(--safe-bottom))] left-0 right-0 md:left-60 bg-white/95 backdrop-blur-2xl border-t border-slate-200/90 px-4 py-1.5 z-20 shadow-[0_-2px_12px_rgba(0,0,0,0.03)]">
+      <div className="sticky bottom-0 -mx-4 -mb-4 px-4 py-2 bg-white/95 backdrop-blur-2xl border-t border-slate-200/90 z-20 shadow-[0_-3px_12px_rgba(0,0,0,0.04)]">
         <div className="max-w-lg md:max-w-5xl mx-auto flex items-center justify-between gap-2 min-h-[36px]">
           {isSearchOpen ? (
             <div className="flex items-center gap-2 flex-1 animate-in fade-in duration-150">

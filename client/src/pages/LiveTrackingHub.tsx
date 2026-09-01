@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import { Link } from 'react-router-dom'
 import {
   Clock, Play, Pause, Square, Plus, Check, RotateCcw,
   Sparkles, Maximize2, Trash2, Calendar as CalendarIcon,
   Flame, CheckCircle2, ChevronRight, BarChart3, AlertCircle,
-  Tag, Layers, ArrowRight, Zap, Target
+  Tag, Layers, ArrowRight, Zap, Target, Edit3, X, Coffee,
+  Activity, BookOpen, Briefcase, Code, Smile
 } from 'lucide-react'
 import { useTimerStore } from '../store/useTimerStore'
-import { useTimeLogStore } from '../store/useTimeLogStore'
+import { useTimeLogStore, type TimeLogItem } from '../store/useTimeLogStore'
 import { useTaskStore, type Task } from '../store/useTaskStore'
 import { useScheduleStore, type ScheduleSlot } from '../store/useScheduleStore'
 import { sounds } from '../utils/soundEffects'
@@ -15,6 +15,8 @@ import { sounds } from '../utils/soundEffects'
 interface Props {
   onOpenFullscreenFocus: () => void
 }
+
+type ReadyTrackTab = 'presets' | 'tasks' | 'plans'
 
 export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
   const {
@@ -37,31 +39,43 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
     activeCategoryType
   } = useTimerStore()
 
-  const { logs, fetchLogs, createLog, deleteLog } = useTimeLogStore()
+  const { logs, fetchLogs, createLog, updateLog, deleteLog } = useTimeLogStore()
   const { tasks, categories, fetchTasks, fetchCategories } = useTaskStore()
-  const { slots, fetchSlots, toggleSlotDone } = useScheduleStore()
+  const { slots, fetchSlots } = useScheduleStore()
 
   const todayIso = useMemo(() => new Date().toISOString().split('T')[0], [])
 
-  // Manual Log Form State
-  const [logActivityTitle, setLogActivityTitle] = useState('')
-  const [logCategoryId, setLogCategoryId] = useState<number | null>(null)
-  const [logStartTime, setLogStartTime] = useState(() => {
+  // Quick Start Input State
+  const [quickTitle, setQuickTitle] = useState('')
+  const [quickCategoryId, setQuickCategoryId] = useState<number | null>(null)
+  const [quickDuration, setQuickDuration] = useState<number>(25)
+  const [showReadyQueue, setShowReadyQueue] = useState(false)
+  const [readyTab, setReadyTab] = useState<ReadyTrackTab>('tasks')
+
+  // Edit Log Modal State
+  const [editingLog, setEditingLog] = useState<TimeLogItem | null>(null)
+  const [editTitle, setEditTitle] = useState('')
+  const [editCategoryId, setEditCategoryId] = useState<number | null>(null)
+  const [editStartTime, setEditStartTime] = useState('')
+  const [editEndTime, setEditEndTime] = useState('')
+  const [editDurationMins, setEditDurationMins] = useState(30)
+  const [isSavingEdit, setIsSavingEdit] = useState(false)
+
+  // Manual Quick Log Modal State
+  const [showManualModal, setShowManualModal] = useState(false)
+  const [manualTitle, setManualTitle] = useState('')
+  const [manualCategoryId, setManualCategoryId] = useState<number | null>(null)
+  const [manualStartTime, setManualStartTime] = useState(() => {
     const now = new Date()
     const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000)
     return `${String(oneHourAgo.getHours()).padStart(2, '0')}:${String(oneHourAgo.getMinutes()).padStart(2, '0')}`
   })
-  const [logEndTime, setLogEndTime] = useState(() => {
+  const [manualEndTime, setManualEndTime] = useState(() => {
     const now = new Date()
     return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
   })
-  const [logNotes, setLogNotes] = useState('')
-  const [isSubmittingLog, setIsSubmittingLog] = useState(false)
-
-  // Launcher Custom State
-  const [launcherDuration, setLauncherDuration] = useState<number>(25)
-  const [launcherCategoryId, setLauncherCategoryId] = useState<number | null>(null)
-  const [launcherTitle, setLauncherTitle] = useState('')
+  const [manualNotes, setManualNotes] = useState('')
+  const [isSubmittingManual, setIsSubmittingManual] = useState(false)
 
   useEffect(() => {
     fetchLogs(todayIso)
@@ -80,7 +94,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
   const formatLocalTime = (isoString: string) => {
     try {
       const d = new Date(isoString)
-      return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
+      return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false })
     } catch {
       return ''
     }
@@ -99,35 +113,39 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
     return `${hours}h ${mins > 0 ? `${mins}m` : ''}`
   }, [totalLoggedSeconds])
 
-  // Category breakdown for today
-  const categoryStats = useMemo(() => {
-    const map: Record<string, { name: string; color: string; seconds: number; type?: string }> = {}
-    logs.forEach(l => {
-      const catName = l.category_name || 'Uncategorized'
-      const catColor = l.category_color || '#94A3B8'
-      if (!map[catName]) {
-        map[catName] = { name: catName, color: catColor, seconds: 0 }
-      }
-      map[catName].seconds += l.duration_seconds || 0
-    })
-    return Object.values(map)
-  }, [logs])
-
-  // Start Quick Focus from Launcher
-  const handleStartQuickLauncher = () => {
+  // Quick Start Actions
+  const handleStartQuickTrack = (title?: string, catId?: number, duration?: number) => {
     sounds.playTap()
-    const chosenCat = categories.find(c => c.id === launcherCategoryId)
+    const chosenTitle = title || quickTitle.trim() || 'Tập trung sâu (Deep Work)'
+    const chosenCatId = catId !== undefined ? catId : quickCategoryId
+    const chosenCat = categories.find(c => c.id === chosenCatId)
+
     startTimer({
-      title: launcherTitle.trim() || 'Deep Work Session',
+      title: chosenTitle,
       categoryId: chosenCat?.id,
       categoryName: chosenCat?.name,
       categoryColor: chosenCat?.color,
       categoryType: chosenCat?.category_type,
-      durationMinutes: launcherDuration
+      durationMinutes: duration || quickDuration
     })
+
+    setQuickTitle('')
+    setShowReadyQueue(false)
   }
 
-  // Start tracking from Plan Slot
+  const handleTrackTask = (task: Task) => {
+    sounds.playTap()
+    startTimer({
+      taskId: task.id,
+      title: task.title,
+      categoryId: task.category?.id,
+      categoryName: task.category?.name,
+      categoryColor: task.category?.color,
+      durationMinutes: 25
+    })
+    setShowReadyQueue(false)
+  }
+
   const handleTrackPlanSlot = (slot: ScheduleSlot) => {
     sounds.playTap()
     const [sh, sm] = slot.start_time.split(':').map(Number)
@@ -141,55 +159,99 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
       categoryColor: slot.category?.color,
       durationMinutes: durMins
     })
+    setShowReadyQueue(false)
   }
 
-  // Start tracking from Task
-  const handleTrackTask = (task: Task) => {
+  // Open Edit Modal for Log
+  const handleOpenEditModal = (log: TimeLogItem) => {
     sounds.playTap()
-    startTimer({
-      taskId: task.id,
-      title: task.title,
-      categoryId: task.category?.id,
-      categoryName: task.category?.name,
-      categoryColor: task.category?.color,
-      durationMinutes: 25
-    })
+    setEditingLog(log)
+    setEditTitle(log.task_title || log.habit_title || log.notes || 'Phiên tập trung')
+    setEditCategoryId(log.category_id || null)
+
+    try {
+      const s = new Date(log.start_time)
+      const e = new Date(log.end_time)
+      setEditStartTime(`${String(s.getHours()).padStart(2, '0')}:${String(s.getMinutes()).padStart(2, '0')}`)
+      setEditEndTime(`${String(e.getHours()).padStart(2, '0')}:${String(e.getMinutes()).padStart(2, '0')}`)
+    } catch {
+      setEditStartTime('09:00')
+      setEditEndTime('09:30')
+    }
+
+    setEditDurationMins(Math.round((log.duration_seconds || 0) / 60))
   }
 
-  // Handle Manual Log Submission
+  const handleSaveEditLog = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingLog || isSavingEdit) return
+
+    try {
+      setIsSavingEdit(true)
+      sounds.playTap()
+
+      const [sh, sm] = editStartTime.split(':').map(Number)
+      const [eh, em] = editEndTime.split(':').map(Number)
+      let calcDuration = (eh * 60 + em) - (sh * 60 + sm)
+      if (calcDuration <= 0) calcDuration = editDurationMins || 30
+
+      const startIso = `${todayIso}T${editStartTime}:00`
+      const endIso = `${todayIso}T${editEndTime}:00`
+
+      await updateLog(editingLog.id, {
+        notes: editTitle.trim(),
+        category_id: editCategoryId || undefined,
+        start_time: startIso,
+        end_time: endIso,
+        duration_seconds: calcDuration * 60
+      })
+
+      sounds.playSuccess()
+      setEditingLog(null)
+      fetchLogs(todayIso)
+    } catch (err) {
+      console.error('Failed to update log', err)
+    } finally {
+      setIsSavingEdit(false)
+    }
+  }
+
+  // Submit Manual Quick Log
   const handleSaveManualLog = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!logActivityTitle.trim() || isSubmittingLog) return
+    if (!manualTitle.trim() || isSubmittingManual) return
 
-    const [sh, sm] = logStartTime.split(':').map(Number)
-    const [eh, em] = logEndTime.split(':').map(Number)
+    const [sh, sm] = manualStartTime.split(':').map(Number)
+    const [eh, em] = manualEndTime.split(':').map(Number)
     let durMins = (eh * 60 + em) - (sh * 60 + sm)
     if (durMins <= 0) durMins = 30
 
     try {
-      setIsSubmittingLog(true)
+      setIsSubmittingManual(true)
       sounds.playTap()
 
-      const startIso = `${todayIso}T${logStartTime}:00`
-      const endIso = `${todayIso}T${logEndTime}:00`
+      const startIso = `${todayIso}T${manualStartTime}:00`
+      const endIso = `${todayIso}T${manualEndTime}:00`
 
       await createLog({
         start_time: startIso,
         end_time: endIso,
         duration_seconds: durMins * 60,
         timer_type: 'manual',
-        category_id: logCategoryId || undefined,
-        notes: `${logActivityTitle.trim()}${logNotes.trim() ? ` - ${logNotes.trim()}` : ''}`
+        category_id: manualCategoryId || undefined,
+        notes: `${manualTitle.trim()}${manualNotes.trim() ? ` - ${manualNotes.trim()}` : ''}`
       })
 
       sounds.playSuccess()
-      setLogActivityTitle('')
-      setLogNotes('')
-      setLogCategoryId(null)
+      setManualTitle('')
+      setManualNotes('')
+      setManualCategoryId(null)
+      setShowManualModal(false)
+      fetchLogs(todayIso)
     } catch (err) {
       console.error('Failed to log actual time', err)
     } finally {
-      setIsSubmittingLog(false)
+      setIsSubmittingManual(false)
     }
   }
 
@@ -197,130 +259,127 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
     sounds.playTap()
     await deleteLog(id)
     sounds.playSuccess()
+    if (editingLog?.id === id) setEditingLog(null)
   }
 
   const activePlanSlots = slots.filter(s => !s.is_done)
   const activeTasks = tasks.filter(t => t.status !== 'completed')
 
+  // Quick preset templates
+  const presets = [
+    { title: '💻 Lập trình & Kỹ thuật', catName: 'Lập trình & Kỹ thuật', color: '#8B5CF6', mins: 45 },
+    { title: '💼 Họp & Đồng bộ dự án', catName: 'Công việc & Dự án', color: '#3B82F6', mins: 30 },
+    { title: '📚 Đọc sách & Ngoại ngữ', catName: 'Học tập & Ngoại ngữ', color: '#10B981', mins: 25 },
+    { title: '🏃 Chạy bộ & Thể thao', catName: 'Sức khỏe & Thể thao', color: '#F59E0B', mins: 30 },
+    { title: '⚡ Deep Work Siêu Tập Trung', catName: 'Lập trình & Kỹ thuật', color: '#6366F1', mins: 60 }
+  ]
+
   return (
-    <div className="flex-1 overflow-y-auto px-4 py-4 md:px-8 md:py-6 bg-[#F8FAFC]">
-      <div className="max-w-4xl mx-auto space-y-4 pb-24">
-        {/* ── 1. Page Header & Quick Overview ── */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+    <div className="flex-1 flex flex-col h-full overflow-hidden bg-slate-900 text-slate-100">
+      {/* ── 1. STICKY APP HEADER BAR ── */}
+      <header className="shrink-0 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-4 py-3 sm:px-6 flex items-center justify-between z-20">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-violet-600 to-indigo-500 flex items-center justify-center text-white shadow-md shadow-violet-600/30">
+            <Clock className="w-4 h-4" />
+          </div>
           <div>
             <div className="flex items-center gap-2">
-              <Clock className="w-5 h-5 text-violet-600" />
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 font-mono">
-                Live Tracking & Time Logging
+              <h1 className="text-base font-black tracking-tight text-white">Tracking Hub</h1>
+              <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-md bg-violet-500/20 text-violet-300 font-mono border border-violet-500/30">
+                LIVE
               </span>
             </div>
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight mt-0.5">
-              Tracking & Actual Logs
-            </h1>
-            <p className="text-xs text-slate-500 font-medium">
-              Monitor active focus clocks, track ongoing work, and record actual time spent.
+            <p className="text-[11px] text-slate-400 font-medium hidden sm:block">
+              Theo dõi thời gian thực tế & quản lý các phiên tập trung
             </p>
-          </div>
-
-          {/* Today's Total Focused Time Pill */}
-          <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
-            <div className="bg-white rounded-2xl px-4 py-2 border border-slate-200 shadow-2xs text-right">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-                Today's Actual Time
-              </span>
-              <span className="text-base font-black text-violet-700 font-mono">
-                {totalLoggedFormatted}
-              </span>
-            </div>
           </div>
         </div>
 
-        {/* ── 2. LIVE ACTIVE TRACKING CLOCK / WATCH HUB ── */}
-        {isRunning ? (
-          <div className="bg-gradient-to-br from-slate-900 via-violet-950 to-indigo-950 rounded-3xl p-5 md:p-6 text-white shadow-xl shadow-violet-950/20 border border-violet-800/40 space-y-4 anim-fade-in relative overflow-hidden">
-            {/* Ambient Background Glow */}
-            <div className="absolute top-0 right-0 w-64 h-64 bg-violet-600/10 rounded-full blur-3xl pointer-events-none" />
+        {/* Right Summary Pill + Quick Add Button */}
+        <div className="flex items-center gap-2">
+          <div className="bg-slate-800/80 border border-slate-700/80 rounded-xl px-3 py-1.5 text-right shadow-2xs">
+            <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 block">Hôm nay</span>
+            <span className="text-xs sm:text-sm font-black text-violet-400 font-mono">
+              {totalLoggedFormatted}
+            </span>
+          </div>
 
-            {/* Header: Live Pulse Indicator & Mode */}
+          <button
+            onClick={() => { sounds.playTap(); setShowManualModal(true) }}
+            className="p-2 sm:px-3 sm:py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 flex items-center gap-1.5 transition active:scale-95 shadow-2xs"
+            title="Ghi nhận log thủ công"
+          >
+            <Plus className="w-4 h-4 text-violet-400" />
+            <span className="hidden sm:inline">Ghi log</span>
+          </button>
+        </div>
+      </header>
+
+      {/* ── 2. MAIN APP CONTENT SCROLL AREA ── */}
+      <main className="flex-1 overflow-y-auto px-3.5 py-3.5 sm:px-6 sm:py-5 space-y-4 max-w-4xl w-full mx-auto pb-24">
+
+        {/* ── A. ACTIVE LIVE RUNNER CLOCK (IF PLAYING) ── */}
+        {isRunning ? (
+          <div className="bg-gradient-to-br from-violet-950 via-slate-900 to-indigo-950 rounded-3xl p-4 sm:p-5 border border-violet-700/50 shadow-xl shadow-violet-950/40 space-y-3 relative overflow-hidden anim-fade-in">
+            {/* Background Glow */}
+            <div className="absolute top-0 right-0 w-48 h-48 bg-violet-500/15 rounded-full blur-3xl pointer-events-none" />
+
+            {/* Status Pulse Bar */}
             <div className="flex items-center justify-between relative z-10">
               <div className="flex items-center gap-2">
-                <span className="relative flex h-3.5 w-3.5">
+                <span className="relative flex h-3 w-3">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-500"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
                 </span>
-                <span className="text-xs font-black tracking-wider uppercase text-emerald-400 font-mono">
-                  {isPaused ? '⏸️ Paused' : '⚡ Tracking in Progress'}
+                <span className="text-xs font-black uppercase tracking-wider text-emerald-400 font-mono">
+                  {isPaused ? '⏸️ Tạm dừng' : '⚡ Đang chạy (Active)'}
                 </span>
               </div>
 
               <div className="flex items-center gap-1.5">
-                <span className="px-2.5 py-0.5 rounded-xl text-[10px] font-bold uppercase tracking-wider bg-white/10 border border-white/15 text-violet-200">
-                  {mode === 'pomodoro' ? '🔥 Pomodoro Focus' : '⏱️ Stopwatch'}
-                </span>
-                <span className="px-2.5 py-0.5 rounded-xl text-[10px] font-bold uppercase tracking-wider bg-violet-500/20 border border-violet-400/30 text-violet-300">
-                  {currentPhase === 'work' ? 'Deep Work' : 'Break Time'}
+                <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-white/10 text-slate-300 font-mono">
+                  {mode === 'pomodoro' ? '🔥 Pomodoro' : '⏱️ Stopwatch'}
                 </span>
               </div>
             </div>
 
-            {/* Main Clock Face & Task Info */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-5 relative z-10 py-1">
-              <div className="space-y-1.5 min-w-0 flex-1">
+            {/* Title & Live Digits */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 relative z-10 pt-1">
+              <div className="min-w-0 flex-1 space-y-1">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-violet-300/80">
-                  Current Activity
+                  Nội dung đang theo dõi
                 </span>
-                <h2 className="text-xl md:text-2xl font-black text-white truncate">
-                  {activeTitle || 'Deep Work Focus Session'}
+                <h2 className="text-lg sm:text-xl font-black text-white truncate">
+                  {activeTitle || 'Phiên tập trung chuyên sâu'}
                 </h2>
-
-                <div className="flex items-center gap-2 flex-wrap pt-1">
-                  {activeCategoryName ? (
+                {activeCategoryName && (
+                  <div className="flex items-center gap-1.5 pt-0.5">
                     <span
-                      className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg text-white shadow-xs"
+                      className="text-[10px] font-bold px-2 py-0.5 rounded-md text-white shadow-xs"
                       style={{ backgroundColor: activeCategoryColor || '#8B5CF6' }}
                     >
-                      📁 {activeCategoryName} ({activeCategoryType === 'wasted' ? '🔴 Wasted' : activeCategoryType === 'neutral' ? '🔵 Neutral' : '🟢 Productive'})
+                      {activeCategoryName}
                     </span>
-                  ) : (
-                    <span className="text-xs text-violet-300/70 italic">No category assigned</span>
-                  )}
-                  {activeTaskId && (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-white/10 text-white font-mono">
-                      Task #{activeTaskId}
-                    </span>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
 
-              {/* Big Digital Watch Display */}
-              <div className="flex items-center gap-3 self-center md:self-auto bg-black/30 px-6 py-3.5 rounded-3xl border border-white/10 backdrop-blur-xs">
-                <div className="text-center">
-                  <div className="text-4xl md:text-5xl font-black font-mono tracking-tight text-white tabular-nums drop-shadow-md">
-                    {mode === 'pomodoro' ? formatSeconds(secondsRemaining) : formatSeconds(elapsedSeconds)}
-                  </div>
-                  <div className="text-[10px] font-bold uppercase tracking-widest text-violet-300 font-mono mt-0.5">
-                    {mode === 'pomodoro' ? 'Time Remaining' : 'Elapsed Time'}
-                  </div>
+              {/* Big Clock Digits */}
+              <div className="bg-black/40 px-5 py-2.5 rounded-2xl border border-white/10 self-start sm:self-center">
+                <div className="text-3xl sm:text-4xl font-black font-mono tracking-tight text-white tabular-nums">
+                  {mode === 'pomodoro' ? formatSeconds(secondsRemaining) : formatSeconds(elapsedSeconds)}
                 </div>
               </div>
             </div>
 
-            {/* Quick Watch Controls */}
+            {/* Quick Action Buttons */}
             <div className="flex items-center gap-2 pt-2 border-t border-white/10 relative z-10 flex-wrap">
               <button
-                onClick={() => { sounds.playTap(); onOpenFullscreenFocus() }}
-                className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-2xl bg-white text-violet-950 text-xs font-black hover:bg-violet-50 transition active:scale-95 shadow-md"
-              >
-                <Maximize2 className="w-4 h-4" />
-                <span>Fullscreen Focus</span>
-              </button>
-
-              <button
                 onClick={() => { sounds.playTap(); isPaused ? resumeTimer() : pauseTimer() }}
-                className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-2xl bg-white/15 hover:bg-white/25 text-white text-xs font-bold transition active:scale-95 border border-white/15"
+                className="flex-1 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition active:scale-95 border border-white/15"
               >
-                {isPaused ? <Play className="w-4 h-4 fill-current text-emerald-400" /> : <Pause className="w-4 h-4 fill-current text-amber-400" />}
-                <span>{isPaused ? 'Resume Clock' : 'Pause Clock'}</span>
+                {isPaused ? <Play className="w-3.5 h-3.5 fill-current text-emerald-400" /> : <Pause className="w-3.5 h-3.5 fill-current text-amber-400" />}
+                <span>{isPaused ? 'Tiếp tục' : 'Tạm dừng'}</span>
               </button>
 
               <button
@@ -330,293 +389,177 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                   sounds.playSuccess()
                   fetchLogs(todayIso)
                 }}
-                className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition active:scale-95 shadow-md"
-                title="Stop watch and save actual focus log"
+                className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-black flex items-center justify-center gap-1.5 transition active:scale-95 shadow-md shadow-rose-600/30"
               >
-                <Square className="w-4 h-4 fill-current" />
-                <span>Finish & Save Log</span>
+                <Square className="w-3.5 h-3.5 fill-current" />
+                <span>Hoàn tất & Lưu log</span>
+              </button>
+
+              <button
+                onClick={() => { sounds.playTap(); onOpenFullscreenFocus() }}
+                className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white transition active:scale-90"
+                title="Toàn màn hình Focus"
+              >
+                <Maximize2 className="w-4 h-4" />
               </button>
 
               <button
                 onClick={() => { sounds.playTap(); resetTimer() }}
-                className="p-2.5 rounded-2xl bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white transition active:scale-90"
-                title="Reset Clock"
+                className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white transition active:scale-90"
+                title="Đặt lại đồng hồ"
               >
                 <RotateCcw className="w-4 h-4" />
               </button>
             </div>
           </div>
         ) : (
-          /* QUICK FOCUS LAUNCHER WATCH */
-          <div className="bg-white rounded-3xl p-5 md:p-6 border border-slate-200/90 shadow-2xs space-y-4">
-            <div className="flex items-center justify-between">
+          /* ── B. QUICK TRACK LAUNCHER BAR (COMPACT APP STYLE) ── */
+          <div className="bg-slate-800/90 rounded-2xl p-3 sm:p-4 border border-slate-700/80 shadow-md space-y-3">
+            <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-violet-100 text-violet-700 flex items-center justify-center">
-                  <Sparkles className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-black text-slate-900">Launch Focus Timer</h3>
-                  <p className="text-[11px] text-slate-400 font-medium">Start real-time tracking for any activity</p>
-                </div>
+                <Zap className="w-4 h-4 text-amber-400" />
+                <span className="text-xs font-black text-white uppercase tracking-wider">
+                  Bắt đầu Track Nhanh
+                </span>
               </div>
 
-              {/* Mode Toggle */}
-              <div className="flex items-center p-0.5 bg-slate-100 rounded-xl text-xs font-bold border border-slate-200">
+              {/* Mode Switcher */}
+              <div className="flex items-center p-0.5 bg-slate-900 rounded-lg text-[11px] font-bold border border-slate-700">
                 <button
                   onClick={() => { sounds.playTap(); switchMode('pomodoro') }}
-                  className={`px-2.5 py-1 rounded-lg transition ${
-                    mode === 'pomodoro' ? 'bg-white text-violet-700 shadow-2xs' : 'text-slate-500'
+                  className={`px-2 py-0.5 rounded-md transition ${
+                    mode === 'pomodoro' ? 'bg-violet-600 text-white shadow-xs' : 'text-slate-400'
                   }`}
                 >
                   Pomodoro
                 </button>
                 <button
                   onClick={() => { sounds.playTap(); switchMode('stopwatch') }}
-                  className={`px-2.5 py-1 rounded-lg transition ${
-                    mode === 'stopwatch' ? 'bg-white text-violet-700 shadow-2xs' : 'text-slate-500'
+                  className={`px-2 py-0.5 rounded-md transition ${
+                    mode === 'stopwatch' ? 'bg-violet-600 text-white shadow-xs' : 'text-slate-400'
                   }`}
                 >
-                  Stopwatch
+                  Bấm giờ
                 </button>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+            {/* Quick Track Input Row */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
               <input
                 type="text"
-                value={launcherTitle}
-                onChange={e => setLauncherTitle(e.target.value)}
-                placeholder="What are you working on right now?"
-                className="sm:col-span-2 px-3.5 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 placeholder:text-slate-400 outline-none focus:bg-white focus:border-violet-500 transition"
+                value={quickTitle}
+                onChange={e => setQuickTitle(e.target.value)}
+                placeholder="Bạn đang làm gì ngay bây giờ? (Nhập để track nhanh)"
+                className="flex-1 px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-white placeholder:text-slate-500 outline-none focus:border-violet-500 transition"
               />
 
               <select
-                value={launcherCategoryId || ''}
-                onChange={e => setLauncherCategoryId(e.target.value ? Number(e.target.value) : null)}
-                className="px-3.5 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 outline-none focus:bg-white focus:border-violet-500 transition"
+                value={quickCategoryId || ''}
+                onChange={e => setQuickCategoryId(e.target.value ? Number(e.target.value) : null)}
+                className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-slate-300 outline-none focus:border-violet-500 transition shrink-0"
               >
-                <option value="">📁 Select Category...</option>
+                <option value="">📁 Chọn danh mục...</option>
                 {categories.map(c => (
                   <option key={c.id} value={c.id}>
                     {c.name}
                   </option>
                 ))}
               </select>
-            </div>
-
-            <div className="flex items-center justify-between gap-3 pt-1 flex-wrap">
-              {/* Duration Chips (For Pomodoro Mode) */}
-              {mode === 'pomodoro' ? (
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Duration:</span>
-                  {[15, 25, 45, 60, 90].map(mins => (
-                    <button
-                      key={mins}
-                      onClick={() => { sounds.playTap(); setLauncherDuration(mins) }}
-                      className={`px-2.5 py-1 rounded-xl text-xs font-mono font-bold transition ${
-                        launcherDuration === mins
-                          ? 'bg-violet-600 text-white shadow-2xs'
-                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                      }`}
-                    >
-                      {mins}m
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <span className="text-xs text-slate-400 font-medium">Counts upwards until you hit stop</span>
-              )}
 
               <button
-                onClick={handleStartQuickLauncher}
-                className="px-5 py-2.5 rounded-2xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-black flex items-center gap-2 shadow-md shadow-violet-600/20 active:scale-95 transition"
+                onClick={() => handleStartQuickTrack()}
+                className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-black flex items-center justify-center gap-1.5 shadow-md shadow-violet-600/30 active:scale-95 transition shrink-0"
               >
-                <Play className="w-4 h-4 fill-current" />
-                <span>Start Tracking Now</span>
+                <Play className="w-3.5 h-3.5 fill-current" />
+                <span>Track ngay</span>
+              </button>
+            </div>
+
+            {/* Quick Suggestions & Picker Trigger */}
+            <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-700/60 flex-wrap">
+              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0">
+                  Gợi ý:
+                </span>
+                {presets.slice(0, 3).map((p, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => {
+                      const matchedCat = categories.find(c => c.name.toLowerCase().includes(p.catName.toLowerCase().slice(0, 5)))
+                      handleStartQuickTrack(p.title, matchedCat?.id, p.mins)
+                    }}
+                    className="px-2 py-0.5 rounded-lg bg-slate-900/80 hover:bg-slate-700 text-[11px] font-bold text-slate-300 border border-slate-700/80 transition active:scale-95 shrink-0"
+                  >
+                    {p.title}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                onClick={() => { sounds.playTap(); setShowReadyQueue(!showReadyQueue) }}
+                className="text-[11px] font-bold text-violet-400 hover:text-violet-300 flex items-center gap-1 shrink-0 ml-auto"
+              >
+                <span>{showReadyQueue ? 'Thu gọn hàng đợi ▲' : 'Chọn từ Task/Lịch ▼'}</span>
               </button>
             </div>
           </div>
         )}
 
-        {/* ── 3. TWO-COLUMN WORKSPACE: MANUAL ACTUAL ENTRY & QUEUE TO TRACK ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* ── LEFT: MANUAL ACTUAL TIME ENTRY FORM ── */}
-          <div className="bg-white rounded-3xl p-5 border border-slate-200/90 shadow-2xs space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                  <Plus className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-black text-slate-900">Record Actual Time</h3>
-                  <p className="text-[10px] text-slate-400 font-medium">Log completed work or past activity</p>
-                </div>
-              </div>
-            </div>
-
-            <form onSubmit={handleSaveManualLog} className="space-y-3">
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Activity Title *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={logActivityTitle}
-                  onChange={e => setLogActivityTitle(e.target.value)}
-                  placeholder="e.g. Completed API refactor, Client sync..."
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-900 placeholder:text-slate-400 outline-none focus:border-violet-500"
-                />
+        {/* ── C. READY-TO-TRACK QUEUE DRAWER (OPTIONAL EXPANDABLE) ── */}
+        {showReadyQueue && (
+          <div className="bg-slate-800/90 rounded-2xl p-3 sm:p-4 border border-slate-700/80 shadow-md space-y-3 anim-fade-in">
+            <div className="flex items-center justify-between border-b border-slate-700 pb-2">
+              <div className="flex items-center gap-1.5">
+                <Target className="w-4 h-4 text-violet-400" />
+                <span className="text-xs font-black text-white uppercase tracking-wider">
+                  Danh sách chờ Track (1-Tap Play)
+                </span>
               </div>
 
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Category
-                </label>
-                <select
-                  value={logCategoryId || ''}
-                  onChange={e => setLogCategoryId(e.target.value ? Number(e.target.value) : null)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-white outline-none focus:border-violet-500"
+              <div className="flex items-center p-0.5 bg-slate-900 rounded-lg text-[10px] font-bold border border-slate-700">
+                <button
+                  onClick={() => setReadyTab('tasks')}
+                  className={`px-2 py-0.5 rounded-md transition ${
+                    readyTab === 'tasks' ? 'bg-violet-600 text-white' : 'text-slate-400'
+                  }`}
                 >
-                  <option value="">-- No Category (General) --</option>
-                  {categories.map(c => (
-                    <option key={c.id} value={c.id}>
-                      📁 {c.name} {c.category_type ? `(${c.category_type})` : ''}
-                    </option>
-                  ))}
-                </select>
+                  Nhiệm vụ ({activeTasks.length})
+                </button>
+                <button
+                  onClick={() => setReadyTab('plans')}
+                  className={`px-2 py-0.5 rounded-md transition ${
+                    readyTab === 'plans' ? 'bg-violet-600 text-white' : 'text-slate-400'
+                  }`}
+                >
+                  Kế hoạch ({activePlanSlots.length})
+                </button>
+                <button
+                  onClick={() => setReadyTab('presets')}
+                  className={`px-2 py-0.5 rounded-md transition ${
+                    readyTab === 'presets' ? 'bg-violet-600 text-white' : 'text-slate-400'
+                  }`}
+                >
+                  Mẫu nhanh
+                </button>
               </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Start Time
-                  </label>
-                  <input
-                    type="time"
-                    required
-                    value={logStartTime}
-                    onChange={e => setLogStartTime(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-mono font-bold text-slate-900 outline-none focus:border-violet-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    End Time
-                  </label>
-                  <input
-                    type="time"
-                    required
-                    value={logEndTime}
-                    onChange={e => setLogEndTime(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-mono font-bold text-slate-900 outline-none focus:border-violet-500"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Notes (Optional)
-                </label>
-                <input
-                  type="text"
-                  value={logNotes}
-                  onChange={e => setLogNotes(e.target.value)}
-                  placeholder="Additional context or outcome..."
-                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-medium text-slate-900 placeholder:text-slate-400 outline-none focus:border-violet-500"
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={isSubmittingLog}
-                className="w-full py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold shadow-sm active:scale-95 transition disabled:opacity-50 flex items-center justify-center gap-1.5"
-              >
-                <Check className="w-4 h-4" />
-                <span>{isSubmittingLog ? 'Recording...' : 'Save Actual Time Log'}</span>
-              </button>
-            </form>
-          </div>
-
-          {/* ── RIGHT: QUEUE OF TODAY'S PLANNED BLOCKS & TASKS READY TO TRACK ── */}
-          <div className="space-y-4">
-            {/* Planned Blocks Ready to Track */}
-            <div className="bg-white rounded-3xl p-5 border border-slate-200/90 shadow-2xs space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <CalendarIcon className="w-4 h-4 text-sky-600" />
-                  <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
-                    Planned Blocks ({activePlanSlots.length})
-                  </h3>
-                </div>
-                <Link to="/calendar" className="text-[11px] font-bold text-violet-600 hover:underline">
-                  View Calendar →
-                </Link>
-              </div>
-
-              {activePlanSlots.length === 0 ? (
-                <div className="py-5 text-center text-slate-400 text-xs font-medium">
-                  No pending plan blocks for today.
-                </div>
-              ) : (
-                <div className="space-y-2 max-h-48 overflow-y-auto no-scrollbar">
-                  {activePlanSlots.slice(0, 4).map(slot => (
-                    <div
-                      key={slot.id}
-                      className="p-2.5 rounded-2xl bg-sky-50/60 border border-sky-200/70 flex items-center justify-between gap-2 hover:border-sky-300 transition"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <span className="text-[10px] font-mono font-bold text-sky-800 bg-white px-1.5 py-0.2 rounded border border-sky-200">
-                          {slot.start_time} - {slot.end_time}
-                        </span>
-                        <div className="text-xs font-bold text-slate-900 mt-1 truncate">
-                          {slot.title}
-                        </div>
-                      </div>
-
-                      <button
-                        onClick={() => handleTrackPlanSlot(slot)}
-                        className="px-2.5 py-1.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-[11px] font-bold flex items-center gap-1 shadow-2xs active:scale-90 transition shrink-0"
-                        title="Start Tracking this Plan"
-                      >
-                        <Play className="w-2.5 h-2.5 fill-current" />
-                        <span>Track</span>
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
 
-            {/* Active Tasks Ready to Track */}
-            <div className="bg-white rounded-3xl p-5 border border-slate-200/90 shadow-2xs space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
-                    Pending Tasks ({activeTasks.length})
-                  </h3>
-                </div>
-                <Link to="/tasks" className="text-[11px] font-bold text-violet-600 hover:underline">
-                  View Tasks →
-                </Link>
-              </div>
-
-              {activeTasks.length === 0 ? (
-                <div className="py-5 text-center text-slate-400 text-xs font-medium">
-                  All tasks completed for today!
-                </div>
-              ) : (
-                <div className="space-y-2 max-h-48 overflow-y-auto no-scrollbar">
-                  {activeTasks.slice(0, 4).map(task => (
+            {/* Tab: Tasks */}
+            {readyTab === 'tasks' && (
+              <div className="space-y-1.5 max-h-48 overflow-y-auto no-scrollbar">
+                {activeTasks.length === 0 ? (
+                  <div className="text-center py-4 text-xs text-slate-500">
+                    Không có nhiệm vụ nào chưa xong.
+                  </div>
+                ) : (
+                  activeTasks.map(task => (
                     <div
                       key={task.id}
-                      className="p-2.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-2 hover:border-violet-300 transition"
+                      className="p-2 rounded-xl bg-slate-900/80 border border-slate-700 flex items-center justify-between gap-2 hover:border-violet-500 transition"
                     >
                       <div className="min-w-0 flex-1">
-                        <div className="text-xs font-bold text-slate-900 truncate">
-                          {task.title}
-                        </div>
+                        <div className="text-xs font-bold text-white truncate">{task.title}</div>
                         {task.category && (
                           <span
                             className="text-[9px] font-bold px-1.5 py-0.2 rounded text-white shadow-2xs inline-block mt-0.5"
@@ -626,64 +569,125 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                           </span>
                         )}
                       </div>
-
                       <button
                         onClick={() => handleTrackTask(task)}
-                        className="px-2.5 py-1.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-[11px] font-bold flex items-center gap-1 shadow-2xs active:scale-90 transition shrink-0"
-                        title="Focus on this Task"
+                        className="px-2.5 py-1 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-[11px] font-bold flex items-center gap-1 shadow-xs active:scale-95 transition shrink-0"
                       >
                         <Play className="w-2.5 h-2.5 fill-current" />
-                        <span>Focus</span>
+                        <span>Track</span>
                       </button>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+                  ))
+                )}
+              </div>
+            )}
 
-        {/* ── 4. TODAY'S ACTUAL TIME LOG STREAM ── */}
-        <div className="bg-white rounded-3xl p-5 border border-slate-200/90 shadow-2xs space-y-3">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            {/* Tab: Plans */}
+            {readyTab === 'plans' && (
+              <div className="space-y-1.5 max-h-48 overflow-y-auto no-scrollbar">
+                {activePlanSlots.length === 0 ? (
+                  <div className="text-center py-4 text-xs text-slate-500">
+                    Không có kế hoạch nào hôm nay.
+                  </div>
+                ) : (
+                  activePlanSlots.map(slot => (
+                    <div
+                      key={slot.id}
+                      className="p-2 rounded-xl bg-slate-900/80 border border-slate-700 flex items-center justify-between gap-2 hover:border-violet-500 transition"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <span className="text-[9px] font-mono font-bold text-sky-400 bg-sky-950 px-1 py-0.2 rounded border border-sky-800">
+                          {slot.start_time} - {slot.end_time}
+                        </span>
+                        <div className="text-xs font-bold text-white mt-0.5 truncate">{slot.title}</div>
+                      </div>
+                      <button
+                        onClick={() => handleTrackPlanSlot(slot)}
+                        className="px-2.5 py-1 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-[11px] font-bold flex items-center gap-1 shadow-xs active:scale-95 transition shrink-0"
+                      >
+                        <Play className="w-2.5 h-2.5 fill-current" />
+                        <span>Track</span>
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* Tab: Presets */}
+            {readyTab === 'presets' && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto no-scrollbar">
+                {presets.map((p, idx) => (
+                  <div
+                    key={idx}
+                    onClick={() => {
+                      const matchedCat = categories.find(c => c.name.toLowerCase().includes(p.catName.toLowerCase().slice(0, 5)))
+                      handleStartQuickTrack(p.title, matchedCat?.id, p.mins)
+                    }}
+                    className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-700 flex items-center justify-between gap-2 hover:border-violet-500 cursor-pointer transition active:scale-98"
+                  >
+                    <div className="min-w-0">
+                      <div className="text-xs font-bold text-white truncate">{p.title}</div>
+                      <div className="text-[10px] text-slate-400">{p.mins} phút ({p.catName})</div>
+                    </div>
+                    <Play className="w-3.5 h-3.5 text-violet-400 fill-current shrink-0" />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── D. TODAY'S ACTUAL TIME LOG STREAM (APP-LIKE HIGH DENSITY LIST) ── */}
+        <div className="bg-slate-800/90 rounded-2xl p-3 sm:p-4 border border-slate-700/80 shadow-md space-y-3">
+          <div className="flex items-center justify-between border-b border-slate-700 pb-2.5">
             <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-violet-600" />
-              <h3 className="text-sm font-black text-slate-900">
-                Today's Logged Sessions ({logs.length})
+              <Clock className="w-4 h-4 text-violet-400" />
+              <h3 className="text-xs sm:text-sm font-black text-white uppercase tracking-wider">
+                Các phiên đã Track hôm nay ({logs.length})
               </h3>
             </div>
-            <span className="text-xs font-bold text-slate-500 font-mono">
-              Total: {totalLoggedFormatted}
+            <span className="text-[11px] font-bold text-slate-400">
+              Nhấp vào để sửa thông tin ✎
             </span>
           </div>
 
           {logs.length === 0 ? (
-            <div className="py-10 text-center text-slate-400 space-y-2">
-              <Clock className="w-8 h-8 mx-auto opacity-30 text-violet-600" />
-              <p className="text-xs font-bold text-slate-700">No time logs recorded yet today</p>
-              <p className="text-[11px] text-slate-400 max-w-xs mx-auto">
-                Start a live tracking session above or enter an actual time log manually.
+            <div className="py-8 text-center text-slate-500 space-y-2">
+              <Clock className="w-8 h-8 mx-auto opacity-30 text-violet-400" />
+              <p className="text-xs font-bold text-slate-400">Chưa có phiên tracking nào hôm nay</p>
+              <p className="text-[11px] text-slate-500 max-w-xs mx-auto">
+                Bấm nút "Track ngay" ở trên hoặc bắt đầu bấm giờ để ghi nhận thời gian làm việc.
               </p>
             </div>
           ) : (
-            <div className="space-y-2.5">
+            <div className="space-y-2">
               {logs.map(log => {
                 const durMins = Math.round((log.duration_seconds || 0) / 60)
+                const logTitle = log.task_title || log.habit_title || log.notes || 'Phiên tập trung'
+
                 return (
                   <div
                     key={log.id}
-                    className="p-3 rounded-2xl bg-slate-50/80 border border-slate-200/80 flex items-center justify-between gap-3 hover:border-violet-300 transition"
+                    onClick={() => handleOpenEditModal(log)}
+                    className="p-3 rounded-xl bg-slate-900/80 border border-slate-700/80 hover:border-violet-500/80 flex items-center justify-between gap-3 cursor-pointer transition active:scale-98 group"
                   >
-                    <div className="w-2 self-stretch rounded-full bg-violet-500 shrink-0" />
+                    {/* Category Color Indicator Bar */}
+                    <div
+                      className="w-1.5 self-stretch rounded-full shrink-0"
+                      style={{ backgroundColor: log.category_color || '#8B5CF6' }}
+                    />
 
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-[10px] font-mono font-bold text-violet-800 bg-violet-50 px-2 py-0.5 rounded-md border border-violet-200">
-                          {formatLocalTime(log.start_time)} - {formatLocalTime(log.end_time)} ({durMins}m)
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[10px] font-mono font-bold text-violet-300 bg-violet-950/80 px-1.5 py-0.2 rounded border border-violet-800/80">
+                          {formatLocalTime(log.start_time)} - {formatLocalTime(log.end_time)} ({durMins}p)
                         </span>
-                        <span className="text-[9px] font-bold uppercase text-slate-600 bg-slate-200/70 px-1.5 py-0.2 rounded">
-                          {log.timer_type === 'pomodoro' ? '🔥 Pomodoro' : log.timer_type === 'stopwatch' ? '⏱️ Stopwatch' : '📝 Manual'}
+
+                        <span className="text-[9px] font-bold uppercase text-slate-400 bg-slate-800 px-1.5 py-0.2 rounded border border-slate-700">
+                          {log.timer_type === 'pomodoro' ? '🔥 Pomodoro' : log.timer_type === 'stopwatch' ? '⏱️ Stopwatch' : '📝 Thủ công'}
                         </span>
+
                         {log.category_name && (
                           <span
                             className="text-[9px] font-bold px-1.5 py-0.2 rounded text-white shadow-2xs"
@@ -694,25 +698,254 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                         )}
                       </div>
 
-                      <h4 className="text-xs font-bold text-slate-900 mt-1 truncate">
-                        {log.task_title || log.habit_title || log.notes || 'Focus Session'}
+                      <h4 className="text-xs font-bold text-white mt-1 truncate group-hover:text-violet-300 transition">
+                        {logTitle}
                       </h4>
                     </div>
 
-                    <button
-                      onClick={() => handleDeleteLog(log.id)}
-                      className="p-1.5 text-slate-300 hover:text-rose-600 transition active:scale-90"
-                      title="Delete Time Log"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    {/* Edit Icon & Delete Action */}
+                    <div className="flex items-center gap-1 shrink-0">
+                      <span className="p-1.5 text-slate-400 group-hover:text-violet-400 transition" title="Chỉnh sửa log">
+                        <Edit3 className="w-3.5 h-3.5" />
+                      </span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleDeleteLog(log.id)
+                        }}
+                        className="p-1.5 text-slate-500 hover:text-rose-400 transition"
+                        title="Xóa log"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                 )
               })}
             </div>
           )}
         </div>
-      </div>
+      </main>
+
+      {/* ── 3. EDIT LOG MODAL / BOTTOM SHEET ── */}
+      {editingLog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs anim-fade-in">
+          <div className="bg-slate-900 border border-slate-700 rounded-3xl p-5 w-full max-w-md shadow-2xl space-y-4 text-slate-100">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Edit3 className="w-4 h-4 text-violet-400" />
+                <h3 className="text-sm font-black text-white">Chỉnh sửa phiên Tracking</h3>
+              </div>
+              <button
+                onClick={() => setEditingLog(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditLog} className="space-y-3">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                  Nội dung hoạt động *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editTitle}
+                  onChange={e => setEditTitle(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-xs font-bold text-white outline-none focus:border-violet-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                  Danh mục
+                </label>
+                <select
+                  value={editCategoryId || ''}
+                  onChange={e => setEditCategoryId(e.target.value ? Number(e.target.value) : null)}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-xs font-bold text-slate-200 outline-none focus:border-violet-500"
+                >
+                  <option value="">-- Không có danh mục --</option>
+                  {categories.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} ({c.category_type})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                    Bắt đầu
+                  </label>
+                  <input
+                    type="time"
+                    required
+                    value={editStartTime}
+                    onChange={e => setEditStartTime(e.target.value)}
+                    className="w-full px-2.5 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-xs font-mono font-bold text-white outline-none focus:border-violet-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                    Kết thúc
+                  </label>
+                  <input
+                    type="time"
+                    required
+                    value={editEndTime}
+                    onChange={e => setEditEndTime(e.target.value)}
+                    className="w-full px-2.5 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-xs font-mono font-bold text-white outline-none focus:border-violet-500"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => handleDeleteLog(editingLog.id)}
+                  className="px-3 py-2 rounded-xl bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 text-xs font-bold transition flex items-center gap-1"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Xóa log</span>
+                </button>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingLog(null)}
+                    className="px-3 py-2 rounded-xl bg-slate-800 text-slate-400 text-xs font-bold hover:text-white"
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSavingEdit}
+                    className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-black transition active:scale-95 shadow-md shadow-violet-600/30"
+                  >
+                    {isSavingEdit ? 'Đang lưu...' : 'Lưu thay đổi'}
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── 4. MANUAL QUICK LOG MODAL ── */}
+      {showManualModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs anim-fade-in">
+          <div className="bg-slate-900 border border-slate-700 rounded-3xl p-5 w-full max-w-md shadow-2xl space-y-4 text-slate-100">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Plus className="w-4 h-4 text-violet-400" />
+                <h3 className="text-sm font-black text-white">Ghi nhận thời gian đã làm</h3>
+              </div>
+              <button
+                onClick={() => setShowManualModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveManualLog} className="space-y-3">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                  Nội dung hoạt động *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={manualTitle}
+                  onChange={e => setManualTitle(e.target.value)}
+                  placeholder="Ví dụ: Đã họp Sprint, Đã hoàn thành code..."
+                  className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-xs font-bold text-white outline-none focus:border-violet-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                  Danh mục
+                </label>
+                <select
+                  value={manualCategoryId || ''}
+                  onChange={e => setManualCategoryId(e.target.value ? Number(e.target.value) : null)}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-xs font-bold text-slate-200 outline-none focus:border-violet-500"
+                >
+                  <option value="">-- Không có danh mục --</option>
+                  {categories.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} ({c.category_type})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                    Bắt đầu
+                  </label>
+                  <input
+                    type="time"
+                    required
+                    value={manualStartTime}
+                    onChange={e => setManualStartTime(e.target.value)}
+                    className="w-full px-2.5 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-xs font-mono font-bold text-white outline-none focus:border-violet-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                    Kết thúc
+                  </label>
+                  <input
+                    type="time"
+                    required
+                    value={manualEndTime}
+                    onChange={e => setManualEndTime(e.target.value)}
+                    className="w-full px-2.5 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-xs font-mono font-bold text-white outline-none focus:border-violet-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                  Ghi chú thêm (Tùy chọn)
+                </label>
+                <input
+                  type="text"
+                  value={manualNotes}
+                  onChange={e => setManualNotes(e.target.value)}
+                  placeholder="Ghi chú chi tiết kết quả..."
+                  className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-xs font-medium text-white outline-none focus:border-violet-500"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowManualModal(false)}
+                  className="px-3 py-2 rounded-xl bg-slate-800 text-slate-400 text-xs font-bold hover:text-white"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingManual}
+                  className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-black transition active:scale-95 shadow-md shadow-violet-600/30"
+                >
+                  {isSubmittingManual ? 'Đang lưu...' : 'Lưu log'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

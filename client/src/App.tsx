@@ -40,7 +40,7 @@ const AppShell: React.FC = () => {
   const formattedTracked = totalTrackedH > 0 ? `${totalTrackedH}h ${totalTrackedM > 0 ? `${totalTrackedM}m` : ''}` : `${totalTrackedM}m`
 
   const isTimePage = location.pathname === '/' || location.pathname.startsWith('/calendar') || location.pathname.startsWith('/schedule') || location.pathname.startsWith('/tracking')
-  const isActionsPage = location.pathname.startsWith('/tasks') || (location.pathname === '/habits')
+  const isActionsPage = location.pathname.startsWith('/tasks') || (location.pathname === '/habits') || (location.pathname === '/plans')
 
   return (
     <div className="h-[100dvh] flex flex-col md:flex-row bg-[#F8FAFC] text-slate-900 overflow-hidden">
@@ -138,6 +138,7 @@ const AppShell: React.FC = () => {
             <Route path="/tracking" element={<TimeHub onOpenFullscreenFocus={() => setFocusOpen(true)} />} />
             <Route path="/tasks" element={<TasksAndHabitsHub />} />
             <Route path="/habits" element={<TasksAndHabitsHub />} />
+            <Route path="/plans" element={<TasksAndHabitsHub />} />
             <Route path="/habits/:id" element={<HabitDetailPage />} />
             <Route path="/categories" element={<CategoryManagement />} />
             <Route path="/analytics" element={<div className="flex-1 overflow-y-auto px-4 py-4 md:px-8 md:py-6"><div className="max-w-lg md:max-w-5xl mx-auto"><ProductivityAnalytics /></div></div>} />

@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, RedirectResponse
@@ -95,16 +95,32 @@ app.include_router(admin_router)
 # Mount Static Assets
 app.mount("/assets", StaticFiles(directory=str(ASSETS_DIR)), name="assets")
 
-# SPA Catch-all Route
+# SPA Explicit & Catch-all Routes
+@app.get("/")
+@app.get("/login")
+@app.get("/tasks")
+@app.get("/habits")
+@app.get("/schedule")
+@app.get("/analytics")
+@app.get("/admin")
+@app.get("/admin/{path:path}")
 @app.get("/{full_path:path}")
-async def serve_spa(full_path: str):
+async def serve_spa(full_path: str = ""):
+    # Ignore API requests that reach here so they return proper 404 JSON
+    if full_path.startswith("api/"):
+        raise HTTPException(status_code=404, detail="Not Found")
+        
     file_path = STATIC_DIR / full_path
     if full_path and file_path.is_file():
         return FileResponse(str(file_path))
     
     index_path = STATIC_DIR / "index.html"
     if index_path.exists():
-        return FileResponse(str(index_path))
+        response = FileResponse(str(index_path))
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        return response
     
     return {"message": "TimeHack API is running. Build client to view UI."}
 

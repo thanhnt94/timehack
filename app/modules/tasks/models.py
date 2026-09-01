@@ -5,16 +5,23 @@ from app.core.database import Base
 
 class Category(Base):
     __tablename__ = "categories"
+    __table_args__ = (
+        Index("ix_categories_user_parent", "user_id", "parent_id"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
+    parent_id = Column(Integer, ForeignKey("categories.id", ondelete="CASCADE"), nullable=True, index=True)
     name = Column(String(100), nullable=False)
     color = Column(String(50), default="#8B5CF6") # Default violet
     icon = Column(String(50), default="folder")
+    category_type = Column(String(30), default="productive") # productive, neutral, wasted
     is_default = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", back_populates="categories")
+    parent = relationship("Category", remote_side=[id], back_populates="subcategories")
+    subcategories = relationship("Category", back_populates="parent", cascade="all, delete-orphan")
 
 
 class Task(Base):

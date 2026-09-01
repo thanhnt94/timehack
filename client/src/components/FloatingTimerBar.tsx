@@ -16,6 +16,8 @@ export const FloatingTimerBar: React.FC<Props> = ({ onTap }) => {
     secondsRemaining,
     elapsedSeconds,
     activeTitle,
+    activeCategoryName,
+    activeCategoryColor,
     pauseTimer,
     resumeTimer
   } = useTimerStore()
@@ -58,15 +60,29 @@ export const FloatingTimerBar: React.FC<Props> = ({ onTap }) => {
             )}
           </div>
 
-          {/* Title & Phase */}
+          {/* Title & Category & Phase */}
           <div className="min-w-0">
-            <div className="text-xs font-bold text-slate-900 truncate max-w-[150px] sm:max-w-[240px]">
-              {activeTitle || 'Focus Session'}
+            <div className="flex items-center gap-1.5 truncate max-w-[150px] sm:max-w-[240px]">
+              {activeCategoryName && (
+                <span
+                  className="w-2 h-2 rounded-full shrink-0"
+                  style={{ backgroundColor: activeCategoryColor || '#8B5CF6' }}
+                />
+              )}
+              <span className="text-xs font-bold text-slate-900 truncate">
+                {activeTitle || 'Focus Session'}
+              </span>
             </div>
-            <div className="text-[10px] text-slate-500 font-semibold flex items-center gap-1">
-              <span className={currentPhase === 'work' ? 'text-violet-600' : 'text-emerald-600'}>
+            <div className="text-[10px] text-slate-500 font-semibold flex items-center gap-1.5">
+              <span className={currentPhase === 'work' ? 'text-violet-600 font-bold' : 'text-emerald-600 font-bold'}>
                 {mode === 'pomodoro' ? (currentPhase === 'work' ? 'Focusing' : 'On Break') : 'Stopwatch'}
               </span>
+              {activeCategoryName && (
+                <>
+                  <span className="text-slate-300">•</span>
+                  <span className="text-slate-600 truncate">{activeCategoryName}</span>
+                </>
+              )}
             </div>
           </div>
         </div>

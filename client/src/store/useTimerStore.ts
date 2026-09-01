@@ -25,12 +25,18 @@ interface TimerState {
   // Targets
   activeTaskId: number | null
   activeHabitId: number | null
+  activeCategoryId: number | null
+  activeCategoryName: string | null
+  activeCategoryColor: string | null
+  activeCategoryIcon: string | null
+  activeCategoryType: string | null
   activeTitle: string
 
   // Timer interval reference (internal)
   intervalId: any | null
 
-  startTimer: (target?: { taskId?: number; habitId?: number; title?: string; durationMinutes?: number }) => void
+  startTimer: (target?: { taskId?: number; habitId?: number; categoryId?: number; categoryName?: string; categoryColor?: string; categoryIcon?: string; categoryType?: string; title?: string; durationMinutes?: number }) => void
+  setCategory: (cat: { id: number; name: string; color: string; icon?: string; category_type?: string } | null) => void
   pauseTimer: () => void
   resumeTimer: () => void
   stopTimer: () => Promise<void>
@@ -55,6 +61,11 @@ export const useTimerStore = create<TimerState>((set, get) => ({
 
   activeTaskId: null,
   activeHabitId: null,
+  activeCategoryId: null,
+  activeCategoryName: null,
+  activeCategoryColor: null,
+  activeCategoryIcon: null,
+  activeCategoryType: null,
   activeTitle: 'Tập trung công việc',
   intervalId: null,
 
@@ -65,6 +76,26 @@ export const useTimerStore = create<TimerState>((set, get) => ({
         mode, 
         secondsRemaining: mode === 'pomodoro' ? get().workDuration : 0, 
         elapsedSeconds: 0 
+      })
+    }
+  },
+
+  setCategory: (cat) => {
+    if (!cat) {
+      set({
+        activeCategoryId: null,
+        activeCategoryName: null,
+        activeCategoryColor: null,
+        activeCategoryIcon: null,
+        activeCategoryType: null
+      })
+    } else {
+      set({
+        activeCategoryId: cat.id,
+        activeCategoryName: cat.name,
+        activeCategoryColor: cat.color,
+        activeCategoryIcon: cat.icon || 'folder',
+        activeCategoryType: cat.category_type || 'productive'
       })
     }
   },
@@ -86,6 +117,23 @@ export const useTimerStore = create<TimerState>((set, get) => ({
     const mode = get().mode
     const customDurationSec = target?.durationMinutes ? target.durationMinutes * 60 : get().workDuration
 
+    // Infer category from task or target if provided
+    let catId = target?.categoryId || get().activeCategoryId
+    let catName = target?.categoryName || get().activeCategoryName
+    let catColor = target?.categoryColor || get().activeCategoryColor
+    let catIcon = target?.categoryIcon || get().activeCategoryIcon
+    let catType = target?.categoryType || get().activeCategoryType
+
+    if (target?.taskId && !catId) {
+      const task = useTaskStore.getState().tasks.find(t => t.id === target.taskId)
+      if (task?.category) {
+        catId = task.category.id
+        catName = task.category.name
+        catColor = task.category.color
+        catIcon = task.category.icon || 'folder'
+      }
+    }
+
     set({
       isRunning: true,
       isPaused: false,
@@ -93,6 +141,11 @@ export const useTimerStore = create<TimerState>((set, get) => ({
       workDuration: customDurationSec,
       activeTaskId: target?.taskId || null,
       activeHabitId: target?.habitId || null,
+      activeCategoryId: catId || null,
+      activeCategoryName: catName || null,
+      activeCategoryColor: catColor || null,
+      activeCategoryIcon: catIcon || null,
+      activeCategoryType: catType || 'productive',
       activeTitle: target?.title || (target?.taskId ? 'Task' : target?.habitId ? 'Habit' : 'Phiên tập trung'),
       secondsRemaining: mode === 'pomodoro' ? customDurationSec : 0,
       elapsedSeconds: 0
@@ -150,7 +203,7 @@ export const useTimerStore = create<TimerState>((set, get) => ({
   },
 
   stopTimer: async () => {
-    const { intervalId, startTime, elapsedSeconds, activeTaskId, activeHabitId, activeTitle, mode } = get()
+    const { intervalId, startTime, elapsedSeconds, activeTaskId, activeHabitId, activeCategoryId, activeTitle, mode } = get()
     if (intervalId) clearInterval(intervalId)
 
     const end = new Date()
@@ -162,6 +215,7 @@ export const useTimerStore = create<TimerState>((set, get) => ({
         await axios.post('/api/v1/time-tracking/logs', {
           task_id: activeTaskId,
           habit_id: activeHabitId,
+          category_id: activeCategoryId,
           start_time: start.toISOString(),
           end_time: end.toISOString(),
           duration_seconds: elapsedSeconds,
@@ -180,6 +234,7 @@ export const useTimerStore = create<TimerState>((set, get) => ({
 
         // Refresh stores
         useTaskStore.getState().fetchTasks()
+        useTaskStore.getState().fetchCategories()
       } catch (e) {
         console.error('Failed to log time session', e)
       }

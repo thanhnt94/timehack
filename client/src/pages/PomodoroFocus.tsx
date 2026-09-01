@@ -1,9 +1,11 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   X, Play, Pause, Square,
-  CloudRain, Trees, Waves, Coffee, VolumeX, Sparkles, Flame
+  CloudRain, Trees, Waves, Coffee, VolumeX, Sparkles, Flame,
+  Folder, Tag, ChevronDown, Check
 } from 'lucide-react'
 import { useTimerStore } from '../store/useTimerStore'
+import { useTaskStore } from '../store/useTaskStore'
 import { ambientSound } from '../utils/ambientAudio'
 import { sounds } from '../utils/soundEffects'
 
@@ -24,6 +26,12 @@ export const PomodoroFocus: React.FC<Props> = ({ onClose }) => {
     longBreakDuration,
     completedPomodoros,
     activeTitle,
+    activeCategoryId,
+    activeCategoryName,
+    activeCategoryColor,
+    activeCategoryIcon,
+    activeCategoryType,
+    setCategory,
     startTimer,
     pauseTimer,
     resumeTimer,
@@ -31,7 +39,13 @@ export const PomodoroFocus: React.FC<Props> = ({ onClose }) => {
     setMode
   } = useTimerStore()
 
+  const { categories, fetchCategories } = useTaskStore()
   const [activeAmbient, setActiveAmbient] = useState<string | null>(ambientSound.getCurrentSound())
+  const [categoryPickerOpen, setCategoryPickerOpen] = useState(false)
+
+  useEffect(() => {
+    fetchCategories()
+  }, [])
 
   const formatTime = (totalSec: number) => {
     const m = Math.floor(totalSec / 60)
@@ -94,6 +108,12 @@ export const PomodoroFocus: React.FC<Props> = ({ onClose }) => {
     onClose()
   }
 
+  const handleSelectCategory = (cat: any) => {
+    sounds.playTap()
+    setCategory(cat)
+    setCategoryPickerOpen(false)
+  }
+
   const ambientButtons = [
     { id: 'rain', label: 'Rain', icon: CloudRain, color: 'text-sky-600' },
     { id: 'forest', label: 'Forest', icon: Trees, color: 'text-emerald-600' },
@@ -153,13 +173,90 @@ export const PomodoroFocus: React.FC<Props> = ({ onClose }) => {
 
       {/* ── Center: Circular Timer ─────── */}
       <div className="flex flex-col items-center justify-center my-auto">
-        {/* Active Title */}
-        <div className="text-center max-w-xs mb-6">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-slate-200 text-[11px] font-bold text-slate-600 shadow-xs mb-2">
-            <Sparkles className="w-3.5 h-3.5 text-violet-600" />
-            <span>Focus Target</span>
+        {/* Active Title & Category Tag */}
+        <div className="text-center max-w-sm mb-4 space-y-2">
+          {/* Category Selector Pill */}
+          <div className="relative inline-block">
+            <button
+              onClick={() => { sounds.playTap(); setCategoryPickerOpen(!categoryPickerOpen) }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-slate-200 text-xs font-bold text-slate-700 shadow-xs hover:border-violet-300 hover:bg-violet-50/50 transition active:scale-95"
+            >
+              {activeCategoryName ? (
+                <>
+                  <span
+                    className="w-2.5 h-2.5 rounded-full"
+                    style={{ backgroundColor: activeCategoryColor || '#8B5CF6' }}
+                  />
+                  <span>{activeCategoryName}</span>
+                  <span className="text-[10px] text-slate-400">
+                    ({activeCategoryType === 'wasted' ? '🔴 Lãng phí' : activeCategoryType === 'neutral' ? '🔵 Sinh hoạt' : '🟢 Giá trị'})
+                  </span>
+                </>
+              ) : (
+                <>
+                  <Tag className="w-3.5 h-3.5 text-violet-600" />
+                  <span>Chọn danh mục phân loại</span>
+                </>
+              )}
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+            </button>
+
+            {/* Category Dropdown Modal / Popover */}
+            {categoryPickerOpen && (
+              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-72 max-h-60 overflow-y-auto bg-white rounded-2xl shadow-xl border border-slate-200 p-2 z-50 text-left space-y-1 anim-scale-in">
+                <div className="px-2 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  Gắn nhãn thời gian Focus
+                </div>
+                <button
+                  onClick={() => handleSelectCategory(null)}
+                  className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-bold transition ${
+                    !activeCategoryId ? 'bg-violet-50 text-violet-700' : 'text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  <span>Chưa phân loại</span>
+                  {!activeCategoryId && <Check className="w-3.5 h-3.5 text-violet-600" />}
+                </button>
+
+                {categories.map(c => (
+                  <div key={c.id} className="space-y-0.5">
+                    <button
+                      onClick={() => handleSelectCategory(c)}
+                      className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-bold transition ${
+                        activeCategoryId === c.id ? 'bg-violet-50 text-violet-700' : 'text-slate-800 hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 truncate">
+                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
+                        <span className="truncate">{c.name}</span>
+                      </div>
+                      <span className="text-[9px] text-slate-400 shrink-0">
+                        {c.category_type === 'wasted' ? '🔴' : c.category_type === 'neutral' ? '🔵' : '🟢'}
+                      </span>
+                    </button>
+
+                    {/* Subcategories */}
+                    {c.subcategories && c.subcategories.map(sub => (
+                      <button
+                        key={sub.id}
+                        onClick={() => handleSelectCategory(sub)}
+                        className={`w-full flex items-center justify-between pl-6 pr-2.5 py-1 rounded-lg text-[11px] font-medium transition ${
+                          activeCategoryId === sub.id ? 'bg-violet-50 text-violet-700 font-bold' : 'text-slate-600 hover:bg-slate-50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5 truncate">
+                          <span className="text-slate-300">↳</span>
+                          <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: sub.color || c.color }} />
+                          <span className="truncate">{sub.name}</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-          <h2 className="text-xl font-black text-slate-900 truncate">{activeTitle || 'Deep Work Session'}</h2>
+
+          <h2 className="text-xl font-black text-slate-900 truncate">{activeTitle || 'Phiên tập trung chuyên sâu'}</h2>
         </div>
 
         {/* SVG Progress Circle */}

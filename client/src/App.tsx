@@ -13,6 +13,7 @@ import { HabitDetailPage } from './pages/HabitDetailPage'
 import { TimeBlockingSchedule } from './pages/TimeBlockingSchedule'
 import { PomodoroFocus } from './pages/PomodoroFocus'
 import { ProductivityAnalytics } from './pages/ProductivityAnalytics'
+import { CategoryManagement } from './pages/CategoryManagement'
 import { LandingPage } from './pages/LandingPage'
 import { Admin } from './pages/Admin'
 import { useAuthStore } from './store/useAuthStore'
@@ -64,6 +65,13 @@ const AppShell: React.FC = () => {
               <span className="text-base font-black text-slate-900 tracking-tight">Calendar</span>
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 bg-slate-100 px-2 py-0.5 rounded-lg">
                 Plan & Logs
+              </span>
+            </div>
+          ) : location.pathname === '/categories' ? (
+            <div className="flex items-center gap-2">
+              <span className="text-base font-black text-slate-900 tracking-tight">Categories</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-violet-700 bg-violet-50 px-2 py-0.5 rounded-lg border border-violet-200">
+                Hierarchy
               </span>
             </div>
           ) : location.pathname === '/analytics' ? (
@@ -119,6 +127,7 @@ const AppShell: React.FC = () => {
             <Route path="/habits/:id" element={<HabitDetailPage />} />
             <Route path="/calendar" element={<div className="flex-1 overflow-y-auto px-4 py-4 md:px-8 md:py-6"><div className="max-w-lg md:max-w-5xl mx-auto"><TimeBlockingSchedule /></div></div>} />
             <Route path="/schedule" element={<div className="flex-1 overflow-y-auto px-4 py-4 md:px-8 md:py-6"><div className="max-w-lg md:max-w-5xl mx-auto"><TimeBlockingSchedule /></div></div>} />
+            <Route path="/categories" element={<CategoryManagement />} />
             <Route path="/analytics" element={<div className="flex-1 overflow-y-auto px-4 py-4 md:px-8 md:py-6"><div className="max-w-lg md:max-w-5xl mx-auto"><ProductivityAnalytics /></div></div>} />
             <Route path="/admin" element={<div className="flex-1 overflow-y-auto px-4 py-4 md:px-8 md:py-6"><div className="max-w-lg md:max-w-5xl mx-auto"><Admin /></div></div>} />
             <Route path="*" element={<Navigate to="/" replace />} />

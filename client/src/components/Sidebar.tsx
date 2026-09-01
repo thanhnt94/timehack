@@ -2,7 +2,7 @@ import React from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import {
   Sparkles, Home, CheckSquare, Zap, Calendar, BarChart3,
-  LogOut, ShieldAlert, Settings
+  FolderTree, LogOut, ShieldAlert, Settings
 } from 'lucide-react'
 import { sounds } from '../utils/soundEffects'
 
@@ -14,9 +14,10 @@ interface Props {
 
 const links = [
   { path: '/', icon: Home, label: 'Home' },
-  { path: '/tasks', icon: CheckSquare, label: 'Task' },
-  { path: '/habits', icon: Zap, label: 'Habit' },
+  { path: '/tasks', icon: CheckSquare, label: 'Tasks' },
+  { path: '/habits', icon: Zap, label: 'Habits' },
   { path: '/calendar', icon: Calendar, label: 'Calendar' },
+  { path: '/categories', icon: FolderTree, label: 'Categories' },
   { path: '/analytics', icon: BarChart3, label: 'Analytics' },
 ]
 

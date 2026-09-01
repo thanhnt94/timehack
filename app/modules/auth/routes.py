@@ -73,15 +73,9 @@ async def local_login(payload: LoginRequest, response: Response, db: AsyncSessio
         await db.commit()
         await db.refresh(user)
 
-        # Seed default categories
-        default_categories = [
-            Category(user_id=user.id, name="Công việc", color="#8B5CF6", icon="briefcase", is_default=True),
-            Category(user_id=user.id, name="Học tập", color="#3B82F6", icon="book", is_default=True),
-            Category(user_id=user.id, name="Sức khỏe & Thể thao", color="#10B981", icon="activity", is_default=True),
-            Category(user_id=user.id, name="Cá nhân", color="#F59E0B", icon="user", is_default=True)
-        ]
-        db.add_all(default_categories)
-        await db.commit()
+        # Seed rich preset hierarchical categories
+        from app.modules.tasks.routes import seed_user_presets
+        await seed_user_presets(user.id, db)
 
     signed_id = sign_cookie(str(user.id), settings.SECRET_KEY)
     response.set_cookie(key="user_id", value=signed_id, httponly=True, path="/", samesite="lax", max_age=2592000)

@@ -8,6 +8,7 @@ import {
 import { useScheduleStore, type ScheduleSlot } from '../store/useScheduleStore'
 import { useTimeLogStore, type TimeLogItem } from '../store/useTimeLogStore'
 import { useTimerStore } from '../store/useTimerStore'
+import { useTaskStore } from '../store/useTaskStore'
 import { sounds } from '../utils/soundEffects'
 
 type ViewMode = 'timeline' | 'blocks'
@@ -28,6 +29,8 @@ interface CombinedBlockItem {
   durationMinutes: number
   isDone?: boolean
   timerType?: string
+  category_id?: number
+  category?: { id: number; name: string; color: string }
   rawSlot?: ScheduleSlot
   rawLog?: TimeLogItem
 }
@@ -36,6 +39,7 @@ export const TimeBlockingSchedule: React.FC = () => {
   const { slots, selectedDate, setSelectedDate, fetchSlots, createSlot, toggleSlotDone, deleteSlot } = useScheduleStore()
   const { logs, fetchLogs, createLog, deleteLog } = useTimeLogStore()
   const { startTimer } = useTimerStore()
+  const { categories, fetchCategories } = useTaskStore()
 
   // 1. Primary View Mode Switcher: Timeline vs Blocks (No empty hours)
   const [viewMode, setViewMode] = useState<ViewMode>('blocks')
@@ -49,6 +53,7 @@ export const TimeBlockingSchedule: React.FC = () => {
   const [slotStart, setSlotStart] = useState('09:00')
   const [slotEnd, setSlotEnd] = useState('10:30')
   const [slotNotes, setSlotNotes] = useState('')
+  const [slotCategoryId, setSlotCategoryId] = useState<number | null>(null)
 
   // Create Manual TimeLog modal state
   const [logModalOpen, setLogModalOpen] = useState(false)
@@ -56,6 +61,7 @@ export const TimeBlockingSchedule: React.FC = () => {
   const [logStart, setLogStart] = useState('09:00')
   const [logEnd, setLogEnd] = useState('10:00')
   const [logType, setLogType] = useState('manual')
+  const [logCategoryId, setLogCategoryId] = useState<number | null>(null)
 
   // Current time marker for live Timeline
   const [currentTimeMinutes, setCurrentTimeMinutes] = useState(() => {
@@ -68,6 +74,7 @@ export const TimeBlockingSchedule: React.FC = () => {
   useEffect(() => {
     fetchSlots(selectedDate)
     fetchLogs(selectedDate)
+    fetchCategories()
   }, [selectedDate])
 
   // Update current time tick every minute
@@ -157,6 +164,8 @@ export const TimeBlockingSchedule: React.FC = () => {
         notes: s.notes,
         durationMinutes: dur,
         isDone: s.is_done,
+        category_id: s.category_id,
+        category: s.category,
         rawSlot: s
       })
     })
@@ -175,6 +184,8 @@ export const TimeBlockingSchedule: React.FC = () => {
         notes: l.notes && l.task_title ? l.notes : undefined,
         durationMinutes: dur,
         timerType: l.timer_type,
+        category_id: l.category_id || undefined,
+        category: l.category_name ? { id: l.category_id || 0, name: l.category_name, color: l.category_color || '#8B5CF6' } : undefined,
         rawLog: l
       })
     })
@@ -232,11 +243,13 @@ export const TimeBlockingSchedule: React.FC = () => {
       start_time: slotStart,
       end_time: slotEnd,
       title: slotTitle,
+      category_id: slotCategoryId || undefined,
       notes: slotNotes.trim() || undefined
     })
     sounds.playSuccess()
     setSlotTitle('')
     setSlotNotes('')
+    setSlotCategoryId(null)
     setPlanModalOpen(false)
   }
 
@@ -256,10 +269,12 @@ export const TimeBlockingSchedule: React.FC = () => {
       end_time: endIso,
       duration_seconds: durMins * 60,
       timer_type: logType,
+      category_id: logCategoryId || undefined,
       notes: logNotes.trim() || 'Work Session'
     })
     sounds.playSuccess()
     setLogNotes('')
+    setLogCategoryId(null)
     setLogModalOpen(false)
   }
 
@@ -269,6 +284,7 @@ export const TimeBlockingSchedule: React.FC = () => {
     const endStr = `${String(Math.min(23, hour + 1)).padStart(2, '0')}:00`
     setSlotStart(startStr)
     setSlotEnd(endStr)
+    setSlotCategoryId(null)
     setPlanModalOpen(true)
   }
 
@@ -279,7 +295,10 @@ export const TimeBlockingSchedule: React.FC = () => {
     const durMins = Math.max(15, (eh * 60 + em) - (sh * 60 + sm))
 
     startTimer({
-      title: `Block: ${slot.title}`,
+      title: slot.title,
+      categoryId: slot.category_id || undefined,
+      categoryName: slot.category?.name,
+      categoryColor: slot.category?.color,
       durationMinutes: durMins
     })
   }
@@ -551,6 +570,14 @@ export const TimeBlockingSchedule: React.FC = () => {
                             <span className="text-[9px] font-bold text-sky-700 bg-sky-100/60 px-1.5 py-0.2 rounded">
                               📅 Plan Block
                             </span>
+                            {slot.category && (
+                              <span
+                                className="text-[9px] font-bold px-1.5 py-0.2 rounded text-white flex items-center gap-1 shadow-2xs"
+                                style={{ backgroundColor: slot.category.color }}
+                              >
+                                {slot.category.name}
+                              </span>
+                            )}
                           </div>
                           <h4 className={`text-xs font-bold mt-1.5 truncate ${isDone ? 'line-through text-slate-400' : 'text-slate-900'}`}>
                             {slot.title}
@@ -603,6 +630,14 @@ export const TimeBlockingSchedule: React.FC = () => {
                           <span className="text-[9px] font-bold uppercase text-violet-700 bg-violet-100/70 px-1.5 py-0.2 rounded">
                             {log.timer_type === 'pomodoro' ? '🔥 Pomodoro' : log.timer_type === 'stopwatch' ? '⏱️ Stopwatch' : '📝 Log'}
                           </span>
+                          {log.category_name && (
+                            <span
+                              className="text-[9px] font-bold px-1.5 py-0.2 rounded text-white flex items-center gap-1 shadow-2xs"
+                              style={{ backgroundColor: log.category_color || '#8B5CF6' }}
+                            >
+                              {log.category_name}
+                            </span>
+                          )}
                         </div>
 
                         <h4 className="text-xs font-bold text-slate-900 mt-1.5 truncate">
@@ -735,26 +770,51 @@ export const TimeBlockingSchedule: React.FC = () => {
                       <h4 className={`text-xs font-bold mt-1 truncate ${slot.is_done ? 'line-through text-slate-400' : 'text-slate-900'}`}>
                         {slot.title}
                       </h4>
+                      {slot.category && (
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <span
+                            className="w-2 h-2 rounded-full shrink-0"
+                            style={{ backgroundColor: slot.category.color }}
+                          />
+                          <span className="text-[10px] text-slate-500 font-bold truncate">
+                            {slot.category.name}
+                          </span>
+                        </div>
+                      )}
                       {slot.notes && (
                         <p className="text-[10px] text-slate-500 mt-0.5 line-clamp-1 italic">{slot.notes}</p>
                       )}
                     </div>
 
-                    {/* Quick Done Checkbox */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        sounds.playTap()
-                        toggleSlotDone(slot.id, !slot.is_done)
-                        if (!slot.is_done) sounds.playSuccess()
-                      }}
-                      className={`w-5 h-5 rounded-lg border flex items-center justify-center shrink-0 transition active:scale-90 ${
-                        slot.is_done ? 'bg-emerald-500 border-emerald-600 text-white' : 'bg-white border-sky-300 hover:border-sky-500'
-                      }`}
-                      title={slot.is_done ? 'Mark pending' : 'Mark completed'}
-                    >
-                      {slot.is_done && <Check className="w-3.5 h-3.5 stroke-[3]" />}
-                    </button>
+                    {/* Quick Actions: Play Focus & Done Checkbox */}
+                    <div className="flex items-center gap-1 shrink-0">
+                      {!slot.is_done && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleStartSlotFocus(slot)
+                          }}
+                          className="w-6 h-6 rounded-lg bg-violet-600 hover:bg-violet-700 text-white flex items-center justify-center shrink-0 shadow-2xs active:scale-90 transition"
+                          title="Start Focus Timer"
+                        >
+                          <Play className="w-2.5 h-2.5 fill-current ml-0.5" />
+                        </button>
+                      )}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          sounds.playTap()
+                          toggleSlotDone(slot.id, !slot.is_done)
+                          if (!slot.is_done) sounds.playSuccess()
+                        }}
+                        className={`w-6 h-6 rounded-lg border flex items-center justify-center shrink-0 transition active:scale-90 ${
+                          slot.is_done ? 'bg-emerald-500 border-emerald-600 text-white' : 'bg-white border-sky-300 hover:border-sky-500'
+                        }`}
+                        title={slot.is_done ? 'Mark pending' : 'Mark completed'}
+                      >
+                        {slot.is_done && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                      </button>
+                    </div>
                   </div>
                 )
               })}
@@ -780,6 +840,14 @@ export const TimeBlockingSchedule: React.FC = () => {
                         <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-white border border-violet-200">
                           ⏱️ {startTimeStr} ({durMins}m)
                         </span>
+                        {log.category_name && (
+                          <span
+                            className="text-[9px] font-bold px-1.5 py-0.2 rounded text-white truncate"
+                            style={{ backgroundColor: log.category_color || '#8B5CF6' }}
+                          >
+                            {log.category_name}
+                          </span>
+                        )}
                       </div>
                       <h4 className="text-xs font-bold mt-1 truncate text-slate-900">
                         {log.task_title || log.habit_title || log.notes || 'Focus Session'}
@@ -793,6 +861,37 @@ export const TimeBlockingSchedule: React.FC = () => {
         </div>
       )}
 
+      {/* ── Fixed Bottom Action Bar for Calendar (Plan vs Actual) ── */}
+      <div className="fixed bottom-[calc(60px+var(--safe-bottom))] left-3 right-3 md:left-64 md:right-8 z-20 pointer-events-none">
+        <div className="max-w-md mx-auto pointer-events-auto bg-white/95 backdrop-blur-md p-2 rounded-2xl border border-slate-200 shadow-xl shadow-slate-300/40 flex items-center gap-2">
+          <button
+            onClick={() => {
+              sounds.playTap()
+              setSlotCategoryId(null)
+              setSlotTitle('')
+              setSlotNotes('')
+              setPlanModalOpen(true)
+            }}
+            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-black shadow-md shadow-violet-600/20 active:scale-95 transition"
+          >
+            <CalendarIcon className="w-4 h-4" />
+            <span>+ Lên Plan</span>
+          </button>
+          <button
+            onClick={() => {
+              sounds.playTap()
+              setLogCategoryId(null)
+              setLogNotes('')
+              setLogModalOpen(true)
+            }}
+            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-black shadow-md shadow-slate-900/20 active:scale-95 transition"
+          >
+            <Clock className="w-4 h-4" />
+            <span>+ Ghi Actual</span>
+          </button>
+        </div>
+      </div>
+
       {/* ── Modal 1: Add Plan Slot ────── */}
       {planModalOpen && (
         <>
@@ -801,8 +900,8 @@ export const TimeBlockingSchedule: React.FC = () => {
             <div className="sheet-handle" />
             <div className="flex items-center justify-between mb-3">
               <div>
-                <h2 className="text-sm font-black text-slate-900">Plan Time Block</h2>
-                <p className="text-[11px] text-slate-500 font-medium">Schedule planned focus hours</p>
+                <h2 className="text-sm font-black text-slate-900">Lên Kế Hoạch (Plan Time Block)</h2>
+                <p className="text-[11px] text-slate-500 font-medium">Lên lịch dự kiến tập trung công việc/học tập</p>
               </div>
               <button onClick={() => setPlanModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-700">
                 <X className="w-5 h-5" />
@@ -811,23 +910,49 @@ export const TimeBlockingSchedule: React.FC = () => {
             <form onSubmit={handleCreatePlan} className="space-y-3">
               <div>
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  Activity Name
+                  Tên hoạt động / Mục tiêu *
                 </label>
                 <input
                   type="text"
                   value={slotTitle}
                   onChange={e => setSlotTitle(e.target.value)}
-                  placeholder="e.g. Write report, English study, Team standup..."
+                  placeholder="ví dụ: Lập trình tính năng mới, Học từ vựng, Họp team..."
                   autoFocus
                   required
                   className="w-full px-3.5 py-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
                 />
               </div>
 
+              {/* Category Hierarchy Picker */}
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  Danh mục phân loại (Category)
+                </label>
+                <select
+                  value={slotCategoryId || ''}
+                  onChange={e => setSlotCategoryId(e.target.value ? Number(e.target.value) : null)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 outline-none focus:border-violet-500 focus:bg-white transition"
+                >
+                  <option value="">-- Chưa chọn danh mục --</option>
+                  {categories.map(c => (
+                    <React.Fragment key={c.id}>
+                      <option value={c.id}>
+                        📁 {c.name} ({c.category_type === 'wasted' ? '🔴 Lãng phí' : c.category_type === 'neutral' ? '🔵 Sinh hoạt' : '🟢 Giá trị'})
+                      </option>
+                      {c.subcategories && c.subcategories.map(sub => (
+                        <option key={sub.id} value={sub.id}>
+                          &nbsp;&nbsp;&nbsp;&nbsp;↳ {sub.name}
+                        </option>
+                      ))}
+                    </React.Fragment>
+                  ))}
+                </select>
+              </div>
+
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    Start Time
+                    Bắt đầu
                   </label>
                   <input
                     type="time"
@@ -839,7 +964,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    End Time
+                    Kết thúc
                   </label>
                   <input
                     type="time"
@@ -853,13 +978,13 @@ export const TimeBlockingSchedule: React.FC = () => {
 
               <div>
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  Notes (Optional)
+                  Ghi chú (Tùy chọn)
                 </label>
                 <input
                   type="text"
                   value={slotNotes}
                   onChange={e => setSlotNotes(e.target.value)}
-                  placeholder="Short note..."
+                  placeholder="Ghi chú chi tiết..."
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
                 />
               </div>
@@ -868,7 +993,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                 type="submit"
                 className="w-full py-3.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold active:scale-[0.98] transition shadow-md shadow-violet-600/20 mt-2"
               >
-                Save Plan Slot
+                Lưu Kế Hoạch (Save Plan)
               </button>
             </form>
           </div>
@@ -883,8 +1008,8 @@ export const TimeBlockingSchedule: React.FC = () => {
             <div className="sheet-handle" />
             <div className="flex items-center justify-between mb-3">
               <div>
-                <h2 className="text-sm font-black text-slate-900">Record Actual Time Log</h2>
-                <p className="text-[11px] text-slate-500 font-medium">Log actual time spent on work</p>
+                <h2 className="text-sm font-black text-slate-900">Ghi Nhật Ký Thực Tế (Actual Time)</h2>
+                <p className="text-[11px] text-slate-500 font-medium">Ghi lại thời gian bạn thực sự đã làm</p>
               </div>
               <button onClick={() => setLogModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-700">
                 <X className="w-5 h-5" />
@@ -893,23 +1018,49 @@ export const TimeBlockingSchedule: React.FC = () => {
             <form onSubmit={handleCreateManualLog} className="space-y-3">
               <div>
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  What did you work on?
+                  Bạn đã làm việc gì? *
                 </label>
                 <input
                   type="text"
                   value={logNotes}
                   onChange={e => setLogNotes(e.target.value)}
-                  placeholder="e.g. Read 30 mins, Bug fixing, Client meeting..."
+                  placeholder="ví dụ: Đọc sách 30 phút, Fix bug frontend, Lướt Facebook..."
                   autoFocus
                   required
                   className="w-full px-3.5 py-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
                 />
               </div>
 
+              {/* Category Hierarchy Picker */}
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  Danh mục phân loại (Category)
+                </label>
+                <select
+                  value={logCategoryId || ''}
+                  onChange={e => setLogCategoryId(e.target.value ? Number(e.target.value) : null)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 outline-none focus:border-violet-500 focus:bg-white transition"
+                >
+                  <option value="">-- Chưa chọn danh mục --</option>
+                  {categories.map(c => (
+                    <React.Fragment key={c.id}>
+                      <option value={c.id}>
+                        📁 {c.name} ({c.category_type === 'wasted' ? '🔴 Lãng phí' : c.category_type === 'neutral' ? '🔵 Sinh hoạt' : '🟢 Giá trị'})
+                      </option>
+                      {c.subcategories && c.subcategories.map(sub => (
+                        <option key={sub.id} value={sub.id}>
+                          &nbsp;&nbsp;&nbsp;&nbsp;↳ {sub.name}
+                        </option>
+                      ))}
+                    </React.Fragment>
+                  ))}
+                </select>
+              </div>
+
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    From
+                    Từ giờ
                   </label>
                   <input
                     type="time"
@@ -921,7 +1072,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    To
+                    Đến giờ
                   </label>
                   <input
                     type="time"
@@ -937,7 +1088,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                 type="submit"
                 className="w-full py-3.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold active:scale-[0.98] transition shadow-md shadow-violet-600/20 mt-2"
               >
-                Save Time Log
+                Lưu Nhật Ký Thực Tế (Save Actual)
               </button>
             </form>
           </div>

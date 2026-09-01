@@ -57,10 +57,11 @@ const PRIORITY_CHOICES = [
 export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocus }) => {
   const [subView, setSubView] = useState<SubView>('menu')
 
+  const { createTask, categories, fetchCategories } = useTaskStore()
   const [taskTitle, setTaskTitle] = useState('')
   const [taskDueDate, setTaskDueDate] = useState('')
   const [taskEisen, setTaskEisen] = useState<'do_first' | 'schedule' | 'delegate' | 'eliminate'>('do_first')
-  const { createTask } = useTaskStore()
+  const [taskCategoryId, setTaskCategoryId] = useState<number | null>(null)
 
   const [habitTitle, setHabitTitle] = useState('')
   const [habitFreqPeriod, setHabitFreqPeriod] = useState<'daily' | 'weekly_target' | 'monthly_target'>('daily')
@@ -72,9 +73,16 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
   const [scheduleTitle, setScheduleTitle] = useState('')
   const [scheduleStart, setScheduleStart] = useState('09:00')
   const [scheduleEnd, setScheduleEnd] = useState('10:00')
+  const [scheduleCategoryId, setScheduleCategoryId] = useState<number | null>(null)
   const { createSlot, selectedDate } = useScheduleStore()
 
   const { startTimer } = useTimerStore()
+
+  React.useEffect(() => {
+    if (isOpen) {
+      fetchCategories()
+    }
+  }, [isOpen])
 
   if (!isOpen) return null
 
@@ -89,12 +97,14 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
     sounds.playTap()
     await createTask({
       title: taskTitle.trim(),
+      category_id: taskCategoryId || undefined,
       eisenhower: taskEisen,
       due_date: taskDueDate ? `${taskDueDate}T23:59:59` : undefined
     })
     sounds.playSuccess()
     setTaskTitle('')
     setTaskDueDate('')
+    setTaskCategoryId(null)
     handleClose()
   }
 
@@ -130,10 +140,12 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
       date: selectedDate,
       start_time: scheduleStart,
       end_time: scheduleEnd,
-      title: scheduleTitle.trim()
+      title: scheduleTitle.trim(),
+      category_id: scheduleCategoryId || undefined
     })
     sounds.playSuccess()
     setScheduleTitle('')
+    setScheduleCategoryId(null)
     handleClose()
   }
 
@@ -289,6 +301,28 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
                   )
                 })}
               </div>
+            </div>
+
+            {/* Category Selector */}
+            <div>
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                Category
+              </label>
+              <select
+                value={taskCategoryId || ''}
+                onChange={e => setTaskCategoryId(e.target.value ? Number(e.target.value) : null)}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 outline-none focus:border-violet-500 focus:bg-white transition"
+              >
+                <option value="">-- No category --</option>
+                {categories.map(c => (
+                  <React.Fragment key={c.id}>
+                    <option value={c.id}>📁 {c.name}</option>
+                    {c.subcategories && c.subcategories.map(sub => (
+                      <option key={sub.id} value={sub.id}>&nbsp;&nbsp;&nbsp;&nbsp;↳ {sub.name}</option>
+                    ))}
+                  </React.Fragment>
+                ))}
+              </select>
             </div>
 
             <div>
@@ -456,6 +490,28 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
                 />
               </div>
+            </div>
+
+            {/* Category Selector */}
+            <div>
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                Category
+              </label>
+              <select
+                value={scheduleCategoryId || ''}
+                onChange={e => setScheduleCategoryId(e.target.value ? Number(e.target.value) : null)}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 outline-none focus:border-violet-500 focus:bg-white transition"
+              >
+                <option value="">-- No category --</option>
+                {categories.map(c => (
+                  <React.Fragment key={c.id}>
+                    <option value={c.id}>📁 {c.name}</option>
+                    {c.subcategories && c.subcategories.map(sub => (
+                      <option key={sub.id} value={sub.id}>&nbsp;&nbsp;&nbsp;&nbsp;↳ {sub.name}</option>
+                    ))}
+                  </React.Fragment>
+                ))}
+              </select>
             </div>
 
             <button

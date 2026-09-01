@@ -20,6 +20,7 @@ type ReadySubTab = 'all' | 'tasks' | 'habits' | 'plans'
 export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
   const {
     activeTracks,
+    fetchActiveTracks,
     startNewTrack,
     updateActiveTrack,
     pauseTrack,
@@ -75,6 +76,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
   const [isSubmittingManual, setIsSubmittingManual] = useState(false)
 
   useEffect(() => {
+    fetchActiveTracks()
     fetchLogs(todayIso)
     fetchTasks()
     fetchHabits()
@@ -148,41 +150,24 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
     }
   }, [logs, categories])
 
-  // Auto detect or assign category
-  const detectCategory = (titleText: string) => {
-    const t = titleText.toLowerCase()
-    if (t.includes('code') || t.includes('lập trình') || t.includes('api') || t.includes('bug')) {
-      return categories.find(c => c.name.toLowerCase().includes('lập trình'))
-    }
-    if (t.includes('họp') || t.includes('meeting') || t.includes('dự án') || t.includes('làm việc') || t.includes('đi làm')) {
-      return categories.find(c => c.name.toLowerCase().includes('công việc'))
-    }
-    if (t.includes('chạy') || t.includes('gym') || t.includes('thể thao') || t.includes('bơi')) {
-      return categories.find(c => c.name.toLowerCase().includes('sức khỏe'))
-    }
-    if (t.includes('đọc') || t.includes('học') || t.includes('từ vựng') || t.includes('sách')) {
-      return categories.find(c => c.name.toLowerCase().includes('học tập'))
-    }
-    return categories[0]
-  }
-
-  // Start Track with explicit or selected Category
-  const handleStartTrack = async (customTitle?: string, catId?: number) => {
+  // Start Track: Explicitly NULL category if none selected
+  const handleStartTrack = async (customTitle?: string, catId?: number | null) => {
     sounds.playTap()
     const chosenTitle = customTitle || quickTitle.trim() || 'Hoạt động thực tế'
     const chosenCatId = catId !== undefined ? catId : quickCategoryId
-    const matchedCat = chosenCatId ? categories.find(c => c.id === chosenCatId) : detectCategory(chosenTitle)
+    const matchedCat = chosenCatId ? categories.find(c => c.id === chosenCatId) : null
 
     await startNewTrack({
       title: chosenTitle,
-      categoryId: matchedCat?.id,
-      categoryName: matchedCat?.name,
-      categoryColor: matchedCat?.color,
-      categoryType: matchedCat?.category_type,
+      categoryId: matchedCat?.id || null,
+      categoryName: matchedCat?.name || null,
+      categoryColor: matchedCat?.color || null,
+      categoryType: matchedCat?.category_type || 'productive',
       mode: 'stopwatch'
     })
 
     setQuickTitle('')
+    setQuickCategoryId(null)
     setActiveTab('active')
   }
 
@@ -191,9 +176,9 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
     await startNewTrack({
       title: task.title,
       taskId: task.id,
-      categoryId: task.category?.id,
-      categoryName: task.category?.name,
-      categoryColor: task.category?.color,
+      categoryId: task.category?.id || null,
+      categoryName: task.category?.name || null,
+      categoryColor: task.category?.color || null,
       mode: 'stopwatch'
     })
     setActiveTab('active')
@@ -204,9 +189,9 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
     await startNewTrack({
       title: habit.title,
       habitId: habit.id,
-      categoryId: habit.category?.id || habit.category_id,
-      categoryName: habit.category?.name,
-      categoryColor: habit.color,
+      categoryId: habit.category?.id || habit.category_id || null,
+      categoryName: habit.category?.name || null,
+      categoryColor: habit.color || null,
       mode: 'stopwatch'
     })
     setActiveTab('active')
@@ -216,9 +201,9 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
     sounds.playTap()
     await startNewTrack({
       title: slot.title,
-      categoryId: slot.category_id || undefined,
-      categoryName: slot.category?.name,
-      categoryColor: slot.category?.color,
+      categoryId: slot.category_id || null,
+      categoryName: slot.category?.name || null,
+      categoryColor: slot.category?.color || null,
       mode: 'stopwatch'
     })
     setActiveTab('active')
@@ -245,7 +230,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
     }
   }
 
-  const handleSaveActiveTrack = (e: React.FormEvent) => {
+  const handleSaveActiveTrack = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!editingActiveTrack) return
 
@@ -261,7 +246,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
       adjustedStartDate = d
     }
 
-    updateActiveTrack(editingActiveTrack.id, {
+    await updateActiveTrack(editingActiveTrack.id, {
       title: editActiveTitle.trim() || 'Hoạt động thực tế',
       categoryId: chosenCat?.id || null,
       categoryName: chosenCat?.name || null,
@@ -460,7 +445,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                     >
                       <div
                         className="w-1.5 self-stretch rounded-full shrink-0"
-                        style={{ backgroundColor: track.categoryColor || '#10B981' }}
+                        style={{ backgroundColor: track.categoryColor || '#94A3B8' }}
                       />
 
                       {/* Tap to edit info */}
@@ -473,12 +458,16 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                           <h3 className="text-xs sm:text-sm font-black text-slate-900 truncate group-hover:text-violet-700 transition">
                             {track.title}
                           </h3>
-                          {track.categoryName && (
+                          {track.categoryName ? (
                             <span
                               className="text-[9px] font-bold px-1.5 py-0.2 rounded-md text-white shadow-2xs"
                               style={{ backgroundColor: track.categoryColor || '#8B5CF6' }}
                             >
                               {track.categoryName}
+                            </span>
+                          ) : (
+                            <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-md bg-slate-100 text-slate-400 border border-slate-200">
+                              Chưa có danh mục
                             </span>
                           )}
                           <Edit3 className="w-3 h-3 text-slate-300 group-hover:text-violet-600 transition" />
@@ -583,12 +572,16 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                     <div className="min-w-0 flex-1">
                       <div className="text-xs font-black text-slate-900 truncate">{task.title}</div>
                       <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                        {task.category && (
+                        {task.category ? (
                           <span
                             className="text-[9px] font-bold px-1.5 py-0.2 rounded text-white shadow-2xs"
                             style={{ backgroundColor: task.category.color }}
                           >
                             {task.category.name}
+                          </span>
+                        ) : (
+                          <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-slate-100 text-slate-400">
+                            Chưa có danh mục
                           </span>
                         )}
                         {task.due_date && (
@@ -789,12 +782,17 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                             <span className="text-slate-500">
                               {log.timer_type === 'stopwatch' ? '⏱️ Bấm giờ' : log.timer_type === 'pomodoro' ? '🔥 Pomodoro' : '📝 Thủ công'}
                             </span>
-                            {log.category_name && (
+                            {log.category_name ? (
                               <>
                                 <span>•</span>
                                 <span className="font-bold" style={{ color: catColor }}>
                                   {log.category_name}
                                 </span>
+                              </>
+                            ) : (
+                              <>
+                                <span>•</span>
+                                <span className="text-slate-400 font-medium">Chưa có danh mục</span>
                               </>
                             )}
                           </div>
@@ -824,13 +822,13 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
           {/* Track Bar with Category Selector (Shown ONLY in 'active' tab) */}
           {activeTab === 'active' && (
             <div className="flex items-center gap-1.5 anim-fade-in">
-              {/* Compact Category Selector */}
+              {/* Compact Category Selector (Defaults to No Category) */}
               <select
                 value={quickCategoryId || ''}
                 onChange={e => setQuickCategoryId(e.target.value ? Number(e.target.value) : null)}
                 className="px-2 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 outline-none focus:bg-white focus:border-violet-500 transition shrink-0 max-w-[110px]"
               >
-                <option value="">📁 Danh mục</option>
+                <option value="">📁 Không mục</option>
                 {categories.map(c => (
                   <option key={c.id} value={c.id}>
                     {c.name}

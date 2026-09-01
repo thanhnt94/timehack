@@ -8,6 +8,7 @@ export type TimerMode = 'pomodoro' | 'stopwatch'
 
 export interface ActiveTrack {
   id: string
+  db_id?: number
   title: string
   taskId?: number | null
   habitId?: number | null
@@ -25,20 +26,21 @@ interface TimerState {
   mode: TimerMode
   isRunning: boolean
   isPaused: boolean
+  isLoadingTracks: boolean
 
   // Active Multi-Tracks
   activeTracks: ActiveTrack[]
   
   // Pomodoro settings
-  workDuration: number // seconds (default 25m = 1500)
-  shortBreakDuration: number // seconds (default 5m = 300)
-  longBreakDuration: number // seconds (default 15m = 900)
+  workDuration: number
+  shortBreakDuration: number
+  longBreakDuration: number
   currentPhase: 'work' | 'short_break' | 'long_break'
   completedPomodoros: number
 
   // Dynamic state for active primary track
-  secondsRemaining: number // for pomodoro
-  elapsedSeconds: number // for stopwatch & work session
+  secondsRemaining: number
+  elapsedSeconds: number
   startTime: Date | null
   
   // Targets
@@ -54,6 +56,7 @@ interface TimerState {
   // Timer interval reference (internal)
   intervalId: any | null
 
+  fetchActiveTracks: () => Promise<void>
   startNewTrack: (target: { 
     title: string; 
     categoryId?: number | null; 
@@ -63,7 +66,6 @@ interface TimerState {
     taskId?: number | null; 
     habitId?: number | null; 
     mode?: TimerMode;
-    durationMinutes?: number;
   }) => Promise<string>
   updateActiveTrack: (trackId: string, data: {
     title?: string
@@ -72,11 +74,11 @@ interface TimerState {
     categoryColor?: string | null
     categoryType?: string | null
     startTime?: Date
-  }) => void
-  pauseTrack: (trackId: string) => void
-  resumeTrack: (trackId: string) => void
+  }) => Promise<void>
+  pauseTrack: (trackId: string) => Promise<void>
+  resumeTrack: (trackId: string) => Promise<void>
   stopTrack: (trackId: string) => Promise<void>
-  cancelTrack: (trackId: string) => void
+  cancelTrack: (trackId: string) => Promise<void>
 
   startTimer: (target?: { taskId?: number; habitId?: number; categoryId?: number; categoryName?: string; categoryColor?: string; categoryIcon?: string; categoryType?: string; title?: string; durationMinutes?: number; mode?: TimerMode }) => Promise<void>
   setCategory: (cat: { id: number; name: string; color: string; icon?: string; category_type?: string } | null) => void
@@ -89,10 +91,41 @@ interface TimerState {
   setPomodoroDurations: (work: number, shortBreak: number, longBreak: number) => void
 }
 
+const ensureInterval = (set: any, get: any) => {
+  if (get().intervalId) return
+
+  const intId = setInterval(() => {
+    const { activeTracks } = get()
+    if (activeTracks.length === 0) {
+      clearInterval(get().intervalId)
+      set({ intervalId: null, isRunning: false })
+      return
+    }
+
+    const updated = activeTracks.map((t: ActiveTrack) => {
+      if (t.isPaused) return t
+      return { ...t, elapsedSeconds: t.elapsedSeconds + 1 }
+    })
+
+    set({
+      activeTracks: updated,
+      isRunning: updated.length > 0,
+      elapsedSeconds: updated[0]?.elapsedSeconds || 0,
+      startTime: updated[0]?.startTime || null,
+      activeTitle: updated[0]?.title || '',
+      activeCategoryName: updated[0]?.categoryName || null,
+      activeCategoryColor: updated[0]?.categoryColor || null
+    })
+  }, 1000)
+
+  set({ intervalId: intId })
+}
+
 export const useTimerStore = create<TimerState>((set, get) => ({
   mode: 'stopwatch',
   isRunning: false,
   isPaused: false,
+  isLoadingTracks: false,
   activeTracks: [],
 
   workDuration: 25 * 60,
@@ -115,13 +148,8 @@ export const useTimerStore = create<TimerState>((set, get) => ({
   activeTitle: 'Hoạt động thực tế',
   intervalId: null,
 
-  setMode: (mode) => {
-    set({ mode })
-  },
-
-  switchMode: (mode) => {
-    set({ mode })
-  },
+  setMode: (mode) => set({ mode }),
+  switchMode: (mode) => set({ mode }),
 
   setCategory: (cat) => {
     if (!cat) {
@@ -151,14 +179,77 @@ export const useTimerStore = create<TimerState>((set, get) => ({
     })
   },
 
-  // Multi-track Start
+  // Fetch active tracks from database on load
+  fetchActiveTracks: async () => {
+    try {
+      set({ isLoadingTracks: true })
+      const res = await axios.get('/api/v1/time-tracking/active-tracks')
+      const tracks: ActiveTrack[] = (res.data || []).map((t: any) => ({
+        id: String(t.id),
+        db_id: t.db_id || Number(t.id),
+        title: t.title || 'Hoạt động thực tế',
+        taskId: t.task_id || null,
+        habitId: t.habit_id || null,
+        categoryId: t.category_id || null,
+        categoryName: t.category_name || null,
+        categoryColor: t.category_color || null,
+        categoryType: t.category_type || 'productive',
+        startTime: t.start_time ? new Date(t.start_time) : new Date(),
+        elapsedSeconds: t.elapsed_seconds || 0,
+        isPaused: t.is_paused || false,
+        mode: (t.timer_type as TimerMode) || 'stopwatch'
+      }))
+
+      set({
+        activeTracks: tracks,
+        isRunning: tracks.length > 0,
+        startTime: tracks[0]?.startTime || null,
+        activeTitle: tracks[0]?.title || '',
+        activeCategoryName: tracks[0]?.categoryName || null,
+        activeCategoryColor: tracks[0]?.categoryColor || null,
+        isLoadingTracks: false
+      })
+
+      if (tracks.length > 0) {
+        ensureInterval(set, get)
+      }
+    } catch (e) {
+      console.error('Failed to fetch active tracks from DB', e)
+      set({ isLoadingTracks: false })
+    }
+  },
+
+  // Multi-track Start (POST to DB)
   startNewTrack: async (target) => {
-    const now = new Date()
-    const trackId = `track_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`
     const chosenMode = target.mode || get().mode || 'stopwatch'
+    const now = new Date()
+
+    let createdId = `temp_${Date.now()}`
+    let dbId: number | undefined = undefined
+
+    try {
+      const res = await axios.post('/api/v1/time-tracking/active-tracks', {
+        title: target.title.trim() || 'Hoạt động thực tế',
+        task_id: target.taskId || null,
+        habit_id: target.habitId || null,
+        category_id: target.categoryId || null,
+        start_time: now.toISOString(),
+        timer_type: chosenMode,
+        is_paused: false,
+        accumulated_seconds: 0
+      })
+
+      if (res.data?.id) {
+        createdId = String(res.data.id)
+        dbId = res.data.db_id || Number(res.data.id)
+      }
+    } catch (e) {
+      console.error('Failed to persist active track to DB', e)
+    }
 
     const newTrack: ActiveTrack = {
-      id: trackId,
+      id: createdId,
+      db_id: dbId,
       title: target.title.trim() || 'Hoạt động thực tế',
       taskId: target.taskId || null,
       habitId: target.habitId || null,
@@ -183,39 +274,12 @@ export const useTimerStore = create<TimerState>((set, get) => ({
       activeCategoryColor: nextTracks[0]?.categoryColor || null
     })
 
-    // Start global interval ticker if not already running
-    if (!get().intervalId) {
-      const intId = setInterval(() => {
-        const { activeTracks } = get()
-        if (activeTracks.length === 0) {
-          clearInterval(get().intervalId)
-          set({ intervalId: null, isRunning: false })
-          return
-        }
-
-        const updated = activeTracks.map(t => {
-          if (t.isPaused) return t
-          return { ...t, elapsedSeconds: t.elapsedSeconds + 1 }
-        })
-
-        set({
-          activeTracks: updated,
-          isRunning: updated.length > 0,
-          elapsedSeconds: updated[0]?.elapsedSeconds || 0,
-          startTime: updated[0]?.startTime || null,
-          activeTitle: updated[0]?.title || '',
-          activeCategoryName: updated[0]?.categoryName || null,
-          activeCategoryColor: updated[0]?.categoryColor || null
-        })
-      }, 1000)
-
-      set({ intervalId: intId })
-    }
-
-    return trackId
+    ensureInterval(set, get)
+    return createdId
   },
 
-  updateActiveTrack: (trackId, data) => {
+  // Update active track (PATCH to DB)
+  updateActiveTrack: async (trackId, data) => {
     const updated = get().activeTracks.map(t => {
       if (t.id === trackId) {
         let newElapsed = t.elapsedSeconds
@@ -237,56 +301,82 @@ export const useTimerStore = create<TimerState>((set, get) => ({
       }
       return t
     })
+
     set({
       activeTracks: updated,
       activeTitle: updated[0]?.title || '',
       activeCategoryName: updated[0]?.categoryName || null,
       activeCategoryColor: updated[0]?.categoryColor || null
     })
+
+    const track = get().activeTracks.find(t => t.id === trackId)
+    const dbId = track?.db_id || Number(trackId)
+    if (dbId && !isNaN(dbId)) {
+      try {
+        await axios.patch(`/api/v1/time-tracking/active-tracks/${dbId}`, {
+          title: data.title,
+          category_id: data.categoryId,
+          start_time: data.startTime ? data.startTime.toISOString() : undefined
+        })
+      } catch (e) {
+        console.error('Failed to patch active track in DB', e)
+      }
+    }
   },
 
-  pauseTrack: (trackId: string) => {
+  pauseTrack: async (trackId: string) => {
+    const track = get().activeTracks.find(t => t.id === trackId)
     const updated = get().activeTracks.map(t => {
       if (t.id === trackId) return { ...t, isPaused: true }
       return t
     })
     set({ activeTracks: updated })
+
+    const dbId = track?.db_id || Number(trackId)
+    if (dbId && !isNaN(dbId)) {
+      try {
+        await axios.patch(`/api/v1/time-tracking/active-tracks/${dbId}`, {
+          is_paused: true,
+          accumulated_seconds: track?.elapsedSeconds || 0
+        })
+      } catch (e) {
+        console.error('Failed to pause track in DB', e)
+      }
+    }
   },
 
-  resumeTrack: (trackId: string) => {
+  resumeTrack: async (trackId: string) => {
+    const track = get().activeTracks.find(t => t.id === trackId)
     const updated = get().activeTracks.map(t => {
       if (t.id === trackId) return { ...t, isPaused: false }
       return t
     })
     set({ activeTracks: updated })
+
+    const dbId = track?.db_id || Number(trackId)
+    if (dbId && !isNaN(dbId)) {
+      try {
+        await axios.patch(`/api/v1/time-tracking/active-tracks/${dbId}`, {
+          is_paused: false
+        })
+      } catch (e) {
+        console.error('Failed to resume track in DB', e)
+      }
+    }
   },
 
   stopTrack: async (trackId: string) => {
     const track = get().activeTracks.find(t => t.id === trackId)
-    if (!track) return
+    const dbId = track?.db_id || Number(trackId)
 
-    const end = new Date()
-    const start = track.startTime || new Date(end.getTime() - track.elapsedSeconds * 1000)
-
-    if (track.elapsedSeconds >= 1) {
+    if (dbId && !isNaN(dbId)) {
       try {
-        await axios.post('/api/v1/time-tracking/logs', {
-          task_id: track.taskId,
-          habit_id: track.habitId,
-          category_id: track.categoryId,
-          start_time: start.toISOString(),
-          end_time: end.toISOString(),
-          duration_seconds: track.elapsedSeconds,
-          timer_type: track.mode,
-          notes: track.title
-        })
-
-        // Refresh stores
+        await axios.post(`/api/v1/time-tracking/active-tracks/${dbId}/finish`)
         const todayIso = new Date().toISOString().split('T')[0]
         useTimeLogStore.getState().fetchLogs(todayIso)
         useTaskStore.getState().fetchTasks()
       } catch (e) {
-        console.error('Failed to save actual time log', e)
+        console.error('Failed to finish track in DB', e)
       }
     }
 
@@ -307,7 +397,18 @@ export const useTimerStore = create<TimerState>((set, get) => ({
     }
   },
 
-  cancelTrack: (trackId: string) => {
+  cancelTrack: async (trackId: string) => {
+    const track = get().activeTracks.find(t => t.id === trackId)
+    const dbId = track?.db_id || Number(trackId)
+
+    if (dbId && !isNaN(dbId)) {
+      try {
+        await axios.delete(`/api/v1/time-tracking/active-tracks/${dbId}`)
+      } catch (e) {
+        console.error('Failed to delete active track in DB', e)
+      }
+    }
+
     const remainingTracks = get().activeTracks.filter(t => t.id !== trackId)
     set({
       activeTracks: remainingTracks,
@@ -325,7 +426,6 @@ export const useTimerStore = create<TimerState>((set, get) => ({
     }
   },
 
-  // Legacy single-timer compatibility
   startTimer: async (target) => {
     await get().startNewTrack({
       title: target?.title || 'Hoạt động thực tế',

@@ -69,3 +69,36 @@ TimeHack hỗ trợ 2 kênh gửi thông báo:
 
 ### 🔹 Kênh 2: Direct Bot Token Fallback
 * Nếu CentralAuth tạm thời không khả dụng, TimeHack tự động gửi trực tiếp qua `TELEGRAM_BOT_TOKEN` cấu hình trong `.env`.
+
+---
+
+## 5. Cơ chế Liên kết Telegram Bot Thông minh 1-Chạm (Deep-Link Connect Token)
+
+Nhằm tối ưu UX, hệ thống loại bỏ hoàn toàn việc bắt người dùng phải tự đi dò và nhập số `Chat ID` 9-10 chữ số:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as Người dùng
+    participant Web as Web App (TimeHack)
+    participant Central as CentralAuth Queue API
+    participant Bot as Telegram Bot (@InMindBot)
+
+    User->>Web: Mở Modal Cài đặt -> Tab Telegram
+    Web->>Central: GET /api/v1/notifications/telegram/config
+    Central-->>Web: Trả về { is_linked: false, connect_token: "VB_84F92A", bot_username: "InMindBot" }
+    Web-->>User: Hiển thị Mã ghép nối & Nút "[Mở Telegram Bot]"
+    User->>Bot: Bấm nút -> Telegram mở https://t.me/InMindBot?start=VB_84F92A
+    Bot->>Central: Nhận lệnh /start TOKEN -> Lưu Chat ID của User vào DB
+    Bot-->>User: "🎉 Xin chào! Tài khoản của bạn đã được liên kết thành công!"
+    User->>Web: Bấm "[Tôi đã bấm /start (Kiểm tra lại)]"
+    Web->>Central: GET /api/v1/notifications/telegram/config
+    Central-->>Web: Trả về { is_linked: true, telegram_chat_id: "123456789" }
+    Web-->>User: Chuyển sang giao diện 🟢 "Đã kết nối Telegram"
+```
+
+### 🔹 Ưu điểm vượt trội:
+1. **1-Chạm Kết Nối**: Người dùng chỉ cần ấn nút duy nhất để mở Telegram và ấn `Start`.
+2. **Đồng bộ xuyên suốt Hệ sinh thái**: Tài khoản liên kết 1 lần tại `@InMindBot` sẽ tự động nhận diện trên toàn bộ các ứng dụng con (Vocaburn, TimeHack, RemiNote).
+3. **Bảo mật**: Mã `connect_token` là duy nhất và tự động tạo mới sau mỗi lần Hủy liên kết (Unlink).
+4. **Tùy biến Thông báo**: Cho phép cấu hình giờ nhận báo cáo tổng kết ngày (`reminder_time`), bật/tắt nhắc nhở việc đến hạn (`notify_task`), chuỗi thói quen (`notify_habit`), và gửi tin nhắn kiểm tra trực tiếp (`POST /api/v1/notifications/telegram/test`).

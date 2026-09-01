@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import {
   X, User, Globe, Send, Bell, Volume2, ShieldCheck, Check,
   Clock, LogOut, Sparkles, CheckCircle2, AlertCircle, ExternalLink,
-  Smartphone, MessageSquare
+  Smartphone, MessageSquare, Copy, RefreshCw, Unlink, Bot
 } from 'lucide-react'
 import { useAuthStore } from '../store/useAuthStore'
 import { sounds } from '../utils/soundEffects'
@@ -11,6 +11,18 @@ import axios from 'axios'
 interface Props {
   isOpen: boolean
   onClose: () => void
+}
+
+interface TelegramConfigData {
+  is_linked: boolean
+  telegram_chat_id?: string | null
+  connect_token?: string | null
+  bot_username?: string
+  reminder_time?: string
+  is_active?: boolean
+  notify_task?: boolean
+  notify_habit?: boolean
+  notify_daily_report?: boolean
 }
 
 const COMMON_TIMEZONES = [
@@ -38,7 +50,11 @@ export const UserSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
   const [selectedTz, setSelectedTz] = useState(currentTimezone)
 
   // Telegram state
-  const [telegramChatId, setTelegramChatId] = useState(user?.settings?.telegram_chat_id || '')
+  const [tgConfig, setTgConfig] = useState<TelegramConfigData | null>(null)
+  const [tgLoading, setTgLoading] = useState(false)
+  const [manualChatId, setManualChatId] = useState('')
+  const [showManualInput, setShowManualInput] = useState(false)
+  const [copiedToken, setCopiedToken] = useState(false)
   const [telegramStatus, setTelegramStatus] = useState<'idle' | 'saving' | 'saved' | 'testing' | 'test_success' | 'test_failed'>('idle')
   const [telegramMessage, setTelegramMessage] = useState('')
 
@@ -50,7 +66,6 @@ export const UserSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
   useEffect(() => {
     if (user?.settings) {
-      if (user.settings.telegram_chat_id !== undefined) setTelegramChatId(user.settings.telegram_chat_id)
       if (user.settings.notify_task !== undefined) setNotifyTask(user.settings.notify_task)
       if (user.settings.notify_habit !== undefined) setNotifyHabit(user.settings.notify_habit)
       if (user.settings.notify_daily_report !== undefined) setNotifyDailyReport(user.settings.notify_daily_report)
@@ -60,6 +75,27 @@ export const UserSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
       setSelectedTz(user.timezone)
     }
   }, [user])
+
+  const fetchTelegramConfig = async () => {
+    try {
+      setTgLoading(true)
+      const res = await axios.get('/api/v1/notifications/telegram/config')
+      setTgConfig(res.data)
+      if (res.data.telegram_chat_id) {
+        setManualChatId(res.data.telegram_chat_id)
+      }
+    } catch (e) {
+      console.error('Failed to load telegram config', e)
+    } finally {
+      setTgLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (isOpen && activeTab === 'telegram') {
+      fetchTelegramConfig()
+    }
+  }, [isOpen, activeTab])
 
   if (!isOpen) return null
 
@@ -84,42 +120,64 @@ export const UserSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
   }
 
   // 2. Telegram handlers
-  const handleSaveTelegram = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault()
-    if (!telegramChatId.trim()) return
+  const handleCopyToken = () => {
+    if (!tgConfig?.connect_token) return
+    sounds.playTap()
+    navigator.clipboard.writeText(tgConfig.connect_token)
+    setCopiedToken(true)
+    setTimeout(() => setCopiedToken(false), 2000)
+  }
+
+  const handleUpdateTgConfig = async (payload: Partial<TelegramConfigData> & { unlink?: boolean }) => {
+    sounds.playTap()
+    try {
+      setTelegramStatus('saving')
+      await axios.post('/api/v1/notifications/telegram/config', payload)
+      await fetchTelegramConfig()
+      setTelegramStatus('saved')
+      sounds.playSuccess()
+    } catch (e: any) {
+      setTelegramStatus('idle')
+      setTelegramMessage(e.response?.data?.detail || 'Lỗi cập nhật cấu hình Telegram')
+    }
+  }
+
+  const handleManualLinkTelegram = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!manualChatId.trim()) return
     sounds.playTap()
     setTelegramStatus('saving')
     try {
       await axios.post('/api/v1/notifications/telegram/link', {
-        telegram_chat_id: telegramChatId.trim()
+        telegram_chat_id: manualChatId.trim()
       })
-      await updateSettings({ telegram_chat_id: telegramChatId.trim() })
+      await fetchTelegramConfig()
       setTelegramStatus('saved')
-      setTelegramMessage('Telegram Chat ID linked successfully!')
+      setTelegramMessage('Liên kết Telegram Chat ID thành công!')
       sounds.playSuccess()
     } catch (err: any) {
       setTelegramStatus('idle')
-      setTelegramMessage(err.response?.data?.detail || 'Failed to save Chat ID')
+      setTelegramMessage(err.response?.data?.detail || 'Không thể liên kết Chat ID')
     }
   }
 
   const handleTestTelegram = async () => {
     sounds.playTap()
     setTelegramStatus('testing')
-    setTelegramMessage('Sending test notification...')
+    setTelegramMessage('Đang gửi thông báo thử nghiệm đến Telegram...')
     try {
       const res = await axios.post('/api/v1/notifications/telegram/test')
       if (res.data.status === 'ok' || res.data.sent) {
         setTelegramStatus('test_success')
-        setTelegramMessage('Test notification sent! Check your Telegram.')
+        setTelegramMessage('🎉 Đã gửi thông báo thử nghiệm thành công! Hãy kiểm tra Telegram của bạn.')
         sounds.playSuccess()
       } else {
         setTelegramStatus('test_failed')
-        setTelegramMessage('Failed to deliver message. Make sure you started the Bot on Telegram first!')
+        setTelegramMessage('Không thể gửi tin nhắn. Hãy chắc chắn bạn đã bấm /start với bot trên Telegram!')
       }
     } catch (err: any) {
       setTelegramStatus('test_failed')
-      setTelegramMessage(err.response?.data?.detail || 'Test notification error')
+      setTelegramMessage(err.response?.data?.detail || 'Lỗi gửi thông báo thử nghiệm')
     }
   }
 
@@ -129,6 +187,10 @@ export const UserSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
     setter(val)
     await updateSettings({ [key]: val })
   }
+
+  const botUsername = (tgConfig?.bot_username || 'InMindBot').replace(/^@/, '')
+  const connectToken = tgConfig?.connect_token || '...'
+  const directBotLink = `https://t.me/${botUsername}?start=${connectToken}`
 
   return (
     <>
@@ -182,13 +244,16 @@ export const UserSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
           </button>
           <button
             onClick={() => { sounds.playTap(); setActiveTab('telegram') }}
-            className={`py-1.5 rounded-lg transition ${
+            className={`py-1.5 rounded-lg transition flex items-center justify-center gap-1 ${
               activeTab === 'telegram'
                 ? 'bg-white text-violet-700 shadow-xs'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            Telegram
+            <span>Telegram</span>
+            {tgConfig?.is_linked && (
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            )}
           </button>
           <button
             onClick={() => { sounds.playTap(); setActiveTab('notifications') }}
@@ -298,74 +363,247 @@ export const UserSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
           </div>
         )}
 
-        {/* ── Tab 3: Telegram Bot ────────── */}
+        {/* ── Tab 3: Telegram Bot (Smart 1-Tap Deep-Link) ────────── */}
         {activeTab === 'telegram' && (
           <div className="space-y-3.5 animate-fade-in">
-            {/* Bot Guide Card */}
-            <div className="bg-sky-50 border border-sky-200 rounded-2xl p-3.5 space-y-2">
-              <div className="flex items-center gap-2 text-sky-800 text-xs font-bold">
-                <MessageSquare className="w-4 h-4 text-sky-600" />
-                <span>How to link Telegram Bot</span>
+            {tgLoading && !tgConfig ? (
+              <div className="py-8 text-center text-slate-400 space-y-2">
+                <RefreshCw className="w-6 h-6 animate-spin mx-auto text-sky-500" />
+                <p className="text-xs font-bold text-slate-600">Đang kiểm tra kết nối Telegram...</p>
               </div>
-              <ol className="text-[11px] text-sky-900/80 space-y-1 list-decimal list-inside leading-relaxed">
-                <li>Open Telegram and search for <strong>@InMindBot</strong> or <strong>@userinfobot</strong>.</li>
-                <li>Tap <code>/start</code> to get your numeric <strong>Chat ID</strong> (9-10 digits).</li>
-                <li>Paste your Chat ID below and click <strong>Link Chat ID</strong>.</li>
-              </ol>
-            </div>
+            ) : tgConfig?.is_linked ? (
+              /* ── STATE 1: ALREADY CONNECTED ── */
+              <div className="space-y-3">
+                {/* Connected Header Card */}
+                <div className="bg-emerald-50/80 border border-emerald-200 rounded-2xl p-3.5 flex items-center justify-between">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-sm shrink-0">
+                      <CheckCircle2 className="w-6 h-6" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-xs font-black text-slate-900 flex items-center gap-1.5">
+                        <span>Đã kết nối Telegram</span>
+                        <span className="text-[9px] bg-emerald-200/80 text-emerald-800 font-bold px-1.5 py-0.2 rounded-md uppercase font-mono">
+                          Online
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-slate-500 font-mono mt-0.5 truncate">
+                        Chat ID: {tgConfig.telegram_chat_id || 'Đã liên kết'}
+                      </div>
+                    </div>
+                  </div>
 
-            {/* Input Form */}
-            <form onSubmit={handleSaveTelegram} className="space-y-2.5">
-              <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  Your Telegram Chat ID
-                </label>
-                <input
-                  type="text"
-                  value={telegramChatId}
-                  onChange={e => setTelegramChatId(e.target.value)}
-                  placeholder="e.g. 123456789"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
-                />
-              </div>
-
-              {telegramMessage && (
-                <div className={`p-2.5 rounded-xl text-xs font-medium flex items-center gap-1.5 ${
-                  telegramStatus === 'test_success' || telegramStatus === 'saved'
-                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                    : telegramStatus === 'test_failed'
-                    ? 'bg-rose-50 text-rose-800 border border-rose-200'
-                    : 'bg-slate-100 text-slate-700'
-                }`}>
-                  {telegramStatus === 'test_success' || telegramStatus === 'saved' ? (
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                  ) : (
-                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-                  )}
-                  <span>{telegramMessage}</span>
+                  <button
+                    onClick={() => handleUpdateTgConfig({ unlink: true })}
+                    className="px-2.5 py-1.5 rounded-xl bg-white border border-rose-200 hover:bg-rose-50 text-rose-600 text-[11px] font-bold active:scale-95 transition flex items-center gap-1 shrink-0"
+                    title="Hủy liên kết tài khoản Telegram"
+                  >
+                    <Unlink className="w-3.5 h-3.5" />
+                    <span>Hủy nối</span>
+                  </button>
                 </div>
-              )}
 
-              <div className="grid grid-cols-2 gap-2 pt-1">
-                <button
-                  type="submit"
-                  disabled={telegramStatus === 'saving'}
-                  className="py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold active:scale-[0.98] transition shadow-xs disabled:opacity-50"
-                >
-                  {telegramStatus === 'saving' ? 'Linking...' : 'Link Chat ID'}
-                </button>
+                {/* Reminder Settings Card */}
+                <div className="bg-white border border-slate-200 rounded-2xl p-3.5 space-y-3 shadow-2xs">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                    <span className="text-xs font-bold text-slate-700">Giờ gửi báo cáo hằng ngày</span>
+                    <select
+                      value={tgConfig.reminder_time || '20:00'}
+                      onChange={e => handleUpdateTgConfig({ reminder_time: e.target.value })}
+                      className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1 text-xs font-bold text-violet-700 font-mono outline-none cursor-pointer focus:bg-white focus:border-violet-500"
+                    >
+                      {Array.from({ length: 18 }).map((_, i) => {
+                        const h = (i + 6).toString().padStart(2, '0')
+                        return <option key={`${h}:00`} value={`${h}:00`}>{h}:00</option>
+                      })}
+                    </select>
+                  </div>
 
-                <button
-                  type="button"
-                  onClick={handleTestTelegram}
-                  disabled={!telegramChatId.trim() || telegramStatus === 'testing'}
-                  className="py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold active:scale-[0.98] transition shadow-xs disabled:opacity-40 flex items-center justify-center gap-1.5"
-                >
-                  <Send className="w-3.5 h-3.5 text-violet-600" />
-                  <span>{telegramStatus === 'testing' ? 'Sending...' : 'Send Test Alert'}</span>
-                </button>
+                  <div className="space-y-2">
+                    <label
+                      onClick={() => handleUpdateTgConfig({ notify_task: !(tgConfig.notify_task ?? true) })}
+                      className="flex items-center justify-between text-xs font-medium text-slate-800 cursor-pointer p-1 rounded-lg hover:bg-slate-50"
+                    >
+                      <span>⏰ Nhắc nhở nhiệm vụ đến hạn</span>
+                      <input
+                        type="checkbox"
+                        checked={tgConfig.notify_task ?? true}
+                        onChange={() => {}}
+                        className="rounded accent-violet-600"
+                      />
+                    </label>
+
+                    <label
+                      onClick={() => handleUpdateTgConfig({ notify_habit: !(tgConfig.notify_habit ?? true) })}
+                      className="flex items-center justify-between text-xs font-medium text-slate-800 cursor-pointer p-1 rounded-lg hover:bg-slate-50"
+                    >
+                      <span>⚡ Nhắc nhở chuỗi thói quen (Streak)</span>
+                      <input
+                        type="checkbox"
+                        checked={tgConfig.notify_habit ?? true}
+                        onChange={() => {}}
+                        className="rounded accent-violet-600"
+                      />
+                    </label>
+
+                    <label
+                      onClick={() => handleUpdateTgConfig({ notify_daily_report: !(tgConfig.notify_daily_report ?? true) })}
+                      className="flex items-center justify-between text-xs font-medium text-slate-800 cursor-pointer p-1 rounded-lg hover:bg-slate-50"
+                    >
+                      <span>📊 Báo cáo tổng kết ngày & tuần</span>
+                      <input
+                        type="checkbox"
+                        checked={tgConfig.notify_daily_report ?? true}
+                        onChange={() => {}}
+                        className="rounded accent-violet-600"
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                {/* Status Message */}
+                {telegramMessage && (
+                  <div className={`p-2.5 rounded-xl text-xs font-medium flex items-center gap-1.5 ${
+                    telegramStatus === 'test_success' || telegramStatus === 'saved'
+                      ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                      : telegramStatus === 'test_failed'
+                      ? 'bg-rose-50 text-rose-800 border border-rose-200'
+                      : 'bg-slate-100 text-slate-700'
+                  }`}>
+                    {telegramStatus === 'test_success' || telegramStatus === 'saved' ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    ) : (
+                      <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                    )}
+                    <span>{telegramMessage}</span>
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <button
+                    onClick={handleTestTelegram}
+                    disabled={telegramStatus === 'testing'}
+                    className="py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold active:scale-[0.98] transition shadow-xs flex items-center justify-center gap-1.5 disabled:opacity-50"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    <span>{telegramStatus === 'testing' ? 'Đang gửi...' : 'Gửi thông báo thử'}</span>
+                  </button>
+
+                  <button
+                    onClick={fetchTelegramConfig}
+                    className="py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold active:scale-[0.98] transition shadow-xs flex items-center justify-center gap-1.5"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Làm mới</span>
+                  </button>
+                </div>
               </div>
-            </form>
+            ) : (
+              /* ── STATE 2: NOT CONNECTED (SMART 1-TAP DEEP LINK) ── */
+              <div className="space-y-3">
+                {/* Hero Card */}
+                <div className="bg-gradient-to-br from-sky-500/10 via-violet-500/10 to-slate-50 border border-sky-200/80 rounded-3xl p-4 text-center space-y-3">
+                  <div className="w-12 h-12 rounded-2xl bg-sky-500 text-white flex items-center justify-center mx-auto shadow-md shadow-sky-500/25">
+                    <Bot className="w-6 h-6" />
+                  </div>
+
+                  <div>
+                    <h3 className="text-sm font-black text-slate-900">Liên kết Telegram Bot 1-Chạm</h3>
+                    <p className="text-[11px] text-slate-500 font-medium max-w-xs mx-auto mt-1">
+                      Nhận thông báo nhắc nhở việc đến hạn, thói quen và báo cáo ngày tức thì qua Bot <strong>@{botUsername}</strong>.
+                    </p>
+                  </div>
+
+                  {/* Connect Token Display */}
+                  <div className="bg-white border border-slate-200/90 rounded-2xl p-3 flex items-center justify-between gap-2 max-w-xs mx-auto shadow-2xs">
+                    <div className="min-w-0 text-left pl-1">
+                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Mã ghép nối</span>
+                      <span className="text-base font-black font-mono tracking-widest text-violet-700">
+                        {connectToken}
+                      </span>
+                    </div>
+
+                    <button
+                      onClick={handleCopyToken}
+                      className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 active:scale-90 transition flex items-center gap-1 text-[11px] font-bold"
+                      title="Sao chép mã ghép nối"
+                    >
+                      {copiedToken ? (
+                        <>
+                          <Check className="w-3.5 h-3.5 text-emerald-600 stroke-[3]" />
+                          <span className="text-emerald-600">Đã chép</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5" />
+                          <span>Sao chép</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* 1-Tap Big Action Button */}
+                  <a
+                    href={directBotLink}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={() => sounds.playTap()}
+                    className="inline-flex items-center justify-center gap-2 w-full py-3 bg-sky-500 hover:bg-sky-600 text-white font-bold text-xs uppercase tracking-wider rounded-2xl shadow-md shadow-sky-500/25 active:scale-[0.98] transition"
+                  >
+                    <Send className="w-4 h-4" />
+                    <span>Mở Telegram Bot (@{botUsername})</span>
+                  </a>
+
+                  <p className="text-[10px] text-slate-400 leading-relaxed">
+                    Sau khi bấm nút, Telegram sẽ mở và tự động gửi <code>/start {connectToken}</code> để kết nối.
+                  </p>
+                </div>
+
+                {/* Refresh Status Button */}
+                <button
+                  onClick={fetchTelegramConfig}
+                  className="w-full py-2.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold flex items-center justify-center gap-1.5 active:scale-[0.98] transition shadow-2xs"
+                >
+                  <RefreshCw className="w-3.5 h-3.5 text-violet-600" />
+                  <span>Tôi đã bấm /start trên Bot (Kiểm tra lại)</span>
+                </button>
+
+                {/* Collapsible Manual Chat ID Fallback */}
+                <div className="pt-1">
+                  <button
+                    onClick={() => setShowManualInput(!showManualInput)}
+                    className="text-[11px] font-bold text-slate-400 hover:text-slate-600 underline block mx-auto transition"
+                  >
+                    {showManualInput ? 'Ẩn nhập thủ công Chat ID' : 'Hoặc nhập thủ công Chat ID'}
+                  </button>
+
+                  {showManualInput && (
+                    <form onSubmit={handleManualLinkTelegram} className="mt-2.5 p-3 rounded-2xl bg-slate-50 border border-slate-200 space-y-2 anim-fade-in">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                        Nhập số Chat ID (9-10 chữ số)
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={manualChatId}
+                          onChange={e => setManualChatId(e.target.value)}
+                          placeholder="VD: 123456789"
+                          className="flex-1 px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-mono font-bold text-slate-900 outline-none focus:border-violet-500"
+                        />
+                        <button
+                          type="submit"
+                          disabled={telegramStatus === 'saving'}
+                          className="px-3 py-2 rounded-xl bg-violet-600 text-white text-xs font-bold hover:bg-violet-700 active:scale-95 transition"
+                        >
+                          Lưu
+                        </button>
+                      </div>
+                    </form>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

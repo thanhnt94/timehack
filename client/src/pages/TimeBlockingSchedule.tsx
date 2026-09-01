@@ -3,27 +3,45 @@ import {
   Calendar as CalendarIcon, Plus, Check, Clock, Trash2, X,
   Sparkles, ArrowRight, Play, CheckCircle2, Flame, BarChart2,
   TrendingUp, AlertCircle, ChevronLeft, ChevronRight, LayoutList,
-  Columns, Clock3, SplitSquareVertical
+  Columns, Clock3, SplitSquareVertical, Layers, Filter
 } from 'lucide-react'
 import { useScheduleStore, type ScheduleSlot } from '../store/useScheduleStore'
 import { useTimeLogStore, type TimeLogItem } from '../store/useTimeLogStore'
 import { useTimerStore } from '../store/useTimerStore'
 import { sounds } from '../utils/soundEffects'
 
-type CalendarTab = 'timeline' | 'plan' | 'timelog' | 'compare'
+type ViewMode = 'timeline' | 'blocks'
+type BlockFilter = 'all' | 'plan' | 'timelog' | 'compare'
 
 // Start from 06:00 (6 AM) to 23:00 (11 PM) for high-density daily schedule
 const START_HOUR = 6
 const END_HOUR = 23
 const HOUR_HEIGHT = 64 // pixels per hour block
 
+interface CombinedBlockItem {
+  type: 'slot' | 'log'
+  id: number
+  startTimeStr: string
+  endTimeStr: string
+  title: string
+  notes?: string
+  durationMinutes: number
+  isDone?: boolean
+  timerType?: string
+  rawSlot?: ScheduleSlot
+  rawLog?: TimeLogItem
+}
+
 export const TimeBlockingSchedule: React.FC = () => {
   const { slots, selectedDate, setSelectedDate, fetchSlots, createSlot, toggleSlotDone, deleteSlot } = useScheduleStore()
   const { logs, fetchLogs, createLog, deleteLog } = useTimeLogStore()
   const { startTimer } = useTimerStore()
 
-  // Default to Timeline View as requested
-  const [activeTab, setActiveTab] = useState<CalendarTab>('timeline')
+  // 1. Primary View Mode Switcher: Timeline vs Blocks (No empty hours)
+  const [viewMode, setViewMode] = useState<ViewMode>('blocks')
+
+  // 2. Filter Tab for Blocks View
+  const [blockFilter, setBlockFilter] = useState<BlockFilter>('all')
 
   // Create Plan Slot modal state
   const [planModalOpen, setPlanModalOpen] = useState(false)
@@ -63,12 +81,12 @@ export const TimeBlockingSchedule: React.FC = () => {
 
   // Auto-scroll timeline to current hour on load
   useEffect(() => {
-    if (activeTab === 'timeline' && timelineScrollRef.current) {
+    if (viewMode === 'timeline' && timelineScrollRef.current) {
       const currentHour = new Date().getHours()
       const scrollOffset = Math.max(0, (currentHour - START_HOUR - 1) * HOUR_HEIGHT)
       timelineScrollRef.current.scrollTo({ top: scrollOffset, behavior: 'smooth' })
     }
-  }, [activeTab, selectedDate])
+  }, [viewMode, selectedDate])
 
   // 7-day Date Strip: Strictly DAY OF WEEK (MON, TUE, WED...) - NO "TODAY" / "TOMORROW" text
   const datePills = useMemo(() => {
@@ -80,7 +98,6 @@ export const TimeBlockingSchedule: React.FC = () => {
       const d = new Date(base)
       d.setDate(base.getDate() + i)
       const iso = d.toISOString().split('T')[0]
-      // Always short weekday e.g. MON, TUE, WED
       const weekdayLabel = d.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase()
       const dayNum = d.getDate()
       const isToday = iso === todayIso
@@ -89,7 +106,6 @@ export const TimeBlockingSchedule: React.FC = () => {
     return dates
   }, [])
 
-  // Quick navigation handlers for dates
   const handlePrevDay = () => {
     sounds.playTap()
     const d = new Date(selectedDate)
@@ -109,15 +125,72 @@ export const TimeBlockingSchedule: React.FC = () => {
     setSelectedDate(new Date().toISOString().split('T')[0])
   }
 
-  // Calculations
-  const sortedSlots = useMemo(() => {
-    return [...slots].sort((a, b) => a.start_time.localeCompare(b.start_time))
-  }, [slots])
+  const formatLocalTime = (isoString: string) => {
+    try {
+      const d = new Date(isoString)
+      return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
+    } catch {
+      return ''
+    }
+  }
 
-  const sortedLogs = useMemo(() => {
-    return [...logs].sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
-  }, [logs])
+  const timeToMinutes = (timeStr: string) => {
+    const [h, m] = timeStr.split(':').map(Number)
+    return (h || 0) * 60 + (m || 0)
+  }
 
+  // Combined and sorted list of Blocks (No empty hours)
+  const combinedBlocks = useMemo(() => {
+    const list: CombinedBlockItem[] = []
+
+    // 1. Add Planned Slots
+    slots.forEach(s => {
+      const startMins = timeToMinutes(s.start_time)
+      const endMins = timeToMinutes(s.end_time)
+      const dur = Math.max(0, endMins - startMins)
+      list.push({
+        type: 'slot',
+        id: s.id,
+        startTimeStr: s.start_time,
+        endTimeStr: s.end_time,
+        title: s.title,
+        notes: s.notes,
+        durationMinutes: dur,
+        isDone: s.is_done,
+        rawSlot: s
+      })
+    })
+
+    // 2. Add Focus Time Logs
+    logs.forEach(l => {
+      const st = formatLocalTime(l.start_time)
+      const et = formatLocalTime(l.end_time)
+      const dur = Math.round((l.duration_seconds || 0) / 60)
+      list.push({
+        type: 'log',
+        id: l.id,
+        startTimeStr: st,
+        endTimeStr: et,
+        title: l.task_title || l.habit_title || l.notes || 'Focus Session',
+        notes: l.notes && l.task_title ? l.notes : undefined,
+        durationMinutes: dur,
+        timerType: l.timer_type,
+        rawLog: l
+      })
+    })
+
+    // Sort chronologically by start time
+    return list.sort((a, b) => a.startTimeStr.localeCompare(b.startTimeStr))
+  }, [slots, logs])
+
+  // Filtered blocks based on blockFilter
+  const filteredBlocks = useMemo(() => {
+    if (blockFilter === 'plan') return combinedBlocks.filter(b => b.type === 'slot')
+    if (blockFilter === 'timelog') return combinedBlocks.filter(b => b.type === 'log')
+    return combinedBlocks
+  }, [combinedBlocks, blockFilter])
+
+  // Total metrics
   const totalLogSeconds = useMemo(() => {
     return logs.reduce((acc, cur) => acc + (cur.duration_seconds || 0), 0)
   }, [logs])
@@ -129,7 +202,6 @@ export const TimeBlockingSchedule: React.FC = () => {
     return `${hours}h ${mins > 0 ? `${mins}m` : ''}`
   }, [totalLogSeconds])
 
-  // Total Planned Minutes
   const totalPlannedMinutes = useMemo(() => {
     return slots.reduce((acc, slot) => {
       try {
@@ -200,26 +272,23 @@ export const TimeBlockingSchedule: React.FC = () => {
     setPlanModalOpen(true)
   }
 
-  const formatLocalTime = (isoString: string) => {
-    try {
-      const d = new Date(isoString)
-      return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
-    } catch {
-      return ''
-    }
-  }
+  const handleStartSlotFocus = (slot: ScheduleSlot) => {
+    sounds.playTap()
+    const [sh, sm] = slot.start_time.split(':').map(Number)
+    const [eh, em] = slot.end_time.split(':').map(Number)
+    const durMins = Math.max(15, (eh * 60 + em) - (sh * 60 + sm))
 
-  // Parse time helper (HH:MM to minutes from midnight)
-  const timeToMinutes = (timeStr: string) => {
-    const [h, m] = timeStr.split(':').map(Number)
-    return (h || 0) * 60 + (m || 0)
+    startTimer({
+      title: `Block: ${slot.title}`,
+      durationMinutes: durMins
+    })
   }
 
   const isViewingToday = selectedDate === new Date().toISOString().split('T')[0]
 
   return (
     <div className="flex-1 flex flex-col min-h-0 space-y-3 pb-4">
-      {/* ── 1. Clean Top Header: Date Selector & Quick Metrics (No Duplicate 'Calendar' Title) ── */}
+      {/* ── 1. Clean Top Header: Date Navigator & Switch View Button ── */}
       <div className="flex items-center justify-between gap-2 pt-1">
         {/* Date Navigator */}
         <div className="flex items-center gap-1.5">
@@ -255,14 +324,33 @@ export const TimeBlockingSchedule: React.FC = () => {
           )}
         </div>
 
-        {/* Quick KPI Badges */}
-        <div className="flex items-center gap-1.5 shrink-0">
-          <span className="text-[11px] font-mono font-bold text-sky-800 bg-sky-50 px-2 py-0.5 rounded-lg border border-sky-200" title="Planned Time">
-            📅 {totalPlannedHoursFormatted}
-          </span>
-          <span className="text-[11px] font-mono font-bold text-violet-800 bg-violet-50 px-2 py-0.5 rounded-lg border border-violet-200" title="Actual Logged Time">
-            ⏱️ {totalLogHoursFormatted}
-          </span>
+        {/* Primary View Switcher: [ 📦 Blocks ] vs [ ⏱️ Timeline ] */}
+        <div className="flex items-center p-0.5 bg-slate-200/80 rounded-xl border border-slate-200 text-xs font-bold shrink-0">
+          <button
+            onClick={() => { sounds.playTap(); setViewMode('blocks') }}
+            className={`px-2.5 py-1 rounded-lg transition flex items-center gap-1.5 ${
+              viewMode === 'blocks'
+                ? 'bg-white text-violet-700 shadow-2xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+            title="Compact blocks only (No empty hours)"
+          >
+            <LayoutList className="w-3.5 h-3.5" />
+            <span>Blocks</span>
+          </button>
+
+          <button
+            onClick={() => { sounds.playTap(); setViewMode('timeline') }}
+            className={`px-2.5 py-1 rounded-lg transition flex items-center gap-1.5 ${
+              viewMode === 'timeline'
+                ? 'bg-white text-violet-700 shadow-2xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+            title="Hourly Timeline with ruler"
+          >
+            <Clock3 className="w-3.5 h-3.5" />
+            <span>Timeline</span>
+          </button>
         </div>
       </div>
 
@@ -299,60 +387,258 @@ export const TimeBlockingSchedule: React.FC = () => {
         })}
       </div>
 
-      {/* ── 3. View Switcher Tabs (Timeline, Plan Slots, Time Log, Compare) ── */}
-      <div className="grid grid-cols-4 gap-1 p-1 bg-slate-200/70 rounded-2xl text-xs font-bold shrink-0">
-        <button
-          onClick={() => { sounds.playTap(); setActiveTab('timeline') }}
-          className={`py-1.5 rounded-xl transition flex items-center justify-center gap-1 ${
-            activeTab === 'timeline'
-              ? 'bg-white text-violet-700 shadow-2xs'
-              : 'text-slate-600 hover:text-slate-900'
-          }`}
-        >
-          <Clock3 className="w-3.5 h-3.5" />
-          <span>Timeline</span>
-        </button>
+      {/* ── 3. Quick Metrics Overview Strip ── */}
+      <div className="grid grid-cols-2 gap-2">
+        <div className="bg-sky-50/90 border border-sky-200/80 rounded-2xl p-2.5 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <CalendarIcon className="w-4 h-4 text-sky-600 shrink-0" />
+            <div>
+              <div className="text-[9px] font-bold uppercase text-sky-700 tracking-wider">Planned</div>
+              <div className="text-sm font-black text-sky-950 font-mono">{totalPlannedHoursFormatted}</div>
+            </div>
+          </div>
+          <span className="text-[10px] font-bold text-sky-800 bg-white/80 px-2 py-0.5 rounded-lg border border-sky-200">
+            {slots.filter(s => s.is_done).length}/{slots.length} done
+          </span>
+        </div>
 
-        <button
-          onClick={() => { sounds.playTap(); setActiveTab('plan') }}
-          className={`py-1.5 rounded-xl transition flex items-center justify-center gap-1 ${
-            activeTab === 'plan'
-              ? 'bg-white text-violet-700 shadow-2xs'
-              : 'text-slate-600 hover:text-slate-900'
-          }`}
-        >
-          <LayoutList className="w-3.5 h-3.5" />
-          <span>Plan ({slots.length})</span>
-        </button>
-
-        <button
-          onClick={() => { sounds.playTap(); setActiveTab('timelog') }}
-          className={`py-1.5 rounded-xl transition flex items-center justify-center gap-1 ${
-            activeTab === 'timelog'
-              ? 'bg-white text-violet-700 shadow-2xs'
-              : 'text-slate-600 hover:text-slate-900'
-          }`}
-        >
-          <Clock className="w-3.5 h-3.5" />
-          <span>Logs ({logs.length})</span>
-        </button>
-
-        <button
-          onClick={() => { sounds.playTap(); setActiveTab('compare') }}
-          className={`py-1.5 rounded-xl transition flex items-center justify-center gap-1 ${
-            activeTab === 'compare'
-              ? 'bg-white text-violet-700 shadow-2xs'
-              : 'text-slate-600 hover:text-slate-900'
-          }`}
-        >
-          <TrendingUp className="w-3.5 h-3.5" />
-          <span>Compare</span>
-        </button>
+        <div className="bg-violet-50/90 border border-violet-200/80 rounded-2xl p-2.5 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Clock className="w-4 h-4 text-violet-600 shrink-0" />
+            <div>
+              <div className="text-[9px] font-bold uppercase text-violet-700 tracking-wider">Actual Focused</div>
+              <div className="text-sm font-black text-violet-950 font-mono">{totalLogHoursFormatted}</div>
+            </div>
+          </div>
+          <span className="text-[10px] font-bold text-violet-800 bg-white/80 px-2 py-0.5 rounded-lg border border-violet-200">
+            {logs.length} logs
+          </span>
+        </div>
       </div>
 
-      {/* ── VIEW 1: TIMELINE DAY VIEW (Visual 24h Time-Blocking Ruler) ── */}
-      {activeTab === 'timeline' && (
-        <div className="flex-1 flex flex-col min-h-0 bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden">
+      {/* ══════════════════════════════════════════════════════════════════════ */}
+      {/* ── VIEW MODE 1: COMPACT BLOCKS (NO EMPTY HOURS SHOWN) ─────────────── */}
+      {/* ══════════════════════════════════════════════════════════════════════ */}
+      {viewMode === 'blocks' && (
+        <div className="space-y-3 animate-fade-in">
+          {/* Sub-Filter Pills */}
+          <div className="flex items-center justify-between gap-1.5">
+            <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
+              {[
+                { id: 'all', label: `All Blocks (${combinedBlocks.length})` },
+                { id: 'plan', label: `Plan (${slots.length})` },
+                { id: 'timelog', label: `Time Logs (${logs.length})` },
+                { id: 'compare', label: 'Variance' },
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => { sounds.playTap(); setBlockFilter(tab.id as BlockFilter) }}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition active:scale-95 whitespace-nowrap border ${
+                    blockFilter === tab.id
+                      ? 'bg-violet-600 border-violet-600 text-white shadow-2xs'
+                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                onClick={() => { sounds.playTap(); setPlanModalOpen(true) }}
+                className="h-7 px-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-[11px] font-bold flex items-center gap-1 shadow-2xs active:scale-95 transition"
+                title="Add Plan Block"
+              >
+                <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                <span>Plan</span>
+              </button>
+              <button
+                onClick={() => { sounds.playTap(); setLogModalOpen(true) }}
+                className="h-7 px-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 text-[11px] font-bold flex items-center gap-1 active:scale-95 transition"
+                title="Log Time Entry"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Log</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Variance Analysis (When Compare Tab Selected) */}
+          {blockFilter === 'compare' && (
+            <div className="bg-white rounded-2xl p-3.5 border border-slate-200/90 shadow-2xs space-y-2.5">
+              <div className="flex items-start gap-2.5">
+                <TrendingUp className="w-4 h-4 text-violet-600 shrink-0 mt-0.5" />
+                <div className="text-xs text-slate-700 leading-relaxed">
+                  <strong>Time Auditing:</strong> Planned budget is <strong>{totalPlannedHoursFormatted}</strong> and actual recorded time is <strong>{totalLogHoursFormatted}</strong>.
+                  {totalLogSeconds > totalPlannedMinutes * 60 ? (
+                    <span className="text-emerald-700 font-semibold block mt-0.5">
+                      🎉 You focused +{Math.round((totalLogSeconds - totalPlannedMinutes * 60) / 60)} mins over your plan!
+                    </span>
+                  ) : (
+                    <span className="text-amber-700 font-semibold block mt-0.5">
+                      📌 {Math.max(0, Math.round((totalPlannedMinutes * 60 - totalLogSeconds) / 60))} mins remaining against plan.
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Chronological Blocks List */}
+          {filteredBlocks.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 px-4 text-center bg-white rounded-2xl border border-slate-200/90 shadow-2xs">
+              <div className="w-14 h-14 rounded-2xl bg-violet-50 border border-violet-200 text-violet-600 flex items-center justify-center shadow-xs mb-3">
+                <Layers className="w-7 h-7" />
+              </div>
+              <h3 className="text-sm font-black text-slate-900">No Time Blocks Scheduled</h3>
+              <p className="text-xs text-slate-500 mt-1 max-w-[260px] leading-relaxed">
+                Add planned focus blocks or record time entries to structure your day without empty hour clutter.
+              </p>
+
+              <div className="flex items-center gap-2 mt-5">
+                <button
+                  onClick={() => { sounds.playTap(); setPlanModalOpen(true) }}
+                  className="px-4 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold shadow-md shadow-violet-600/20 active:scale-95 transition flex items-center gap-1.5"
+                >
+                  <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                  <span>Add Plan Block</span>
+                </button>
+                <button
+                  onClick={() => { sounds.playTap(); setLogModalOpen(true) }}
+                  className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 text-xs font-bold active:scale-95 transition flex items-center gap-1.5"
+                >
+                  <Clock className="w-3.5 h-3.5" />
+                  <span>Log Time</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2.5">
+              {filteredBlocks.map(item => {
+                if (item.type === 'slot' && item.rawSlot) {
+                  const slot = item.rawSlot
+                  const isDone = !!slot.is_done
+                  return (
+                    <div
+                      key={`slot-${slot.id}`}
+                      className={`bg-white rounded-2xl p-3.5 border transition shadow-2xs ${
+                        isDone
+                          ? 'opacity-65 bg-emerald-50/20 border-emerald-200'
+                          : 'border-slate-200 hover:border-violet-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        {/* Checkbox */}
+                        <button
+                          onClick={() => { sounds.playTap(); toggleSlotDone(slot.id, !isDone); if (!isDone) sounds.playSuccess() }}
+                          className={`w-6 h-6 rounded-xl border flex items-center justify-center shrink-0 transition active:scale-90 ${
+                            isDone
+                              ? 'bg-emerald-500 border-emerald-500 text-white shadow-2xs'
+                              : 'border-slate-300 hover:border-violet-500 bg-white'
+                          }`}
+                          title={isDone ? 'Mark Pending' : 'Mark Completed'}
+                        >
+                          {isDone && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                        </button>
+
+                        {/* Content */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-[10px] font-mono font-bold text-sky-800 bg-sky-50 px-2 py-0.5 rounded-md border border-sky-200">
+                              {slot.start_time} - {slot.end_time} ({item.durationMinutes}m)
+                            </span>
+                            <span className="text-[9px] font-bold text-sky-700 bg-sky-100/60 px-1.5 py-0.2 rounded">
+                              📅 Plan Block
+                            </span>
+                          </div>
+                          <h4 className={`text-xs font-bold mt-1.5 truncate ${isDone ? 'line-through text-slate-400' : 'text-slate-900'}`}>
+                            {slot.title}
+                          </h4>
+                          {slot.notes && (
+                            <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-1 italic">{slot.notes}</p>
+                          )}
+                        </div>
+
+                        {/* Actions: Start Focus & Delete */}
+                        <div className="flex items-center gap-1 shrink-0">
+                          {!isDone && (
+                            <button
+                              onClick={() => handleStartSlotFocus(slot)}
+                              className="h-6 px-2 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-[10px] font-bold flex items-center gap-1 shadow-2xs active:scale-95 transition"
+                              title="Start Focus Timer"
+                            >
+                              <Play className="w-2.5 h-2.5 fill-current" />
+                              <span>Focus</span>
+                            </button>
+                          )}
+                          <button
+                            onClick={() => { sounds.playTap(); deleteSlot(slot.id) }}
+                            className="p-1.5 text-slate-300 hover:text-rose-600 transition active:scale-90"
+                            title="Delete Slot"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                }
+
+                // If Actual Time Log
+                if (item.type === 'log' && item.rawLog) {
+                  const log = item.rawLog
+                  return (
+                    <div
+                      key={`log-${log.id}`}
+                      className="bg-white rounded-2xl p-3.5 border border-slate-200/90 flex items-center justify-between gap-3 hover:border-violet-300 transition shadow-2xs"
+                    >
+                      <div className="w-2 self-stretch rounded-full bg-violet-500 shrink-0" />
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[10px] font-mono font-bold text-violet-800 bg-violet-50 px-2 py-0.5 rounded-md border border-violet-200">
+                            {item.startTimeStr} - {item.endTimeStr} ({item.durationMinutes}m)
+                          </span>
+                          <span className="text-[9px] font-bold uppercase text-violet-700 bg-violet-100/70 px-1.5 py-0.2 rounded">
+                            {log.timer_type === 'pomodoro' ? '🔥 Pomodoro' : log.timer_type === 'stopwatch' ? '⏱️ Stopwatch' : '📝 Log'}
+                          </span>
+                        </div>
+
+                        <h4 className="text-xs font-bold text-slate-900 mt-1.5 truncate">
+                          {item.title}
+                        </h4>
+
+                        {item.notes && (
+                          <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-1 italic">{item.notes}</p>
+                        )}
+                      </div>
+
+                      <div className="text-right shrink-0 flex items-center gap-2">
+                        <button
+                          onClick={() => { sounds.playTap(); deleteLog(log.id) }}
+                          className="p-1 text-slate-300 hover:text-rose-600 transition active:scale-90"
+                          title="Delete Log"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  )
+                }
+
+                return null
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════════ */}
+      {/* ── VIEW MODE 2: HOURLY TIMELINE (24H RULER) ────────────────────────── */}
+      {/* ══════════════════════════════════════════════════════════════════════ */}
+      {viewMode === 'timeline' && (
+        <div className="flex-1 flex flex-col min-h-0 bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden animate-fade-in">
           {/* Timeline Toolbar */}
           <div className="p-2.5 bg-slate-50/80 border-b border-slate-200/80 flex items-center justify-between text-xs">
             <div className="flex items-center gap-2">
@@ -467,7 +753,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                       }`}
                       title={slot.is_done ? 'Mark pending' : 'Mark completed'}
                     >
-                      {slot.is_done && <Check className="w-3 h-3 stroke-[3]" />}
+                      {slot.is_done && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                     </button>
                   </div>
                 )
@@ -503,258 +789,6 @@ export const TimeBlockingSchedule: React.FC = () => {
                 )
               })}
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── VIEW 2: PLAN LIST VIEW ── */}
-      {activeTab === 'plan' && (
-        <div className="space-y-3 animate-fade-in">
-          {/* Quick Summary Pill */}
-          <div className="bg-sky-50 border border-sky-200/80 rounded-2xl p-3 flex items-center justify-between text-xs">
-            <div className="flex items-center gap-2 text-sky-900 font-semibold">
-              <CalendarIcon className="w-4 h-4 text-sky-600" />
-              <span>Planned: <strong>{totalPlannedHoursFormatted}</strong></span>
-            </div>
-            <span className="text-[11px] font-bold text-sky-700">
-              Completed {slots.filter(s => s.is_done).length}/{slots.length}
-            </span>
-          </div>
-
-          {sortedSlots.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
-              <div className="w-16 h-16 rounded-3xl bg-sky-50 border border-sky-200 text-sky-600 flex items-center justify-center shadow-xs mb-3">
-                <CalendarIcon className="w-8 h-8" />
-              </div>
-              <h3 className="text-base font-black text-slate-900">No Plan Scheduled</h3>
-              <p className="text-xs text-slate-500 mt-1 max-w-[260px] leading-relaxed">
-                Block planned focus hours in advance to structure your day intentionally.
-              </p>
-
-              <button
-                onClick={() => { sounds.playTap(); setPlanModalOpen(true) }}
-                className="mt-6 px-6 py-3.5 rounded-2xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold shadow-lg shadow-violet-600/25 active:scale-95 transition flex items-center gap-2"
-              >
-                <Plus className="w-4 h-4 stroke-[3]" />
-                <span>Plan First Time Block</span>
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-2.5">
-              {sortedSlots.map((slot) => {
-                const isDone = !!slot.is_done
-                return (
-                  <div
-                    key={slot.id}
-                    className={`bg-white rounded-2xl p-3.5 border transition shadow-2xs ${
-                      isDone ? 'opacity-50 bg-slate-50 border-slate-200' : 'border-slate-200 hover:border-violet-300'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      {/* Checkbox */}
-                      <button
-                        onClick={() => { sounds.playTap(); toggleSlotDone(slot.id, !isDone); if (!isDone) sounds.playSuccess() }}
-                        className={`w-6 h-6 rounded-xl border flex items-center justify-center shrink-0 transition active:scale-90 ${
-                          isDone
-                            ? 'bg-emerald-500 border-emerald-500 text-white'
-                            : 'border-slate-300 hover:border-violet-500 bg-white'
-                        }`}
-                        aria-label="Toggle slot complete"
-                      >
-                        {isDone && <Check className="w-3.5 h-3.5 stroke-[3]" />}
-                      </button>
-
-                      {/* Content */}
-                      <div className="flex-1 min-w-0">
-                        <span className="text-[10px] font-mono font-bold text-violet-700 bg-violet-50 px-2 py-0.5 rounded-md border border-violet-100">
-                          {slot.start_time} - {slot.end_time}
-                        </span>
-                        <h4 className={`text-sm font-bold mt-1 truncate ${isDone ? 'line-through text-slate-400' : 'text-slate-900'}`}>
-                          {slot.title}
-                        </h4>
-                        {slot.notes && (
-                          <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-1">{slot.notes}</p>
-                        )}
-                      </div>
-
-                      {/* Delete */}
-                      <button
-                        onClick={() => { sounds.playTap(); deleteSlot(slot.id) }}
-                        className="p-1.5 text-slate-300 hover:text-rose-600 transition active:scale-90 shrink-0"
-                        title="Delete slot"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                )
-              })}
-
-              <div className="pt-2">
-                <button
-                  onClick={() => { sounds.playTap(); setPlanModalOpen(true) }}
-                  className="w-full py-3 rounded-2xl bg-white border border-dashed border-slate-300 hover:border-violet-400 text-slate-600 hover:text-violet-700 text-xs font-bold transition active:scale-[0.98] flex items-center justify-center gap-1.5 shadow-xs"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Add New Plan Slot</span>
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── VIEW 3: TIME LOG LIST VIEW ── */}
-      {activeTab === 'timelog' && (
-        <div className="space-y-3 animate-fade-in">
-          {/* Summary Box */}
-          <div className="bg-violet-50 border border-violet-200/80 rounded-2xl p-3.5 flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-violet-600 text-white flex items-center justify-center font-bold">
-                <Clock className="w-4 h-4" />
-              </div>
-              <div>
-                <div className="text-[10px] uppercase font-bold text-violet-700 tracking-wider">Total Real Time Spent</div>
-                <div className="text-base font-black text-slate-900">{totalLogHoursFormatted}</div>
-              </div>
-            </div>
-            <span className="text-[11px] font-bold text-violet-800 bg-white border border-violet-200 px-2.5 py-1 rounded-xl shadow-xs">
-              {logs.length} sessions
-            </span>
-          </div>
-
-          {sortedLogs.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
-              <div className="w-16 h-16 rounded-3xl bg-violet-50 border border-violet-200 text-violet-600 flex items-center justify-center shadow-xs mb-3">
-                <Clock className="w-8 h-8" />
-              </div>
-              <h3 className="text-base font-black text-slate-900">No Time Logs Today</h3>
-              <p className="text-xs text-slate-500 mt-1 max-w-[260px] leading-relaxed">
-                Run Pomodoro focus sessions or log manually to track where your actual hours went.
-              </p>
-
-              <button
-                onClick={() => { sounds.playTap(); setLogModalOpen(true) }}
-                className="mt-6 px-6 py-3.5 rounded-2xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold shadow-lg shadow-violet-600/25 active:scale-95 transition flex items-center gap-2"
-              >
-                <Plus className="w-4 h-4 stroke-[3]" />
-                <span>Log First Time Entry</span>
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-2.5">
-              {sortedLogs.map((log) => {
-                const durMinutes = Math.round(log.duration_seconds / 60)
-                const startTimeStr = formatLocalTime(log.start_time)
-                const endTimeStr = formatLocalTime(log.end_time)
-
-                return (
-                  <div
-                    key={log.id}
-                    className="bg-white rounded-2xl p-3.5 border border-slate-200 flex items-center justify-between gap-3 hover:border-violet-300 transition shadow-2xs"
-                  >
-                    <div className="w-2 self-stretch rounded-full bg-violet-500 shrink-0" />
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-mono font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
-                          {startTimeStr} - {endTimeStr}
-                        </span>
-                        <span className="text-[10px] font-bold uppercase text-violet-700 bg-violet-50 px-1.5 py-0.5 rounded">
-                          {log.timer_type === 'pomodoro' ? '🔥 Pomodoro' : log.timer_type === 'stopwatch' ? '⏱️ Stopwatch' : '📝 Manual'}
-                        </span>
-                      </div>
-
-                      <h4 className="text-xs font-bold text-slate-900 mt-1 truncate">
-                        {log.task_title || log.habit_title || log.notes || 'Work Session'}
-                      </h4>
-
-                      {log.notes && log.task_title && (
-                        <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-1">{log.notes}</p>
-                      )}
-                    </div>
-
-                    <div className="text-right shrink-0 flex items-center gap-2">
-                      <div className="text-xs font-black font-mono text-violet-700 bg-violet-50 px-2 py-1 rounded-xl border border-violet-100">
-                        {durMinutes}m
-                      </div>
-                      <button
-                        onClick={() => { sounds.playTap(); deleteLog(log.id) }}
-                        className="p-1 text-slate-300 hover:text-rose-600 transition active:scale-90"
-                        title="Delete log"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                )
-              })}
-
-              <div className="pt-2">
-                <button
-                  onClick={() => { sounds.playTap(); setLogModalOpen(true) }}
-                  className="w-full py-3 rounded-2xl bg-white border border-dashed border-slate-300 hover:border-violet-400 text-slate-600 hover:text-violet-700 text-xs font-bold transition active:scale-[0.98] flex items-center justify-center gap-1.5 shadow-xs"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Log Time Entry Manually</span>
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── VIEW 4: COMPARE & AUDIT ── */}
-      {activeTab === 'compare' && (
-        <div className="space-y-3 animate-fade-in">
-          {/* Comparison Cards */}
-          <div className="grid grid-cols-2 gap-2.5">
-            <div className="bg-sky-50 border border-sky-200 rounded-2xl p-3 text-center">
-              <div className="text-[10px] font-bold uppercase text-sky-700 tracking-wider">Planned (Budget)</div>
-              <div className="text-lg font-black text-sky-950 font-mono mt-0.5">{totalPlannedHoursFormatted}</div>
-              <div className="text-[10px] text-sky-600 mt-0.5">{slots.length} time slots</div>
-            </div>
-
-            <div className="bg-violet-50 border border-violet-200 rounded-2xl p-3 text-center">
-              <div className="text-[10px] font-bold uppercase text-violet-700 tracking-wider">Actual (Time Log)</div>
-              <div className="text-lg font-black text-violet-950 font-mono mt-0.5">{totalLogHoursFormatted}</div>
-              <div className="text-[10px] text-violet-600 mt-0.5">{logs.length} logged entries</div>
-            </div>
-          </div>
-
-          {/* Variance Insight */}
-          <div className="bg-white rounded-2xl p-3.5 border border-slate-200 flex items-start gap-2.5 shadow-2xs">
-            <TrendingUp className="w-4 h-4 text-violet-600 shrink-0 mt-0.5" />
-            <div className="text-xs text-slate-700 leading-relaxed">
-              <strong>Time Auditing:</strong> Planned budget is <strong>{totalPlannedHoursFormatted}</strong> and actual recorded time is <strong>{totalLogHoursFormatted}</strong>.
-              {totalLogSeconds > totalPlannedMinutes * 60 ? (
-                <span className="text-emerald-700 font-semibold block mt-0.5">
-                  🎉 You focused +{Math.round((totalLogSeconds - totalPlannedMinutes * 60) / 60)} mins over your plan!
-                </span>
-              ) : (
-                <span className="text-amber-700 font-semibold block mt-0.5">
-                  📌 {Math.max(0, Math.round((totalPlannedMinutes * 60 - totalLogSeconds) / 60))} mins remaining against plan.
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* Side by side list */}
-          <div className="space-y-2 pt-1">
-            <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Schedule Breakdown</h3>
-            {slots.map(s => (
-              <div key={s.id} className="bg-white border border-slate-200 rounded-xl p-3 flex items-center justify-between text-xs shadow-2xs">
-                <div className="min-w-0 pr-2">
-                  <span className="text-[10px] font-bold font-mono text-sky-700">{s.start_time} - {s.end_time}</span>
-                  <div className="font-bold text-slate-900 truncate">{s.title}</div>
-                </div>
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                  s.is_done ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'
-                }`}>
-                  {s.is_done ? 'Done' : 'Pending'}
-                </span>
-              </div>
-            ))}
           </div>
         </div>
       )}

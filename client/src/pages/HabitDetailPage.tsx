@@ -4,7 +4,7 @@ import {
   ArrowLeft, Flame, Trophy, CheckCircle2, Percent, Calendar,
   Clock, Smile, Edit3, Trash2, Snowflake, Play, Plus, X,
   Sparkles, Check, ChevronRight, MessageSquare, AlertCircle,
-  Shield, Sun, Sunrise, Sunset, Award
+  Shield, Sun, Sunrise, Sunset, Award, Minus
 } from 'lucide-react'
 import { useHabitStore, type HabitDetail, type HabitLogEntry } from '../store/useHabitStore'
 import { useTimerStore } from '../store/useTimerStore'

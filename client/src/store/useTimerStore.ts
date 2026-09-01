@@ -2,13 +2,32 @@ import { create } from 'zustand'
 import axios from 'axios'
 import { useTaskStore } from './useTaskStore'
 import { useHabitStore } from './useHabitStore'
+import { useTimeLogStore } from './useTimeLogStore'
 
 export type TimerMode = 'pomodoro' | 'stopwatch'
+
+export interface ActiveTrack {
+  id: string
+  title: string
+  taskId?: number | null
+  habitId?: number | null
+  categoryId?: number | null
+  categoryName?: string | null
+  categoryColor?: string | null
+  categoryType?: string | null
+  startTime: Date
+  elapsedSeconds: number
+  isPaused: boolean
+  mode: TimerMode
+}
 
 interface TimerState {
   mode: TimerMode
   isRunning: boolean
   isPaused: boolean
+
+  // Active Multi-Tracks
+  activeTracks: ActiveTrack[]
   
   // Pomodoro settings
   workDuration: number // seconds (default 25m = 1500)
@@ -17,7 +36,7 @@ interface TimerState {
   currentPhase: 'work' | 'short_break' | 'long_break'
   completedPomodoros: number
 
-  // Dynamic state
+  // Dynamic state for active primary track
   secondsRemaining: number // for pomodoro
   elapsedSeconds: number // for stopwatch & work session
   startTime: Date | null
@@ -35,11 +54,29 @@ interface TimerState {
   // Timer interval reference (internal)
   intervalId: any | null
 
+  startNewTrack: (target: { 
+    title: string; 
+    categoryId?: number | null; 
+    categoryName?: string | null; 
+    categoryColor?: string | null; 
+    categoryType?: string | null; 
+    taskId?: number | null; 
+    habitId?: number | null; 
+    mode?: TimerMode;
+    durationMinutes?: number;
+  }) => Promise<string>
+  pauseTrack: (trackId: string) => void
+  resumeTrack: (trackId: string) => void
+  stopTrack: (trackId: string) => Promise<void>
+  cancelTrack: (trackId: string) => void
+
   startTimer: (target?: { taskId?: number; habitId?: number; categoryId?: number; categoryName?: string; categoryColor?: string; categoryIcon?: string; categoryType?: string; title?: string; durationMinutes?: number; mode?: TimerMode }) => Promise<void>
   setCategory: (cat: { id: number; name: string; color: string; icon?: string; category_type?: string } | null) => void
   pauseTimer: () => void
   resumeTimer: () => void
   stopTimer: () => Promise<void>
+  resetTimer: () => void
+  switchMode: (mode: TimerMode) => void
   setMode: (mode: TimerMode) => void
   setPomodoroDurations: (work: number, shortBreak: number, longBreak: number) => void
 }
@@ -48,6 +85,7 @@ export const useTimerStore = create<TimerState>((set, get) => ({
   mode: 'stopwatch',
   isRunning: false,
   isPaused: false,
+  activeTracks: [],
 
   workDuration: 25 * 60,
   shortBreakDuration: 5 * 60,
@@ -66,18 +104,15 @@ export const useTimerStore = create<TimerState>((set, get) => ({
   activeCategoryColor: null,
   activeCategoryIcon: null,
   activeCategoryType: null,
-  activeTitle: 'Tập trung công việc',
+  activeTitle: 'Hoạt động thực tế',
   intervalId: null,
 
   setMode: (mode) => {
-    const isRunning = get().isRunning
-    if (!isRunning) {
-      set({ 
-        mode, 
-        secondsRemaining: mode === 'pomodoro' ? get().workDuration : 0, 
-        elapsedSeconds: 0 
-      })
-    }
+    set({ mode })
+  },
+
+  switchMode: (mode) => {
+    set({ mode })
   },
 
   setCategory: (cat) => {
@@ -104,154 +139,187 @@ export const useTimerStore = create<TimerState>((set, get) => ({
     set({ 
       workDuration: work, 
       shortBreakDuration: shortBreak, 
-      longBreakDuration: longBreak,
-      secondsRemaining: get().mode === 'pomodoro' && !get().isRunning ? work : get().secondsRemaining
+      longBreakDuration: longBreak
     })
   },
 
-  startTimer: async (target) => {
-    if (get().isRunning && get().elapsedSeconds > 5) {
-      await get().stopTimer()
-    } else {
-      const existing = get().intervalId
-      if (existing) clearInterval(existing)
-    }
-
+  // Multi-track Start
+  startNewTrack: async (target) => {
     const now = new Date()
-    const chosenMode = target?.mode || get().mode || 'stopwatch'
-    const customDurationSec = target?.durationMinutes ? target.durationMinutes * 60 : get().workDuration
+    const trackId = `track_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`
+    const chosenMode = target.mode || get().mode || 'stopwatch'
 
-    // Infer category from task or target if provided
-    let catId = target?.categoryId || get().activeCategoryId
-    let catName = target?.categoryName || get().activeCategoryName
-    let catColor = target?.categoryColor || get().activeCategoryColor
-    let catIcon = target?.categoryIcon || get().activeCategoryIcon
-    let catType = target?.categoryType || get().activeCategoryType
-
-    if (target?.taskId && !catId) {
-      const task = useTaskStore.getState().tasks.find(t => t.id === target.taskId)
-      if (task?.category) {
-        catId = task.category.id
-        catName = task.category.name
-        catColor = task.category.color
-        catIcon = task.category.icon || 'folder'
-      }
+    const newTrack: ActiveTrack = {
+      id: trackId,
+      title: target.title.trim() || 'Hoạt động thực tế',
+      taskId: target.taskId || null,
+      habitId: target.habitId || null,
+      categoryId: target.categoryId || null,
+      categoryName: target.categoryName || null,
+      categoryColor: target.categoryColor || null,
+      categoryType: target.categoryType || 'productive',
+      startTime: now,
+      elapsedSeconds: 0,
+      isPaused: false,
+      mode: chosenMode
     }
 
+    const nextTracks = [newTrack, ...get().activeTracks]
     set({
-      mode: chosenMode,
+      activeTracks: nextTracks,
       isRunning: true,
       isPaused: false,
-      startTime: now,
-      workDuration: customDurationSec,
-      activeTaskId: target?.taskId || null,
-      activeHabitId: target?.habitId || null,
-      activeCategoryId: catId || null,
-      activeCategoryName: catName || null,
-      activeCategoryColor: catColor || null,
-      activeCategoryIcon: catIcon || null,
-      activeCategoryType: catType || 'productive',
-      activeTitle: target?.title || (target?.taskId ? 'Task' : target?.habitId ? 'Habit' : 'Hoạt động thực tế'),
-      secondsRemaining: chosenMode === 'pomodoro' ? customDurationSec : 0,
-      elapsedSeconds: 0
+      startTime: nextTracks[0]?.startTime || now,
+      activeTitle: nextTracks[0]?.title || '',
+      activeCategoryName: nextTracks[0]?.categoryName || null,
+      activeCategoryColor: nextTracks[0]?.categoryColor || null
     })
 
-    const timerInt = setInterval(() => {
-      const { isRunning, isPaused, mode, secondsRemaining, elapsedSeconds, currentPhase } = get()
-      if (!isRunning || isPaused) return
-
-      if (mode === 'pomodoro') {
-        if (secondsRemaining > 1) {
-          set({ 
-            secondsRemaining: secondsRemaining - 1, 
-            elapsedSeconds: elapsedSeconds + 1 
-          })
-        } else {
-          // Pomodoro phase finished!
+    // Start global interval ticker if not already running
+    if (!get().intervalId) {
+      const intId = setInterval(() => {
+        const { activeTracks } = get()
+        if (activeTracks.length === 0) {
           clearInterval(get().intervalId)
-          set({ isRunning: false, intervalId: null })
-
-          if (currentPhase === 'work') {
-            const nextCompleted = get().completedPomodoros + 1
-            const nextPhase = nextCompleted % 4 === 0 ? 'long_break' : 'short_break'
-            const nextDuration = nextPhase === 'long_break' ? get().longBreakDuration : get().shortBreakDuration
-            
-            set({ 
-              completedPomodoros: nextCompleted, 
-              currentPhase: nextPhase,
-              secondsRemaining: nextDuration
-            })
-            // Save time log
-            get().stopTimer()
-          } else {
-            set({ 
-              currentPhase: 'work', 
-              secondsRemaining: get().workDuration 
-            })
-          }
+          set({ intervalId: null, isRunning: false })
+          return
         }
-      } else {
-        // Stopwatch mode
-        set({ elapsedSeconds: elapsedSeconds + 1 })
-      }
-    }, 1000)
 
-    set({ intervalId: timerInt })
+        const updated = activeTracks.map(t => {
+          if (t.isPaused) return t
+          return { ...t, elapsedSeconds: t.elapsedSeconds + 1 }
+        })
+
+        set({
+          activeTracks: updated,
+          isRunning: updated.length > 0,
+          elapsedSeconds: updated[0]?.elapsedSeconds || 0,
+          startTime: updated[0]?.startTime || null,
+          activeTitle: updated[0]?.title || '',
+          activeCategoryName: updated[0]?.categoryName || null,
+          activeCategoryColor: updated[0]?.categoryColor || null
+        })
+      }, 1000)
+
+      set({ intervalId: intId })
+    }
+
+    return trackId
+  },
+
+  pauseTrack: (trackId: string) => {
+    const updated = get().activeTracks.map(t => {
+      if (t.id === trackId) return { ...t, isPaused: true }
+      return t
+    })
+    set({ activeTracks: updated })
+  },
+
+  resumeTrack: (trackId: string) => {
+    const updated = get().activeTracks.map(t => {
+      if (t.id === trackId) return { ...t, isPaused: false }
+      return t
+    })
+    set({ activeTracks: updated })
+  },
+
+  stopTrack: async (trackId: string) => {
+    const track = get().activeTracks.find(t => t.id === trackId)
+    if (!track) return
+
+    const end = new Date()
+    const start = track.startTime || new Date(end.getTime() - track.elapsedSeconds * 1000)
+
+    if (track.elapsedSeconds >= 1) {
+      try {
+        await axios.post('/api/v1/time-tracking/logs', {
+          task_id: track.taskId,
+          habit_id: track.habitId,
+          category_id: track.categoryId,
+          start_time: start.toISOString(),
+          end_time: end.toISOString(),
+          duration_seconds: track.elapsedSeconds,
+          timer_type: track.mode,
+          notes: track.title
+        })
+
+        // Refresh stores
+        const todayIso = new Date().toISOString().split('T')[0]
+        useTimeLogStore.getState().fetchLogs(todayIso)
+        useTaskStore.getState().fetchTasks()
+      } catch (e) {
+        console.error('Failed to save actual time log', e)
+      }
+    }
+
+    const remainingTracks = get().activeTracks.filter(t => t.id !== trackId)
+    set({
+      activeTracks: remainingTracks,
+      isRunning: remainingTracks.length > 0,
+      elapsedSeconds: remainingTracks[0]?.elapsedSeconds || 0,
+      startTime: remainingTracks[0]?.startTime || null,
+      activeTitle: remainingTracks[0]?.title || '',
+      activeCategoryName: remainingTracks[0]?.categoryName || null,
+      activeCategoryColor: remainingTracks[0]?.categoryColor || null
+    })
+
+    if (remainingTracks.length === 0 && get().intervalId) {
+      clearInterval(get().intervalId)
+      set({ intervalId: null, isRunning: false })
+    }
+  },
+
+  cancelTrack: (trackId: string) => {
+    const remainingTracks = get().activeTracks.filter(t => t.id !== trackId)
+    set({
+      activeTracks: remainingTracks,
+      isRunning: remainingTracks.length > 0,
+      elapsedSeconds: remainingTracks[0]?.elapsedSeconds || 0,
+      startTime: remainingTracks[0]?.startTime || null,
+      activeTitle: remainingTracks[0]?.title || '',
+      activeCategoryName: remainingTracks[0]?.categoryName || null,
+      activeCategoryColor: remainingTracks[0]?.categoryColor || null
+    })
+
+    if (remainingTracks.length === 0 && get().intervalId) {
+      clearInterval(get().intervalId)
+      set({ intervalId: null, isRunning: false })
+    }
+  },
+
+  // Legacy single-timer compatibility
+  startTimer: async (target) => {
+    await get().startNewTrack({
+      title: target?.title || 'Hoạt động thực tế',
+      categoryId: target?.categoryId,
+      categoryName: target?.categoryName,
+      categoryColor: target?.categoryColor,
+      categoryType: target?.categoryType,
+      taskId: target?.taskId,
+      habitId: target?.habitId,
+      mode: target?.mode || get().mode
+    })
   },
 
   pauseTimer: () => {
+    const first = get().activeTracks[0]
+    if (first) get().pauseTrack(first.id)
     set({ isPaused: true })
   },
 
   resumeTimer: () => {
+    const first = get().activeTracks[0]
+    if (first) get().resumeTrack(first.id)
     set({ isPaused: false })
   },
 
   stopTimer: async () => {
-    const { intervalId, startTime, elapsedSeconds, activeTaskId, activeHabitId, activeCategoryId, activeTitle, mode } = get()
-    if (intervalId) clearInterval(intervalId)
+    const first = get().activeTracks[0]
+    if (first) await get().stopTrack(first.id)
+  },
 
-    const end = new Date()
-    const start = startTime || new Date(end.getTime() - elapsedSeconds * 1000)
-
-    if (elapsedSeconds > 5) {
-      const durationMinutes = Math.max(1, Math.round(elapsedSeconds / 60))
-      try {
-        await axios.post('/api/v1/time-tracking/logs', {
-          task_id: activeTaskId,
-          habit_id: activeHabitId,
-          category_id: activeCategoryId,
-          start_time: start.toISOString(),
-          end_time: end.toISOString(),
-          duration_seconds: elapsedSeconds,
-          timer_type: mode,
-          notes: activeTitle
-        })
-
-        // If habit focus session, log directly to habit log
-        if (activeHabitId) {
-          await axios.post(`/api/v1/habits/${activeHabitId}/log-focus`, {
-            duration_minutes: durationMinutes,
-            notes: activeTitle
-          })
-          useHabitStore.getState().fetchHabits()
-        }
-
-        // Refresh stores
-        useTaskStore.getState().fetchTasks()
-        useTaskStore.getState().fetchCategories()
-      } catch (e) {
-        console.error('Failed to log time session', e)
-      }
-    }
-
-    set({
-      isRunning: false,
-      isPaused: false,
-      startTime: null,
-      elapsedSeconds: 0,
-      secondsRemaining: mode === 'pomodoro' ? get().workDuration : 0,
-      intervalId: null
-    })
+  resetTimer: () => {
+    const first = get().activeTracks[0]
+    if (first) get().cancelTrack(first.id)
   }
 }))

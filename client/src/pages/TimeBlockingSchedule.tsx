@@ -63,6 +63,7 @@ export const TimeBlockingSchedule: React.FC = () => {
 
   // 3. Search & Category Filter State
   const [searchQuery, setSearchQuery] = useState('')
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [selectedCategoryType, setSelectedCategoryType] = useState<string>('all')
 
   // 4. Drag and Drop & Resize State for Timeline Slots

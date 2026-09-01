@@ -324,7 +324,7 @@ export const HabitDetailPage: React.FC = () => {
               </div>
               <div className="mt-2">
                 <span className="text-2xl font-black text-slate-900 font-mono">{activeDetail.current_streak}</span>
-                <span className="text-xs text-slate-400 ml-1 font-bold">days</span>
+                <span className="text-xs text-slate-400 ml-1 font-bold">{activeDetail.streak_unit || 'days'}</span>
               </div>
             </div>
 
@@ -336,7 +336,7 @@ export const HabitDetailPage: React.FC = () => {
               </div>
               <div className="mt-2">
                 <span className="text-2xl font-black text-slate-900 font-mono">{activeDetail.longest_streak}</span>
-                <span className="text-xs text-slate-400 ml-1 font-bold">days</span>
+                <span className="text-xs text-slate-400 ml-1 font-bold">{activeDetail.streak_unit || 'days'}</span>
               </div>
             </div>
 

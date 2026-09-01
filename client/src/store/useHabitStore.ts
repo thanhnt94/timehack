@@ -19,6 +19,10 @@ export interface Habit {
   streak_freeze_count: number
   current_streak: number
   longest_streak: number
+  streak_unit?: 'days' | 'weeks' | 'months'
+  period_label?: string
+  current_period_count?: number
+  period_completed?: boolean
   strength_percent: number
   mastery_rank: 'S' | 'A' | 'B' | 'C'
   rank_title: string

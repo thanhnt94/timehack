@@ -63,7 +63,7 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
   const { createTask } = useTaskStore()
 
   const [habitTitle, setHabitTitle] = useState('')
-  const [habitPreset, setHabitPreset] = useState<'once' | 'count' | 'timer'>('once')
+  const [habitFreqPeriod, setHabitFreqPeriod] = useState<'daily' | 'weekly_target' | 'monthly_target'>('daily')
   const [habitTargetCount, setHabitTargetCount] = useState(1)
   const [habitUnit, setHabitUnit] = useState('times')
   const [habitColor, setHabitColor] = useState(HABIT_COLORS[0])
@@ -98,19 +98,11 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
     handleClose()
   }
 
-  const handleApplyHabitPreset = (type: 'once' | 'count' | 'timer') => {
+  const handleApplyHabitPreset = (period: 'daily' | 'weekly_target' | 'monthly_target', count: number, unit: string) => {
     sounds.playTap()
-    setHabitPreset(type)
-    if (type === 'once') {
-      setHabitTargetCount(1)
-      setHabitUnit('times')
-    } else if (type === 'count') {
-      setHabitTargetCount(2)
-      setHabitUnit('times')
-    } else if (type === 'timer') {
-      setHabitTargetCount(30)
-      setHabitUnit('mins')
-    }
+    setHabitFreqPeriod(period)
+    setHabitTargetCount(count)
+    setHabitUnit(unit)
   }
 
   const handleCreateHabit = async (e: React.FormEvent) => {
@@ -123,7 +115,7 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
       icon: '⚡',
       target_count: Math.max(1, Number(habitTargetCount) || 1),
       unit: habitUnit.trim() || 'times',
-      frequency_type: 'daily'
+      frequency_type: habitFreqPeriod
     })
     sounds.playSuccess()
     setHabitTitle('')
@@ -320,7 +312,7 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
           </form>
         )}
 
-        {/* ── View 3: Form Habit (With Clean Tracking Presets) ────────── */}
+        {/* ── View 3: Form Habit (With Daily, Weekly, Monthly Presets) ────────── */}
         {subView === 'habit' && (
           <form onSubmit={handleCreateHabit} className="space-y-3.5">
             <div>
@@ -331,7 +323,7 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
                 type="text"
                 value={habitTitle}
                 onChange={e => setHabitTitle(e.target.value)}
-                placeholder="e.g. Read 20 mins, Drink 2L water, Morning Run..."
+                placeholder="e.g. Run 3x/week, Read 1 book/month, Morning workout..."
                 autoFocus
                 required
                 className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
@@ -341,75 +333,102 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
             {/* Presets */}
             <div>
               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
-                Tracking Goal Type
+                Popular Goal Presets
               </label>
-              <div className="grid grid-cols-3 gap-1.5">
+              <div className="grid grid-cols-4 gap-1.5">
                 <button
                   type="button"
-                  onClick={() => handleApplyHabitPreset('once')}
-                  className={`p-2 rounded-xl border text-left transition ${
-                    habitPreset === 'once'
-                      ? 'bg-violet-50 border-violet-400 text-violet-800 ring-2 ring-violet-500'
-                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                  onClick={() => handleApplyHabitPreset('daily', 1, 'times')}
+                  className={`p-2 rounded-xl border text-center transition ${
+                    habitFreqPeriod === 'daily' && habitTargetCount === 1
+                      ? 'bg-violet-50 border-violet-400 text-violet-800 ring-2 ring-violet-500 font-bold'
+                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 text-[11px]'
                   }`}
                 >
-                  <div className="text-xs font-bold">⚡ 1x / Day</div>
+                  ⚡ 1x / Ngày
                 </button>
 
                 <button
                   type="button"
-                  onClick={() => handleApplyHabitPreset('count')}
-                  className={`p-2 rounded-xl border text-left transition ${
-                    habitPreset === 'count'
-                      ? 'bg-violet-50 border-violet-400 text-violet-800 ring-2 ring-violet-500'
-                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                  onClick={() => handleApplyHabitPreset('weekly_target', 3, 'times')}
+                  className={`p-2 rounded-xl border text-center transition ${
+                    habitFreqPeriod === 'weekly_target' && habitTargetCount === 3
+                      ? 'bg-violet-50 border-violet-400 text-violet-800 ring-2 ring-violet-500 font-bold'
+                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 text-[11px]'
                   }`}
                 >
-                  <div className="text-xs font-bold">🔢 Count</div>
+                  🏃 3x / Tuần
                 </button>
 
                 <button
                   type="button"
-                  onClick={() => handleApplyHabitPreset('timer')}
-                  className={`p-2 rounded-xl border text-left transition ${
-                    habitPreset === 'timer'
-                      ? 'bg-violet-50 border-violet-400 text-violet-800 ring-2 ring-violet-500'
-                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                  onClick={() => handleApplyHabitPreset('monthly_target', 1, 'times')}
+                  className={`p-2 rounded-xl border text-center transition ${
+                    habitFreqPeriod === 'monthly_target' && habitTargetCount === 1
+                      ? 'bg-violet-50 border-violet-400 text-violet-800 ring-2 ring-violet-500 font-bold'
+                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 text-[11px]'
                   }`}
                 >
-                  <div className="text-xs font-bold">⏱️ Duration</div>
+                  📚 1x / Tháng
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleApplyHabitPreset('daily', 30, 'mins')}
+                  className={`p-2 rounded-xl border text-center transition ${
+                    habitFreqPeriod === 'daily' && habitTargetCount === 30 && habitUnit === 'mins'
+                      ? 'bg-violet-50 border-violet-400 text-violet-800 ring-2 ring-violet-500 font-bold'
+                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 text-[11px]'
+                  }`}
+                >
+                  ⏱️ 30p / Ngày
                 </button>
               </div>
             </div>
 
-            {habitPreset !== 'once' && (
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    Daily Target
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={habitTargetCount}
-                    onChange={e => setHabitTargetCount(Number(e.target.value) || 1)}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    Unit
-                  </label>
-                  <input
-                    type="text"
-                    value={habitUnit}
-                    onChange={e => setHabitUnit(e.target.value)}
-                    placeholder="times, mins, pages..."
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
-                  />
-                </div>
+            {/* Custom Period & Target */}
+            <div className="grid grid-cols-3 gap-2">
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  Chu kỳ
+                </label>
+                <select
+                  value={habitFreqPeriod}
+                  onChange={e => setHabitFreqPeriod(e.target.value as any)}
+                  className="w-full px-2.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
+                >
+                  <option value="daily">Hàng Ngày</option>
+                  <option value="weekly_target">Hàng Tuần</option>
+                  <option value="monthly_target">Hàng Tháng</option>
+                </select>
               </div>
-            )}
+
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  Mục tiêu
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={habitTargetCount}
+                  onChange={e => setHabitTargetCount(Number(e.target.value) || 1)}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  Đơn vị
+                </label>
+                <input
+                  type="text"
+                  value={habitUnit}
+                  onChange={e => setHabitUnit(e.target.value)}
+                  placeholder="lần, mins..."
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
+                />
+              </div>
+            </div>
 
             <div>
               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">

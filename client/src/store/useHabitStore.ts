@@ -12,6 +12,8 @@ export interface Habit {
   time_of_day: 'morning' | 'afternoon' | 'evening' | 'anytime'
   target_count: number
   unit: string
+  target_count_secondary?: number
+  unit_secondary?: string
   reminder_time?: string
   icon: string
   color: string
@@ -19,9 +21,10 @@ export interface Habit {
   streak_freeze_count: number
   current_streak: number
   longest_streak: number
-  streak_unit?: 'days' | 'weeks' | 'months'
+  streak_unit?: 'days' | 'weeks' | 'months' | string
   period_label?: string
   current_period_count?: number
+  current_period_secondary_count?: number
   period_completed?: boolean
   strength_percent: number
   mastery_rank: 'S' | 'A' | 'B' | 'C'

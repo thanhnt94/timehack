@@ -317,40 +317,40 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
           <form onSubmit={handleCreateHabit} className="space-y-3.5">
             <div>
               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                Tên Thói Quen
+                Habit Title
               </label>
               <input
                 type="text"
                 value={habitTitle}
                 onChange={e => setHabitTitle(e.target.value)}
-                placeholder="Ví dụ: Đọc sách, Chạy bộ, Uống nước, Tập gym..."
+                placeholder="e.g. Read Books, Morning Jog, Deep Work, Drink Water..."
                 autoFocus
                 required
                 className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
               />
             </div>
 
-            {/* Chu kỳ & Số lượng */}
+            {/* Frequency & Target */}
             <div className="space-y-2">
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    Chu kỳ lặp
+                    Frequency
                   </label>
                   <select
                     value={habitFreqPeriod}
                     onChange={e => setHabitFreqPeriod(e.target.value as any)}
                     className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
                   >
-                    <option value="daily">📅 Hàng Ngày</option>
-                    <option value="weekly_target">🗓️ Hàng Tuần</option>
-                    <option value="monthly_target">📆 Hàng Tháng</option>
+                    <option value="daily">📅 Daily (Every day)</option>
+                    <option value="weekly_target">🗓️ Weekly Target</option>
+                    <option value="monthly_target">📆 Monthly Target</option>
                   </select>
                 </div>
 
                 <div>
                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    Số lượng mục tiêu
+                    Target Count
                   </label>
                   <input
                     type="number"
@@ -362,13 +362,13 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
                 </div>
               </div>
 
-              {/* Đơn vị tính Preset Chips */}
+              {/* Unit Preset Chips & Custom */}
               <div>
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
-                  Đơn vị tính ({habitTargetCount} {habitUnit} / {habitFreqPeriod === 'daily' ? 'ngày' : habitFreqPeriod === 'weekly_target' ? 'tuần' : 'tháng'})
+                  Unit ({habitTargetCount} {habitUnit} / {habitFreqPeriod === 'daily' ? 'day' : habitFreqPeriod === 'weekly_target' ? 'week' : 'month'})
                 </label>
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  {['lần', 'phút', 'giờ', 'trang', 'ly', 'km', 'bài', 'cuốn'].map(u => (
+                  {['times', 'mins', 'hours', 'pages', 'cups', 'km', 'reps', 'books'].map(u => (
                     <button
                       key={u}
                       type="button"
@@ -386,10 +386,10 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
               </div>
             </div>
 
-            {/* Màu Sắc */}
+            {/* Color */}
             <div>
               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
-                Màu Sắc
+                Color Tag
               </label>
               <div className="flex gap-2">
                 {HABIT_COLORS.map(c => (
@@ -410,7 +410,7 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
               type="submit"
               className="w-full py-3.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-xs active:scale-[0.98] transition shadow-md shadow-violet-600/20 mt-2"
             >
-              Tạo Thói Quen
+              Create Habit
             </button>
           </form>
         )}

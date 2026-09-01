@@ -17,6 +17,8 @@ class Habit(Base):
     time_of_day = Column(String(20), default="anytime") # morning, afternoon, evening, anytime
     target_count = Column(Integer, default=1)
     unit = Column(String(50), default="times")
+    target_count_secondary = Column(Integer, nullable=True) # Optional either/or target
+    unit_secondary = Column(String(50), nullable=True) # Optional either/or unit
     reminder_time = Column(String(10), nullable=True) # e.g. "08:00"
     icon = Column(String(50), default="zap")
     color = Column(String(50), default="#10B981")

@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import {
-  X, ArrowLeft, CheckSquare, Zap, Play, Calendar
+  X, ArrowLeft, CheckSquare, Zap, Play, Calendar,
+  Flame, Star, Users, Inbox
 } from 'lucide-react'
 import { useTaskStore } from '../store/useTaskStore'
 import { useHabitStore } from '../store/useHabitStore'
@@ -18,17 +19,46 @@ type SubView = 'menu' | 'task' | 'habit' | 'schedule'
 
 const HABIT_COLORS = ['#7C3AED', '#0284C7', '#10B981', '#D97706', '#E11D48', '#6366F1']
 
-const EISENHOWER_QUADRANTS = [
-  { key: 'do_first', label: 'Q1 · Urgent & Important', color: 'border-rose-300 text-rose-700 bg-rose-50/70' },
-  { key: 'schedule', label: 'Q2 · Important, Not Urgent', color: 'border-violet-300 text-violet-700 bg-violet-50/70' },
-  { key: 'delegate', label: 'Q3 · Urgent, Less Important', color: 'border-amber-300 text-amber-800 bg-amber-50/70' },
-  { key: 'eliminate', label: 'Q4 · Not Urgent or Important', color: 'border-slate-200 text-slate-600 bg-slate-50' },
+const PRIORITY_CHOICES = [
+  {
+    key: 'do_first',
+    label: 'Urgent & Important',
+    desc: 'Do immediately',
+    icon: Flame,
+    badgeBg: 'bg-rose-50 text-rose-700 border-rose-200',
+    selectedBg: 'bg-rose-50 border-rose-400 text-rose-800 ring-2 ring-rose-500'
+  },
+  {
+    key: 'schedule',
+    label: 'Important, Not Urgent',
+    desc: 'Plan & schedule',
+    icon: Star,
+    badgeBg: 'bg-violet-50 text-violet-700 border-violet-200',
+    selectedBg: 'bg-violet-50 border-violet-400 text-violet-800 ring-2 ring-violet-500'
+  },
+  {
+    key: 'delegate',
+    label: 'Urgent, Less Important',
+    desc: 'Delegate or do fast',
+    icon: Users,
+    badgeBg: 'bg-amber-50 text-amber-800 border-amber-200',
+    selectedBg: 'bg-amber-50 border-amber-400 text-amber-900 ring-2 ring-amber-500'
+  },
+  {
+    key: 'eliminate',
+    label: 'Not Urgent or Important',
+    desc: 'Backlog / Eliminate',
+    icon: Inbox,
+    badgeBg: 'bg-slate-100 text-slate-600 border-slate-200',
+    selectedBg: 'bg-slate-100 border-slate-400 text-slate-800 ring-2 ring-slate-400'
+  },
 ] as const
 
 export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocus }) => {
   const [subView, setSubView] = useState<SubView>('menu')
 
   const [taskTitle, setTaskTitle] = useState('')
+  const [taskDueDate, setTaskDueDate] = useState('')
   const [taskEisen, setTaskEisen] = useState<'do_first' | 'schedule' | 'delegate' | 'eliminate'>('do_first')
   const { createTask } = useTaskStore()
 
@@ -54,9 +84,14 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
     e.preventDefault()
     if (!taskTitle.trim()) return
     sounds.playTap()
-    await createTask({ title: taskTitle.trim(), eisenhower: taskEisen })
+    await createTask({
+      title: taskTitle.trim(),
+      eisenhower: taskEisen,
+      due_date: taskDueDate ? `${taskDueDate}T23:59:59` : undefined
+    })
     sounds.playSuccess()
     setTaskTitle('')
+    setTaskDueDate('')
     handleClose()
   }
 
@@ -117,12 +152,20 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
                 <ArrowLeft className="w-5 h-5" />
               </button>
             )}
-            <h2 className="text-sm font-black text-slate-900">
-              {subView === 'menu' && 'Quick Create'}
-              {subView === 'task' && 'Create New Task'}
-              {subView === 'habit' && 'Create New Habit'}
-              {subView === 'schedule' && 'Plan Time Block'}
-            </h2>
+            <div>
+              <h2 className="text-sm font-black text-slate-900">
+                {subView === 'menu' && 'Quick Create'}
+                {subView === 'task' && 'Create New Task'}
+                {subView === 'habit' && 'Create New Habit'}
+                {subView === 'schedule' && 'Plan Time Block'}
+              </h2>
+              <p className="text-[11px] text-slate-500 font-medium">
+                {subView === 'menu' && 'Choose an item to create or focus'}
+                {subView === 'task' && 'Set deadline and priority category'}
+                {subView === 'habit' && 'Build a new daily streak'}
+                {subView === 'schedule' && 'Budget time for today'}
+              </p>
+            </div>
           </div>
           <button onClick={handleClose} className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700">
             <X className="w-5 h-5" />
@@ -135,7 +178,7 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
             {/* 1. Task */}
             <button
               onClick={() => { sounds.playTap(); setSubView('task') }}
-              className="bg-white rounded-2xl p-4 flex flex-col items-start gap-2 border border-slate-200 hover:border-violet-400 active:scale-95 transition text-left shadow-xs"
+              className="bg-white rounded-2xl p-4 flex flex-col items-start gap-2 border border-slate-200 hover:border-violet-400 active:scale-95 transition text-left shadow-2xs"
             >
               <div className="w-10 h-10 rounded-xl bg-violet-50 text-violet-700 border border-violet-100 flex items-center justify-center">
                 <CheckSquare className="w-5 h-5" />
@@ -149,7 +192,7 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
             {/* 2. Habit */}
             <button
               onClick={() => { sounds.playTap(); setSubView('habit') }}
-              className="bg-white rounded-2xl p-4 flex flex-col items-start gap-2 border border-slate-200 hover:border-emerald-400 active:scale-95 transition text-left shadow-xs"
+              className="bg-white rounded-2xl p-4 flex flex-col items-start gap-2 border border-slate-200 hover:border-emerald-400 active:scale-95 transition text-left shadow-2xs"
             >
               <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center">
                 <Zap className="w-5 h-5" />
@@ -163,7 +206,7 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
             {/* 3. Focus Now */}
             <button
               onClick={handleDirectFocus}
-              className="bg-white rounded-2xl p-4 flex flex-col items-start gap-2 border border-slate-200 hover:border-rose-400 active:scale-95 transition text-left shadow-xs"
+              className="bg-white rounded-2xl p-4 flex flex-col items-start gap-2 border border-slate-200 hover:border-rose-400 active:scale-95 transition text-left shadow-2xs"
             >
               <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 border border-rose-100 flex items-center justify-center">
                 <Play className="w-5 h-5 fill-current ml-0.5" />
@@ -177,7 +220,7 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
             {/* 4. Plan Slot */}
             <button
               onClick={() => { sounds.playTap(); setSubView('schedule') }}
-              className="bg-white rounded-2xl p-4 flex flex-col items-start gap-2 border border-slate-200 hover:border-sky-400 active:scale-95 transition text-left shadow-xs"
+              className="bg-white rounded-2xl p-4 flex flex-col items-start gap-2 border border-slate-200 hover:border-sky-400 active:scale-95 transition text-left shadow-2xs"
             >
               <div className="w-10 h-10 rounded-xl bg-sky-50 text-sky-600 border border-sky-100 flex items-center justify-center">
                 <Calendar className="w-5 h-5" />
@@ -190,43 +233,69 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
           </div>
         )}
 
-        {/* ── View 2: Form Task ─────────── */}
+        {/* ── View 2: Form Task (Exact matching UI as Tasks page) ─────────── */}
         {subView === 'task' && (
           <form onSubmit={handleCreateTask} className="space-y-3.5">
-            <input
-              type="text"
-              value={taskTitle}
-              onChange={e => setTaskTitle(e.target.value)}
-              placeholder="Task name or deliverable..."
-              autoFocus
-              className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 placeholder-slate-400 outline-none focus:border-violet-500 focus:bg-white transition"
-            />
+            <div>
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                Task Title
+              </label>
+              <input
+                type="text"
+                value={taskTitle}
+                onChange={e => setTaskTitle(e.target.value)}
+                placeholder="e.g. Finish financial report, Send client invoice..."
+                autoFocus
+                required
+                className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
+              />
+            </div>
 
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-                Priority Level (Eisenhower Matrix)
+            <div>
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
+                Priority Level
               </label>
               <div className="grid grid-cols-2 gap-1.5">
-                {EISENHOWER_QUADRANTS.map(q => (
-                  <button
-                    key={q.key}
-                    type="button"
-                    onClick={() => setTaskEisen(q.key)}
-                    className={`p-2.5 rounded-xl border text-[11px] font-bold text-left transition ${
-                      taskEisen === q.key
-                        ? `${q.color} ring-2 ring-violet-500`
-                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-                    }`}
-                  >
-                    {q.label}
-                  </button>
-                ))}
+                {PRIORITY_CHOICES.map(q => {
+                  const QIcon = q.icon
+                  const isSelected = taskEisen === q.key
+                  return (
+                    <button
+                      key={q.key}
+                      type="button"
+                      onClick={() => setTaskEisen(q.key as any)}
+                      className={`p-2.5 rounded-xl border text-[11px] font-bold text-left transition flex items-start gap-2 ${
+                        isSelected
+                          ? q.selectedBg
+                          : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      <QIcon className="w-4 h-4 shrink-0 mt-0.5" />
+                      <div>
+                        <div>{q.label}</div>
+                        <div className="text-[9px] font-normal text-slate-400">{q.desc}</div>
+                      </div>
+                    </button>
+                  )
+                })}
               </div>
+            </div>
+
+            <div>
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                Deadline (Optional)
+              </label>
+              <input
+                type="date"
+                value={taskDueDate}
+                onChange={e => setTaskDueDate(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
+              />
             </div>
 
             <button
               type="submit"
-              className="w-full py-3.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-xs active:scale-[0.98] transition shadow-md shadow-violet-600/20"
+              className="w-full py-3.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-xs active:scale-[0.98] transition shadow-md shadow-violet-600/20 mt-2"
             >
               Save Task
             </button>
@@ -236,14 +305,20 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
         {/* ── View 3: Form Habit ────────── */}
         {subView === 'habit' && (
           <form onSubmit={handleCreateHabit} className="space-y-3.5">
-            <input
-              type="text"
-              value={habitTitle}
-              onChange={e => setHabitTitle(e.target.value)}
-              placeholder="Habit title (e.g. Read 20 mins, Drink 2L water)..."
-              autoFocus
-              className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 placeholder-slate-400 outline-none focus:border-violet-500 focus:bg-white transition"
-            />
+            <div>
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                Habit Title
+              </label>
+              <input
+                type="text"
+                value={habitTitle}
+                onChange={e => setHabitTitle(e.target.value)}
+                placeholder="e.g. Read 20 mins, Drink 2L water..."
+                autoFocus
+                required
+                className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
+              />
+            </div>
 
             <div>
               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
@@ -266,7 +341,7 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
 
             <button
               type="submit"
-              className="w-full py-3.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-xs active:scale-[0.98] transition shadow-md shadow-violet-600/20"
+              className="w-full py-3.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-xs active:scale-[0.98] transition shadow-md shadow-violet-600/20 mt-2"
             >
               Save Habit
             </button>
@@ -276,14 +351,20 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
         {/* ── View 4: Form Schedule ──────── */}
         {subView === 'schedule' && (
           <form onSubmit={handleCreateSchedule} className="space-y-3.5">
-            <input
-              type="text"
-              value={scheduleTitle}
-              onChange={e => setScheduleTitle(e.target.value)}
-              placeholder="Planned activity name..."
-              autoFocus
-              className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 placeholder-slate-400 outline-none focus:border-violet-500 focus:bg-white transition"
-            />
+            <div>
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                Planned Activity
+              </label>
+              <input
+                type="text"
+                value={scheduleTitle}
+                onChange={e => setScheduleTitle(e.target.value)}
+                placeholder="e.g. Team Standup, Deep Coding Block..."
+                autoFocus
+                required
+                className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
+              />
+            </div>
 
             <div className="grid grid-cols-2 gap-2">
               <div>
@@ -312,7 +393,7 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
 
             <button
               type="submit"
-              className="w-full py-3.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-xs active:scale-[0.98] transition shadow-md shadow-violet-600/20"
+              className="w-full py-3.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-xs active:scale-[0.98] transition shadow-md shadow-violet-600/20 mt-2"
             >
               Save Time Slot
             </button>

@@ -376,172 +376,175 @@ export const TimeBlockingSchedule: React.FC = () => {
   const isViewingToday = selectedDate === new Date().toISOString().split('T')[0]
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 space-y-3 pb-24">
-      {/* ── 1. Clean Top Header: Date Navigator & Switch View Button ── */}
-      <div className="flex items-center justify-between gap-2 pt-1">
-        {/* Date Navigator */}
-        <div className="flex items-center gap-1.5">
-          <div className="flex items-center gap-0.5 bg-white p-0.5 rounded-xl border border-slate-200 shadow-2xs">
-            <button
-              onClick={handlePrevDay}
-              className="p-1 rounded-lg hover:bg-slate-100 text-slate-600 transition active:scale-90"
-              title="Previous Day"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
+    <div className="flex-1 flex flex-col min-h-0 h-full overflow-hidden space-y-2">
+      {/* ── 1. FIXED TOP SECTION (Date Navigator, Date Strip, Metrics, Search & Category Filters) ── */}
+      <div className="shrink-0 space-y-2">
+        {/* Date Navigator & Switch View Button */}
+        <div className="flex items-center justify-between gap-2 pt-0.5">
+          {/* Date Navigator */}
+          <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-0.5 bg-white p-0.5 rounded-xl border border-slate-200 shadow-2xs">
+              <button
+                onClick={handlePrevDay}
+                className="p-1 rounded-lg hover:bg-slate-100 text-slate-600 transition active:scale-90"
+                title="Previous Day"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
 
-            <span className="px-2 text-xs font-black text-slate-800 font-mono">
-              {new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-            </span>
+              <span className="px-2 text-xs font-black text-slate-800 font-mono">
+                {new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+              </span>
 
-            <button
-              onClick={handleNextDay}
-              className="p-1 rounded-lg hover:bg-slate-100 text-slate-600 transition active:scale-90"
-              title="Next Day"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
+              <button
+                onClick={handleNextDay}
+                className="p-1 rounded-lg hover:bg-slate-100 text-slate-600 transition active:scale-90"
+                title="Next Day"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+
+            {!isViewingToday && (
+              <button
+                onClick={handleToday}
+                className="px-2.5 py-1 rounded-xl bg-violet-50 border border-violet-200 text-violet-700 text-[11px] font-bold hover:bg-violet-100 transition active:scale-95 shadow-2xs"
+              >
+                Today
+              </button>
+            )}
           </div>
 
-          {!isViewingToday && (
+          {/* Primary View Switcher: [ 📦 Blocks ] vs [ ⏱️ Timeline ] */}
+          <div className="flex items-center p-0.5 bg-slate-200/80 rounded-xl border border-slate-200 text-xs font-bold shrink-0">
             <button
-              onClick={handleToday}
-              className="px-2.5 py-1 rounded-xl bg-violet-50 border border-violet-200 text-violet-700 text-[11px] font-bold hover:bg-violet-100 transition active:scale-95 shadow-2xs"
-            >
-              Today
-            </button>
-          )}
-        </div>
-
-        {/* Primary View Switcher: [ 📦 Blocks ] vs [ ⏱️ Timeline ] */}
-        <div className="flex items-center p-0.5 bg-slate-200/80 rounded-xl border border-slate-200 text-xs font-bold shrink-0">
-          <button
-            onClick={() => { sounds.playTap(); setViewMode('blocks') }}
-            className={`px-2.5 py-1 rounded-lg transition flex items-center gap-1.5 ${
-              viewMode === 'blocks'
-                ? 'bg-white text-violet-700 shadow-2xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-            title="Compact blocks view"
-          >
-            <LayoutList className="w-3.5 h-3.5" />
-            <span>Blocks</span>
-          </button>
-
-          <button
-            onClick={() => { sounds.playTap(); setViewMode('timeline') }}
-            className={`px-2.5 py-1 rounded-lg transition flex items-center gap-1.5 ${
-              viewMode === 'timeline'
-                ? 'bg-white text-violet-700 shadow-2xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-            title="Hourly Timeline with ruler"
-          >
-            <Clock3 className="w-3.5 h-3.5" />
-            <span>Timeline</span>
-          </button>
-        </div>
-      </div>
-
-      {/* ── 2. Date Strip: Days of Week Only (MON, TUE, WED...) ── */}
-      <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
-        {datePills.map(d => {
-          const isSelected = selectedDate === d.iso
-          return (
-            <button
-              key={d.iso}
-              onClick={() => { sounds.playTap(); setSelectedDate(d.iso) }}
-              className={`shrink-0 flex flex-col items-center justify-center flex-1 min-w-[44px] py-1.5 rounded-2xl border transition active:scale-95 relative ${
-                isSelected
-                  ? 'bg-violet-600 border-violet-600 text-white shadow-xs scale-[1.02]'
-                  : 'bg-white border-slate-200/90 text-slate-600 hover:bg-slate-50'
+              onClick={() => { sounds.playTap(); setViewMode('blocks') }}
+              className={`px-2.5 py-1 rounded-lg transition flex items-center gap-1.5 ${
+                viewMode === 'blocks'
+                  ? 'bg-white text-violet-700 shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900'
               }`}
+              title="Compact blocks view"
             >
-              <span className={`text-[9px] font-black uppercase tracking-wider ${isSelected ? 'text-violet-100' : 'text-slate-400'}`}>
-                {d.weekdayLabel}
-              </span>
-              <span className={`text-sm font-black font-mono mt-0.5 ${isSelected ? 'text-white' : 'text-slate-800'}`}>
-                {d.dayNum}
-              </span>
-              {d.isToday && (
-                <span className={`w-1 h-1 rounded-full mt-0.5 ${isSelected ? 'bg-amber-300' : 'bg-violet-600'}`} />
-              )}
+              <LayoutList className="w-3.5 h-3.5" />
+              <span>Blocks</span>
             </button>
-          )
-        })}
-      </div>
 
-      {/* ── 3. Quick Metrics Overview Strip ── */}
-      <div className="grid grid-cols-2 gap-2">
-        <div className="bg-sky-50/90 border border-sky-200/80 rounded-2xl p-2.5 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <CalendarIcon className="w-4 h-4 text-sky-600 shrink-0" />
-            <div>
-              <div className="text-[9px] font-bold uppercase text-sky-700 tracking-wider">Planned</div>
-              <div className="text-sm font-black text-sky-950 font-mono">{totalPlannedHoursFormatted}</div>
-            </div>
-          </div>
-          <span className="text-[10px] font-bold text-sky-800 bg-white/80 px-2 py-0.5 rounded-lg border border-sky-200">
-            {slots.filter(s => s.is_done).length}/{slots.length} done
-          </span>
-        </div>
-
-        <div className="bg-violet-50/90 border border-violet-200/80 rounded-2xl p-2.5 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Clock className="w-4 h-4 text-violet-600 shrink-0" />
-            <div>
-              <div className="text-[9px] font-bold uppercase text-violet-700 tracking-wider">Actual Focused</div>
-              <div className="text-sm font-black text-violet-950 font-mono">{totalLogHoursFormatted}</div>
-            </div>
-          </div>
-          <span className="text-[10px] font-bold text-violet-800 bg-white/80 px-2 py-0.5 rounded-lg border border-violet-200">
-            {logs.length} logs
-          </span>
-        </div>
-      </div>
-
-      {/* ── 4. Search Bar & Category Filter Bar (Identical to Tasks Page) ── */}
-      <div className="space-y-2">
-        {/* Search Input */}
-        <div className="relative">
-          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            placeholder="Search blocks, notes, or categories..."
-            className="w-full pl-9 pr-9 py-2.5 rounded-2xl bg-white border border-slate-200 text-xs font-bold text-slate-900 placeholder:text-slate-400 outline-none focus:border-violet-500 shadow-2xs transition"
-          />
-          {searchQuery && (
             <button
-              onClick={() => setSearchQuery('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-700"
+              onClick={() => { sounds.playTap(); setViewMode('timeline') }}
+              className={`px-2.5 py-1 rounded-lg transition flex items-center gap-1.5 ${
+                viewMode === 'timeline'
+                  ? 'bg-white text-violet-700 shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+              title="Hourly Timeline with ruler"
             >
-              <X className="w-4 h-4" />
+              <Clock3 className="w-3.5 h-3.5" />
+              <span>Timeline</span>
             </button>
-          )}
+          </div>
         </div>
 
-        {/* Category Value Group Filter Chips */}
+        {/* Date Strip: Days of Week Only (MON, TUE, WED...) */}
         <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
-          {[
-            { key: 'all', label: 'All Values' },
-            { key: 'productive', label: '🟢 Productive' },
-            { key: 'neutral', label: '🔵 Neutral' },
-            { key: 'wasted', label: '🔴 Wasted' },
-          ].map(grp => (
-            <button
-              key={grp.key}
-              onClick={() => { sounds.playTap(); setSelectedCategoryType(grp.key) }}
-              className={`shrink-0 px-3 py-1 rounded-xl text-[11px] font-bold transition active:scale-95 border ${
-                selectedCategoryType === grp.key
-                  ? 'bg-violet-600 border-violet-600 text-white shadow-2xs'
-                  : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-              }`}
-            >
-              {grp.label}
-            </button>
-          ))}
+          {datePills.map(d => {
+            const isSelected = selectedDate === d.iso
+            return (
+              <button
+                key={d.iso}
+                onClick={() => { sounds.playTap(); setSelectedDate(d.iso) }}
+                className={`shrink-0 flex flex-col items-center justify-center flex-1 min-w-[44px] py-1.5 rounded-2xl border transition active:scale-95 relative ${
+                  isSelected
+                    ? 'bg-violet-600 border-violet-600 text-white shadow-xs scale-[1.02]'
+                    : 'bg-white border-slate-200/90 text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                <span className={`text-[9px] font-black uppercase tracking-wider ${isSelected ? 'text-violet-100' : 'text-slate-400'}`}>
+                  {d.weekdayLabel}
+                </span>
+                <span className={`text-sm font-black font-mono mt-0.5 ${isSelected ? 'text-white' : 'text-slate-800'}`}>
+                  {d.dayNum}
+                </span>
+                {d.isToday && (
+                  <span className={`w-1 h-1 rounded-full mt-0.5 ${isSelected ? 'bg-amber-300' : 'bg-violet-600'}`} />
+                )}
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Quick Metrics Overview Strip */}
+        <div className="grid grid-cols-2 gap-2">
+          <div className="bg-sky-50/90 border border-sky-200/80 rounded-2xl p-2 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <CalendarIcon className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+              <div>
+                <div className="text-[9px] font-bold uppercase text-sky-700 tracking-wider">Planned</div>
+                <div className="text-xs font-black text-sky-950 font-mono">{totalPlannedHoursFormatted}</div>
+              </div>
+            </div>
+            <span className="text-[10px] font-bold text-sky-800 bg-white/80 px-2 py-0.5 rounded-lg border border-sky-200">
+              {slots.filter(s => s.is_done).length}/{slots.length} done
+            </span>
+          </div>
+
+          <div className="bg-violet-50/90 border border-violet-200/80 rounded-2xl p-2 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Clock className="w-3.5 h-3.5 text-violet-600 shrink-0" />
+              <div>
+                <div className="text-[9px] font-bold uppercase text-violet-700 tracking-wider">Actual Focused</div>
+                <div className="text-xs font-black text-violet-950 font-mono">{totalLogHoursFormatted}</div>
+              </div>
+            </div>
+            <span className="text-[10px] font-bold text-violet-800 bg-white/80 px-2 py-0.5 rounded-lg border border-violet-200">
+              {logs.length} logs
+            </span>
+          </div>
+        </div>
+
+        {/* Search Bar & Category Filter Bar */}
+        <div className="space-y-1.5">
+          {/* Search Input */}
+          <div className="relative">
+            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Search blocks, notes, or categories..."
+              className="w-full pl-8 pr-8 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-900 placeholder:text-slate-400 outline-none focus:border-violet-500 shadow-2xs transition"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-700"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Category Value Group Filter Chips */}
+          <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+            {[
+              { key: 'all', label: 'All Values' },
+              { key: 'productive', label: '🟢 Productive' },
+              { key: 'neutral', label: '🔵 Neutral' },
+              { key: 'wasted', label: '🔴 Wasted' },
+            ].map(grp => (
+              <button
+                key={grp.key}
+                onClick={() => { sounds.playTap(); setSelectedCategoryType(grp.key) }}
+                className={`shrink-0 px-2.5 py-0.5 rounded-lg text-[10px] font-bold transition active:scale-95 border ${
+                  selectedCategoryType === grp.key
+                    ? 'bg-violet-600 border-violet-600 text-white shadow-2xs'
+                    : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                {grp.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -549,9 +552,9 @@ export const TimeBlockingSchedule: React.FC = () => {
       {/* ── VIEW MODE 1: COMPACT BLOCKS (NO EMPTY HOURS SHOWN) ─────────────── */}
       {/* ══════════════════════════════════════════════════════════════════════ */}
       {viewMode === 'blocks' && (
-        <div className="space-y-3 animate-fade-in">
+        <div className="flex-1 min-h-0 overflow-y-auto space-y-2.5 pr-0.5 pb-20 no-scrollbar animate-fade-in">
           {/* Sub-Filter Pills */}
-          <div className="flex items-center justify-between gap-1.5">
+          <div className="flex items-center justify-between gap-1.5 shrink-0">
             <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
               {[
                 { id: 'all', label: `All (${combinedBlocks.length})` },
@@ -576,7 +579,7 @@ export const TimeBlockingSchedule: React.FC = () => {
 
           {/* Search notice */}
           {searchQuery && (
-            <div className="flex items-center justify-between px-3 py-1.5 rounded-xl bg-violet-50 border border-violet-200 text-xs font-bold text-violet-800">
+            <div className="flex items-center justify-between px-3 py-1.5 rounded-xl bg-violet-50 border border-violet-200 text-xs font-bold text-violet-800 shrink-0">
               <div className="flex items-center gap-1.5 truncate">
                 <Search className="w-3.5 h-3.5 text-violet-600 shrink-0" />
                 <span className="truncate">"{searchQuery}" ({filteredBlocks.length} results)</span>
@@ -592,7 +595,7 @@ export const TimeBlockingSchedule: React.FC = () => {
 
           {/* Variance Analysis (When Compare Tab Selected) */}
           {blockFilter === 'compare' && (
-            <div className="bg-white rounded-2xl p-3.5 border border-slate-200/90 shadow-2xs space-y-2.5">
+            <div className="bg-white rounded-2xl p-3.5 border border-slate-200/90 shadow-2xs space-y-2.5 shrink-0">
               <div className="flex items-start gap-2.5">
                 <TrendingUp className="w-4 h-4 text-violet-600 shrink-0 mt-0.5" />
                 <div className="text-xs text-slate-700 leading-relaxed">
@@ -831,9 +834,9 @@ export const TimeBlockingSchedule: React.FC = () => {
       {/* ── VIEW MODE 2: HOURLY TIMELINE WITH RULER ─────────────────────────── */}
       {/* ══════════════════════════════════════════════════════════════════════ */}
       {viewMode === 'timeline' && (
-        <div className="bg-white rounded-3xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col flex-1 min-h-[500px]">
+        <div className="bg-white rounded-3xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col flex-1 min-h-0 mb-18">
           {/* Header Legend */}
-          <div className="px-4 py-2 bg-slate-50 border-b border-slate-100 flex items-center justify-between text-xs font-bold text-slate-600">
+          <div className="px-4 py-2 bg-slate-50 border-b border-slate-100 flex items-center justify-between text-xs font-bold text-slate-600 shrink-0">
             <div className="flex items-center gap-3">
               <span className="flex items-center gap-1.5 text-sky-700">
                 <span className="w-2.5 h-2.5 rounded-full bg-sky-500" />
@@ -854,7 +857,7 @@ export const TimeBlockingSchedule: React.FC = () => {
           </div>
 
           {/* Timeline Scroll Area */}
-          <div ref={timelineScrollRef} className="flex-1 overflow-y-auto relative p-3 min-h-[400px]">
+          <div ref={timelineScrollRef} className="flex-1 min-h-0 overflow-y-auto relative p-3 pb-16">
             <div
               className="relative"
               style={{ height: `${(END_HOUR - START_HOUR + 1) * HOUR_HEIGHT}px` }}

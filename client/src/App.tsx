@@ -46,59 +46,46 @@ const AppShell: React.FC = () => {
       <div className="flex-1 flex flex-col min-h-0 md:ml-60">
         {/* Mobile top bar */}
         <header className="md:hidden shrink-0 flex items-center justify-between px-4 h-13 bg-white border-b border-slate-200 z-20">
-          {/* Dynamic Title / Counter on Top Bar */}
-          {location.pathname === '/' || location.pathname === '/calendar' || location.pathname === '/schedule' ? (
-            <div className="flex items-center gap-2">
-              <span className="text-base font-black text-slate-900 tracking-tight">Calendar</span>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-violet-700 bg-violet-50 px-2 py-0.5 rounded-lg border border-violet-200">
-                Plan & Actual
+          {/* Always Show TIMEHACK Brand Logo + Active Page */}
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-7 h-7 rounded-xl bg-violet-600 flex items-center justify-center shadow-xs shrink-0">
+              <Sparkles className="w-3.5 h-3.5 text-white" />
+            </div>
+            <div className="flex items-center gap-1.5 font-black text-sm tracking-wider font-mono text-slate-900 truncate">
+              <span className="shrink-0">TIME<span className="text-violet-600">HACK</span></span>
+              <span className="text-slate-300 font-normal shrink-0">|</span>
+              <span className="text-xs font-bold text-slate-700 font-sans tracking-normal truncate">
+                {location.pathname === '/' || location.pathname === '/calendar' || location.pathname === '/schedule'
+                  ? 'Calendar'
+                  : location.pathname === '/tracking'
+                  ? 'Tracking'
+                  : location.pathname === '/tasks'
+                  ? 'Tasks'
+                  : location.pathname === '/habits'
+                  ? 'Habits'
+                  : location.pathname === '/categories'
+                  ? 'Categories'
+                  : location.pathname === '/analytics'
+                  ? 'Analytics'
+                  : ''}
               </span>
             </div>
-          ) : location.pathname === '/tracking' ? (
-            <div className="flex items-center gap-2">
-              <span className="text-base font-black text-slate-900 tracking-tight">Tracking</span>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">
-                Live & Logs
+
+            {/* Task/Habit Quick Counters */}
+            {location.pathname === '/tasks' && (
+              <span className="text-[10px] font-black font-mono text-violet-700 bg-violet-50 px-1.5 py-0.2 rounded border border-violet-200 shrink-0">
+                {doneTasks}/{tasks.length}
               </span>
-            </div>
-          ) : location.pathname === '/tasks' ? (
-            <div className="flex items-center gap-2">
-              <span className="text-base font-black text-slate-900 tracking-tight">Tasks</span>
-              <span className="text-xs font-black font-mono text-violet-700 bg-violet-50 px-2 py-0.5 rounded-lg border border-violet-200">
-                {doneTasks}/{tasks.length} done
+            )}
+            {location.pathname === '/habits' && (
+              <span className="text-[10px] font-black font-mono text-violet-700 bg-violet-50 px-1.5 py-0.2 rounded border border-violet-200 shrink-0">
+                {doneHabits}/{habits.length}
               </span>
-            </div>
-          ) : location.pathname === '/habits' ? (
-            <div className="flex items-center gap-2">
-              <span className="text-base font-black text-slate-900 tracking-tight">Habits</span>
-              <span className="text-xs font-black font-mono text-violet-700 bg-violet-50 px-2 py-0.5 rounded-lg border border-violet-200">
-                {doneHabits}/{habits.length} done
-              </span>
-            </div>
-          ) : location.pathname === '/categories' ? (
-            <div className="flex items-center gap-2">
-              <span className="text-base font-black text-slate-900 tracking-tight">Categories</span>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-violet-700 bg-violet-50 px-2 py-0.5 rounded-lg border border-violet-200">
-                Hierarchy
-              </span>
-            </div>
-          ) : location.pathname === '/analytics' ? (
-            <div className="flex items-center gap-2">
-              <span className="text-base font-black text-slate-900 tracking-tight">Analytics</span>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-xl bg-violet-600 flex items-center justify-center shadow-xs">
-                <Sparkles className="w-3.5 h-3.5 text-white" />
-              </div>
-              <span className="font-black text-sm tracking-wider font-mono text-slate-900">
-                TIME<span className="text-violet-600">HACK</span>
-              </span>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Right Header Actions: Analytics & User Profile Avatar */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             {/* Analytics Shortcut */}
             <Link
               to="/analytics"
@@ -129,9 +116,9 @@ const AppShell: React.FC = () => {
         {/* Main page container */}
         <main className="flex-1 flex flex-col min-h-0 overflow-hidden bg-[#F8FAFC]">
           <Routes>
-            <Route path="/" element={<div className="flex-1 overflow-y-auto px-4 py-4 md:px-8 md:py-6"><div className="max-w-lg md:max-w-5xl mx-auto"><TimeBlockingSchedule /></div></div>} />
-            <Route path="/calendar" element={<div className="flex-1 overflow-y-auto px-4 py-4 md:px-8 md:py-6"><div className="max-w-lg md:max-w-5xl mx-auto"><TimeBlockingSchedule /></div></div>} />
-            <Route path="/schedule" element={<div className="flex-1 overflow-y-auto px-4 py-4 md:px-8 md:py-6"><div className="max-w-lg md:max-w-5xl mx-auto"><TimeBlockingSchedule /></div></div>} />
+            <Route path="/" element={<div className="flex-1 flex flex-col min-h-0 px-3 pt-2 md:px-8 md:pt-4 overflow-hidden"><div className="max-w-lg md:max-w-5xl mx-auto w-full flex-1 flex flex-col min-h-0 overflow-hidden"><TimeBlockingSchedule /></div></div>} />
+            <Route path="/calendar" element={<div className="flex-1 flex flex-col min-h-0 px-3 pt-2 md:px-8 md:pt-4 overflow-hidden"><div className="max-w-lg md:max-w-5xl mx-auto w-full flex-1 flex flex-col min-h-0 overflow-hidden"><TimeBlockingSchedule /></div></div>} />
+            <Route path="/schedule" element={<div className="flex-1 flex flex-col min-h-0 px-3 pt-2 md:px-8 md:pt-4 overflow-hidden"><div className="max-w-lg md:max-w-5xl mx-auto w-full flex-1 flex flex-col min-h-0 overflow-hidden"><TimeBlockingSchedule /></div></div>} />
             <Route path="/tracking" element={<LiveTrackingHub onOpenFullscreenFocus={() => setFocusOpen(true)} />} />
             <Route path="/tasks" element={<TasksBoard />} />
             <Route path="/habits" element={<HabitMatrix />} />

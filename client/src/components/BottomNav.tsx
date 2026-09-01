@@ -38,7 +38,11 @@ export const BottomNav: React.FC<Props> = ({ onFabTap }) => {
         }
 
         const Icon = tab.icon
-        const isActive = pathname === tab.path || (tab.path === '/calendar' && pathname === '/schedule')
+        const isActive = tab.path === '/'
+          ? pathname === '/'
+          : tab.path === '/calendar'
+          ? (pathname.startsWith('/calendar') || pathname.startsWith('/schedule'))
+          : pathname.startsWith(tab.path)
 
         return (
           <Link

@@ -39,7 +39,11 @@ export const Sidebar: React.FC<Props> = ({ user, onLogout, onOpenSettings }) => 
       <nav className="flex-1 py-3 px-3 space-y-1 overflow-y-auto">
         {links.map(link => {
           const Icon = link.icon
-          const active = pathname === link.path || (link.path === '/calendar' && pathname === '/schedule')
+          const active = link.path === '/'
+            ? pathname === '/'
+            : link.path === '/calendar'
+            ? (pathname.startsWith('/calendar') || pathname.startsWith('/schedule'))
+            : pathname.startsWith(link.path)
           return (
             <Link
               key={link.path}

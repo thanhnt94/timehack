@@ -1,6 +1,5 @@
 import React from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { motion } from 'framer-motion'
 import { Calendar, Clock, CheckSquare, Zap, Plus } from 'lucide-react'
 import { sounds } from '../utils/soundEffects'
 
@@ -57,11 +56,7 @@ export const BottomNav: React.FC<Props> = ({ onFabTap }) => {
               {tab.label}
             </span>
             {isActive && (
-              <motion.div
-                layoutId="bottomNavDot"
-                className="tab-active-dot"
-                transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-              />
+              <div className="absolute -bottom-0.5 w-1.5 h-1.5 rounded-full bg-violet-600" />
             )}
           </Link>
         )

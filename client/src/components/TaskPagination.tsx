@@ -1,6 +1,5 @@
 import React, { useState } from 'react'
 import { createPortal } from 'react-dom'
-import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronLeft, ChevronRight, X, ArrowRight } from 'lucide-react'
 
 export interface TaskPaginationProps {
@@ -72,95 +71,81 @@ export function TaskPagination({
         </button>
       </div>
 
-      {/* Jump Page Modal */}
-      {typeof document !== 'undefined' && createPortal(
-        <AnimatePresence>
-          {isJumpModalOpen && (
-            <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
+      {/* Jump to Page Modal */}
+      {isJumpModalOpen && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs anim-fade-in">
+          <div
+            onClick={() => setIsJumpModalOpen(false)}
+            className="absolute inset-0"
+          />
+          <div
+            className="relative z-10 w-full max-w-xs bg-white rounded-3xl p-5 shadow-2xl border border-slate-100 space-y-4"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="text-sm font-black text-slate-900">Jump to Page</h4>
+                <p className="text-[10px] text-slate-400 font-bold">
+                  Total {totalPages} pages (1 - {totalPages})
+                </p>
+              </div>
+              <button
                 onClick={() => setIsJumpModalOpen(false)}
-                className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm"
+                className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-700 transition cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleJumpSubmit} className="space-y-3">
+              <input
+                type="number"
+                min={1}
+                max={totalPages}
+                value={targetPageInput}
+                onChange={(e) => setTargetPageInput(e.target.value)}
+                autoFocus
+                placeholder="Page number..."
+                className="w-full h-12 bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 text-lg font-black text-center text-violet-600 focus:border-violet-500 focus:bg-white outline-none transition"
               />
 
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: 15 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 15 }}
-                transition={{ type: "spring", bounce: 0.2, duration: 0.35 }}
-                className="w-full max-w-xs bg-white rounded-3xl shadow-2xl relative z-10 p-5 border border-slate-100 text-left flex flex-col gap-4 mx-auto"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-black text-slate-800 tracking-tight">
-                      Jump to Page
-                    </h3>
-                    <p className="text-[10px] text-slate-400 font-bold">
-                      Total {totalPages} pages (1 - {totalPages})
-                    </p>
-                  </div>
+              {totalPages > 2 && (
+                <div className="flex items-center justify-center gap-2">
                   <button
-                    onClick={() => setIsJumpModalOpen(false)}
-                    className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-700 transition cursor-pointer"
+                    type="button"
+                    onClick={() => setTargetPageInput('1')}
+                    className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-bold cursor-pointer"
                   >
-                    <X className="w-3.5 h-3.5" />
+                    Page 1
+                  </button>
+                  {totalPages > 4 && (
+                    <button
+                      type="button"
+                      onClick={() => setTargetPageInput(String(Math.ceil(totalPages / 2)))}
+                      className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-bold cursor-pointer"
+                    >
+                      Page {Math.ceil(totalPages / 2)}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setTargetPageInput(String(totalPages))}
+                    className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-bold cursor-pointer"
+                  >
+                    Page {totalPages}
                   </button>
                 </div>
+              )}
 
-                <form onSubmit={handleJumpSubmit} className="space-y-3">
-                  <input
-                    type="number"
-                    min={1}
-                    max={totalPages}
-                    value={targetPageInput}
-                    onChange={(e) => setTargetPageInput(e.target.value)}
-                    autoFocus
-                    placeholder="Page number..."
-                    className="w-full h-12 bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 text-lg font-black text-center text-violet-600 focus:border-violet-500 focus:bg-white outline-none transition"
-                  />
-
-                  {totalPages > 2 && (
-                    <div className="flex items-center justify-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setTargetPageInput('1')}
-                        className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-bold cursor-pointer"
-                      >
-                        Page 1
-                      </button>
-                      {totalPages > 4 && (
-                        <button
-                          type="button"
-                          onClick={() => setTargetPageInput(String(Math.ceil(totalPages / 2)))}
-                          className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-bold cursor-pointer"
-                        >
-                          Page {Math.ceil(totalPages / 2)}
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => setTargetPageInput(String(totalPages))}
-                        className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-bold cursor-pointer"
-                      >
-                        Page {totalPages}
-                      </button>
-                    </div>
-                  )}
-
-                  <button
-                    type="submit"
-                    className="w-full h-10 rounded-xl bg-violet-600 text-white font-black text-xs shadow-xs shadow-violet-200 hover:bg-violet-700 active:scale-95 transition flex items-center justify-center gap-1.5 cursor-pointer"
-                  >
-                    <span>Go to Page</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
-                </form>
-              </motion.div>
-            </div>
-          )}
-        </AnimatePresence>,
+              <button
+                type="submit"
+                className="w-full h-10 rounded-xl bg-violet-600 text-white font-black text-xs shadow-xs shadow-violet-200 hover:bg-violet-700 active:scale-95 transition flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <span>Go to Page</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </form>
+          </div>
+        </div>,
         document.body
       )}
     </>

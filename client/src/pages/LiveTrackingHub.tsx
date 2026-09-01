@@ -1,11 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import {
-  Clock, Play, Pause, Square, Plus, Check, RotateCcw,
-  Sparkles, Maximize2, Trash2, Calendar as CalendarIcon,
-  Flame, CheckCircle2, ChevronRight, BarChart3, AlertCircle,
-  Tag, Layers, ArrowRight, Zap, Target, Edit3, X, Coffee,
-  Activity, BookOpen, Briefcase, Code, Smile, Navigation,
-  BookMarked, ListTodo, Wallet, ChevronDown, Filter, Calendar
+  Clock, Play, Pause, Square, Plus, Trash2, Calendar as CalendarIcon,
+  Flame, Target, Edit3, X, ListTodo, Wallet
 } from 'lucide-react'
 import { useTimerStore, type ActiveTrack } from '../store/useTimerStore'
 import { useTimeLogStore, type TimeLogItem } from '../store/useTimeLogStore'
@@ -38,13 +34,12 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
 
   const todayIso = useMemo(() => new Date().toISOString().split('T')[0], [])
 
-  // 3 Primary Tabs (Docked at Bottom)
+  // 3 Primary Tabs
   const [activeTab, setActiveTab] = useState<MainTab>('active')
   const [readySubTab, setReadySubTab] = useState<ReadySubTab>('all')
 
-  // Quick Start Input State (Shown only in 'active' tab)
+  // Simple Track Input State (Only in 'active' tab)
   const [quickTitle, setQuickTitle] = useState('')
-  const [quickCategoryId, setQuickCategoryId] = useState<number | null>(null)
 
   // Edit Log Modal State
   const [editingLog, setEditingLog] = useState<TimeLogItem | null>(null)
@@ -108,7 +103,6 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
     }
   }
 
-  // Format Duration string: "2h 30m" or "45m"
   const formatDurationDisplay = (totalSec: number) => {
     const hours = Math.floor(totalSec / 3600)
     const mins = Math.round((totalSec % 3600) / 60)
@@ -117,7 +111,6 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
     return `${hours}h ${mins > 0 ? `${mins}p` : ''}`
   }
 
-  // Today's total logged time
   const totalLoggedSeconds = useMemo(() => {
     return logs.reduce((acc, cur) => acc + (cur.duration_seconds || 0), 0)
   }, [logs])
@@ -126,7 +119,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
     return formatDurationDisplay(totalLoggedSeconds)
   }, [totalLoggedSeconds])
 
-  // Breakdown for MISA Ledger Top Summary
+  // MISA Ledger Breakdown
   const ledgerBreakdown = useMemo(() => {
     let productiveSec = 0
     let neutralSec = 0
@@ -142,29 +135,41 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
 
     return {
       productive: formatDurationDisplay(productiveSec),
-      productiveSec,
       neutral: formatDurationDisplay(neutralSec),
-      neutralSec,
-      wasted: formatDurationDisplay(wastedSec),
-      wastedSec
+      wasted: formatDurationDisplay(wastedSec)
     }
   }, [logs, categories])
 
-  // Real-time Multi-track Start
-  const handleStartTrack = async (title?: string, catId?: number, taskId?: number, habitId?: number) => {
+  // Auto detect or assign category
+  const detectCategory = (titleText: string) => {
+    const t = titleText.toLowerCase()
+    if (t.includes('code') || t.includes('lập trình') || t.includes('api') || t.includes('bug')) {
+      return categories.find(c => c.name.toLowerCase().includes('lập trình'))
+    }
+    if (t.includes('họp') || t.includes('meeting') || t.includes('dự án') || t.includes('làm việc') || t.includes('đi làm')) {
+      return categories.find(c => c.name.toLowerCase().includes('công việc'))
+    }
+    if (t.includes('chạy') || t.includes('gym') || t.includes('thể thao') || t.includes('bơi')) {
+      return categories.find(c => c.name.toLowerCase().includes('sức khỏe'))
+    }
+    if (t.includes('đọc') || t.includes('học') || t.includes('từ vựng') || t.includes('sách')) {
+      return categories.find(c => c.name.toLowerCase().includes('học tập'))
+    }
+    return categories[0]
+  }
+
+  // Super Simple Start Track
+  const handleSimpleStartTrack = async (customTitle?: string) => {
     sounds.playTap()
-    const chosenTitle = title || quickTitle.trim() || 'Hoạt động thực tế'
-    const chosenCatId = catId !== undefined ? catId : quickCategoryId
-    const chosenCat = categories.find(c => c.id === chosenCatId)
+    const chosenTitle = customTitle || quickTitle.trim() || 'Hoạt động thực tế'
+    const matchedCat = detectCategory(chosenTitle)
 
     await startNewTrack({
       title: chosenTitle,
-      categoryId: chosenCat?.id,
-      categoryName: chosenCat?.name,
-      categoryColor: chosenCat?.color,
-      categoryType: chosenCat?.category_type,
-      taskId,
-      habitId,
+      categoryId: matchedCat?.id,
+      categoryName: matchedCat?.name,
+      categoryColor: matchedCat?.color,
+      categoryType: matchedCat?.category_type,
       mode: 'stopwatch'
     })
 
@@ -173,18 +178,43 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
   }
 
   const handleTrackTask = async (task: Task) => {
-    await handleStartTrack(task.title, task.category?.id, task.id, undefined)
+    sounds.playTap()
+    await startNewTrack({
+      title: task.title,
+      taskId: task.id,
+      categoryId: task.category?.id,
+      categoryName: task.category?.name,
+      categoryColor: task.category?.color,
+      mode: 'stopwatch'
+    })
+    setActiveTab('active')
   }
 
   const handleTrackHabit = async (habit: Habit) => {
-    await handleStartTrack(habit.title, habit.category?.id || habit.category_id, undefined, habit.id)
+    sounds.playTap()
+    await startNewTrack({
+      title: habit.title,
+      habitId: habit.id,
+      categoryId: habit.category?.id || habit.category_id,
+      categoryName: habit.category?.name,
+      categoryColor: habit.color,
+      mode: 'stopwatch'
+    })
+    setActiveTab('active')
   }
 
   const handleTrackPlanSlot = async (slot: ScheduleSlot) => {
-    await handleStartTrack(slot.title, slot.category_id || undefined, undefined, undefined)
+    sounds.playTap()
+    await startNewTrack({
+      title: slot.title,
+      categoryId: slot.category_id || undefined,
+      categoryName: slot.category?.name,
+      categoryColor: slot.category?.color,
+      mode: 'stopwatch'
+    })
+    setActiveTab('active')
   }
 
-  // Finish track and save
   const handleFinishTrack = async (trackId: string) => {
     sounds.playTap()
     await stopTrack(trackId)
@@ -192,7 +222,6 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
     fetchLogs(todayIso)
   }
 
-  // Open Edit Modal for Log
   const handleOpenEditModal = (log: TimeLogItem) => {
     sounds.playTap()
     setEditingLog(log)
@@ -246,7 +275,6 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
     }
   }
 
-  // Submit Manual Quick Log
   const handleSaveManualLog = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!manualTitle.trim() || isSubmittingManual) return
@@ -295,20 +323,10 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
   const activePlanSlots = slots.filter(s => !s.is_done)
   const activeTasks = tasks.filter(t => t.status !== 'completed')
 
-  // Real-world practical presets
-  const presets = [
-    { title: '🚗 Đi làm / Di chuyển', catName: 'Công việc & Dự án', color: '#3B82F6' },
-    { title: '💻 Lập trình & Kỹ thuật', catName: 'Lập trình & Kỹ thuật', color: '#8B5CF6' },
-    { title: '💼 Họp & Thảo luận', catName: 'Công việc & Dự án', color: '#3B82F6' },
-    { title: '🏃 Chạy bộ & Thể thao', catName: 'Sức khỏe & Thể thao', color: '#F59E0B' },
-    { title: '☕ Ăn uống & Nghỉ ngơi', catName: 'Nghỉ ngơi & Giải trí', color: '#64748B' },
-    { title: '📚 Đọc sách & Học tập', catName: 'Học tập & Ngoại ngữ', color: '#10B981' }
-  ]
-
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#F8FAFC] text-slate-900">
-      {/* ── 1. CLEAN LIGHT HEADER BAR (COMPACT) ── */}
-      <header className="shrink-0 bg-white border-b border-slate-200/90 px-4 py-3 sm:px-6 z-20 flex items-center justify-between">
+      {/* ── 1. HEADER BAR ── */}
+      <header className="shrink-0 bg-white border-b border-slate-200/90 px-4 py-3 sm:px-6 z-10 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-xl bg-violet-600 flex items-center justify-center text-white shadow-xs shadow-violet-600/30">
             <Clock className="w-4 h-4" />
@@ -317,16 +335,16 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
             <div className="flex items-center gap-2">
               <h1 className="text-base font-black tracking-tight text-slate-900">Tracking Hub</h1>
               <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-md bg-emerald-50 text-emerald-700 font-mono border border-emerald-200">
-                ACTUAL TIME
+                ACTUAL
               </span>
             </div>
             <p className="text-[11px] text-slate-500 font-medium hidden sm:block">
-              Quản lý bấm giờ thực tế & sổ thu chi thời gian hàng ngày
+              Bấm giờ thực tế & sổ thu chi thời gian hàng ngày
             </p>
           </div>
         </div>
 
-        {/* Right Summary Pill + Quick Add Button */}
+        {/* Right Pill + Quick Add */}
         <div className="flex items-center gap-2">
           <div className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1 text-right shadow-2xs">
             <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 block">Hôm nay</span>
@@ -346,14 +364,10 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
         </div>
       </header>
 
-      {/* ── 2. SCROLLABLE MIDDLE CONTENT AREA (SWITCHED BY BOTTOM TAB) ── */}
-      <main className={`flex-1 overflow-y-auto px-3.5 py-3.5 sm:px-6 sm:py-4 max-w-3xl w-full mx-auto ${
-        activeTab === 'active' ? 'pb-44' : 'pb-24'
-      }`}>
+      {/* ── 2. SCROLLABLE MIDDLE CONTENT AREA ── */}
+      <main className="flex-1 overflow-y-auto px-3.5 py-3.5 sm:px-6 sm:py-4 max-w-3xl w-full mx-auto">
 
-        {/* ═══════════════════════════════════════════════════════════════ */}
-        {/* ── TAB 1: DANH SÁCH CÁC VIỆC ĐANG TRACKING (ACTIVE STOPWATCH) ── */}
-        {/* ═══════════════════════════════════════════════════════════════ */}
+        {/* ── TAB 1: ĐANG TRACK (ACTIVE TRACKS) ── */}
         {activeTab === 'active' && (
           <div className="space-y-3 anim-fade-in">
             {activeTracks.length === 0 ? (
@@ -362,24 +376,10 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                   <Play className="w-6 h-6 fill-current" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-black text-slate-900">Chưa có hoạt động nào đang chạy</h3>
+                  <h3 className="text-sm font-black text-slate-900">Chưa có việc nào đang track</h3>
                   <p className="text-xs text-slate-500 font-medium max-w-xs mx-auto mt-1">
-                    Nhập tên việc ở thanh dưới đáy hoặc chuyển sang tab <b>"Chờ Track"</b> để bấm giờ ngay!
+                    Gõ việc vào thanh bên dưới và bấm <b>[Track]</b> hoặc chuyển sang tab <b>"Chờ Track"</b> để bắt đầu ngay!
                   </p>
-                </div>
-                <div className="pt-2 flex items-center justify-center gap-2 flex-wrap">
-                  {presets.slice(0, 3).map((p, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => {
-                        const matchedCat = categories.find(c => c.name.toLowerCase().includes(p.catName.toLowerCase().slice(0, 5)))
-                        handleStartTrack(p.title, matchedCat?.id)
-                      }}
-                      className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-violet-50 hover:text-violet-700 text-xs font-bold text-slate-700 border border-slate-200 transition active:scale-95"
-                    >
-                      {p.title}
-                    </button>
-                  ))}
                 </div>
               </div>
             ) : (
@@ -405,13 +405,11 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                       key={track.id}
                       className="bg-white rounded-2xl p-3.5 border border-emerald-300 shadow-sm shadow-emerald-500/10 flex items-center justify-between gap-3 anim-fade-in"
                     >
-                      {/* Category color indicator */}
                       <div
                         className="w-1.5 self-stretch rounded-full shrink-0"
                         style={{ backgroundColor: track.categoryColor || '#10B981' }}
                       />
 
-                      {/* Info */}
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <h3 className="text-xs sm:text-sm font-black text-slate-900 truncate">
@@ -431,13 +429,11 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                         </div>
                       </div>
 
-                      {/* Digits & Action Buttons */}
                       <div className="flex items-center gap-1.5 shrink-0">
                         <div className="bg-slate-900 text-emerald-400 font-mono font-black text-sm sm:text-base px-2.5 py-1 rounded-xl shadow-xs">
                           {formatClockDigits(track.elapsedSeconds)}
                         </div>
 
-                        {/* Pause / Resume */}
                         <button
                           onClick={() => {
                             sounds.playTap()
@@ -449,7 +445,6 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                           {track.isPaused ? <Play className="w-3.5 h-3.5 fill-current text-emerald-600" /> : <Pause className="w-3.5 h-3.5 fill-current text-amber-600" />}
                         </button>
 
-                        {/* Finish & Save */}
                         <button
                           onClick={() => handleFinishTrack(track.id)}
                           className="px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black flex items-center gap-1 shadow-xs transition active:scale-95"
@@ -459,7 +454,6 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                           <span>Kết thúc</span>
                         </button>
 
-                        {/* Cancel */}
                         <button
                           onClick={() => { sounds.playTap(); cancelTrack(track.id) }}
                           className="p-1.5 rounded-xl text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition"
@@ -476,12 +470,10 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
           </div>
         )}
 
-        {/* ═══════════════════════════════════════════════════════════════ */}
-        {/* ── TAB 2: DANH SÁCH CHỜ TRACK (TASKS, HABITS, PLANS HÔM NAY) ── */}
-        {/* ═══════════════════════════════════════════════════════════════ */}
+        {/* ── TAB 2: CHỜ TRACK (READY TASKS, HABITS, PLANS) ── */}
         {activeTab === 'ready' && (
           <div className="space-y-3 anim-fade-in">
-            {/* Sub Filter Chips */}
+            {/* Filter Chips */}
             <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
               <button
                 onClick={() => setReadySubTab('all')}
@@ -632,12 +624,10 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
           </div>
         )}
 
-        {/* ═══════════════════════════════════════════════════════════════ */}
-        {/* ── TAB 3: SỔ GHI THỜI GIAN (MISA MONEYKEEPER TIME LEDGER) ── */}
-        {/* ═══════════════════════════════════════════════════════════════ */}
+        {/* ── TAB 3: SỔ NHẬT KÝ (MISA TIME LEDGER) ── */}
         {activeTab === 'history' && (
           <div className="space-y-3.5 anim-fade-in">
-            {/* 1. MISA-STYLE DAILY SUMMARY CARD */}
+            {/* Daily summary */}
             <div className="bg-gradient-to-br from-violet-900 via-indigo-900 to-slate-900 rounded-3xl p-4 sm:p-5 text-white shadow-xl shadow-indigo-950/20 space-y-3 border border-indigo-700/40">
               <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
                 <div>
@@ -656,7 +646,6 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                 </div>
               </div>
 
-              {/* 3 Categories Mini Meters */}
               <div className="grid grid-cols-3 gap-2 pt-1">
                 <div className="bg-white/10 rounded-2xl p-2.5 border border-white/10 text-center">
                   <span className="text-[9px] font-bold uppercase tracking-wider text-emerald-300 block">
@@ -687,7 +676,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
               </div>
             </div>
 
-            {/* 2. MISA-STYLE TRANSACTION STREAM */}
+            {/* Transaction Stream */}
             <div className="bg-white rounded-3xl p-4 border border-slate-200 shadow-2xs space-y-2.5">
               <div className="flex items-center justify-between border-b border-slate-100 pb-2 px-1">
                 <div className="flex items-center gap-1.5">
@@ -722,7 +711,6 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                         onClick={() => handleOpenEditModal(log)}
                         className="py-3 px-2 flex items-center justify-between gap-3 hover:bg-violet-50/40 rounded-2xl cursor-pointer transition active:scale-99 group"
                       >
-                        {/* Left: Icon Badge with Category Color */}
                         <div
                           className="w-10 h-10 rounded-2xl flex items-center justify-center text-white shrink-0 shadow-xs font-bold text-sm"
                           style={{ backgroundColor: catColor }}
@@ -730,7 +718,6 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                           {logTitle.slice(0, 2).toUpperCase()}
                         </div>
 
-                        {/* Middle: Details */}
                         <div className="min-w-0 flex-1">
                           <h4 className="text-xs sm:text-sm font-black text-slate-900 truncate group-hover:text-violet-700 transition">
                             {logTitle}
@@ -754,7 +741,6 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                           </div>
                         </div>
 
-                        {/* Right: MISA-style duration amount */}
                         <div className="text-right shrink-0">
                           <div className="text-sm sm:text-base font-black font-mono text-violet-700">
                             +{durDisplay}
@@ -773,71 +759,38 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
         )}
       </main>
 
-      {/* ── 3. BOTTOM DOCKED AREA (QUICK TRACK BAR ON 'ACTIVE' TAB + 3 TABS BAR) ── */}
-      <div className="fixed bottom-[calc(56px+var(--safe-bottom))] left-0 right-0 z-30 bg-white/95 backdrop-blur-md border-t border-slate-200 px-3 py-2 sm:px-6 shadow-lg shadow-slate-300/40">
+      {/* ── 3. NATURAL BOTTOM DOCKED CONTROLS (NO FIXED OVERLAP, SIT DIRECTLY ABOVE BOTTOM NAV) ── */}
+      <div className="shrink-0 bg-white border-t border-slate-200 px-3 py-2 sm:px-6 z-10 shadow-md">
         <div className="max-w-3xl mx-auto space-y-2">
-          {/* Quick Track Launcher Bar: ONLY SHOWN ON 'ACTIVE' TAB */}
+          {/* Super Simple 1-Line Track Bar (Shown ONLY in 'active' tab) */}
           {activeTab === 'active' && (
-            <div className="space-y-1.5 anim-fade-in border-b border-slate-100 pb-2">
-              {/* Presets Chips */}
-              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
-                {presets.map((p, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => {
-                      const matchedCat = categories.find(c => c.name.toLowerCase().includes(p.catName.toLowerCase().slice(0, 5)))
-                      handleStartTrack(p.title, matchedCat?.id)
-                    }}
-                    className="px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-violet-100 hover:text-violet-700 text-[11px] font-bold text-slate-700 border border-slate-200/90 transition active:scale-95 shrink-0"
-                  >
-                    {p.title}
-                  </button>
-                ))}
-              </div>
+            <div className="flex items-center gap-2 anim-fade-in">
+              <input
+                type="text"
+                value={quickTitle}
+                onChange={e => setQuickTitle(e.target.value)}
+                placeholder="Nhập việc cần track (Ví dụ: Đi làm, Họp, Code API...)"
+                className="flex-1 px-3.5 py-2 rounded-xl bg-slate-100 border border-slate-200 text-xs font-bold text-slate-900 placeholder:text-slate-400 outline-none focus:bg-white focus:border-violet-500 transition shadow-inner"
+                onKeyDown={e => {
+                  if (e.key === 'Enter') handleSimpleStartTrack()
+                }}
+              />
 
-              {/* Input & Start Button */}
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={quickTitle}
-                  onChange={e => setQuickTitle(e.target.value)}
-                  placeholder="Nhập việc cần track (Ví dụ: Đi làm, Họp Sprint, Code API...)"
-                  className="flex-1 px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 placeholder:text-slate-400 outline-none focus:bg-white focus:border-violet-500 transition shadow-inner"
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') handleStartTrack()
-                  }}
-                />
-
-                <select
-                  value={quickCategoryId || ''}
-                  onChange={e => setQuickCategoryId(e.target.value ? Number(e.target.value) : null)}
-                  className="px-2.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 outline-none focus:bg-white focus:border-violet-500 transition shrink-0 max-w-[130px]"
-                >
-                  <option value="">📁 Danh mục</option>
-                  {categories.map(c => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-
-                <button
-                  onClick={() => handleStartTrack()}
-                  className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-black flex items-center justify-center gap-1.5 shadow-md shadow-violet-600/30 active:scale-95 transition shrink-0"
-                >
-                  <Play className="w-3.5 h-3.5 fill-current" />
-                  <span>Track</span>
-                </button>
-              </div>
+              <button
+                onClick={() => handleSimpleStartTrack()}
+                className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-black flex items-center justify-center gap-1.5 shadow-md shadow-violet-600/30 active:scale-95 transition shrink-0"
+              >
+                <Play className="w-3.5 h-3.5 fill-current" />
+                <span>Track</span>
+              </button>
             </div>
           )}
 
-          {/* ── 3 PRIMARY SEGMENTED TABS DOCKED AT BOTTOM ── */}
+          {/* 3 Primary Tabs Switcher */}
           <div className="grid grid-cols-3 gap-1 bg-slate-100 p-1 rounded-2xl border border-slate-200 text-xs font-bold">
-            {/* Tab 1: Đang Track */}
             <button
               onClick={() => { sounds.playTap(); setActiveTab('active') }}
-              className={`py-2 px-2 rounded-xl flex items-center justify-center gap-1.5 transition ${
+              className={`py-1.5 px-2 rounded-xl flex items-center justify-center gap-1.5 transition ${
                 activeTab === 'active'
                   ? 'bg-white text-violet-950 shadow-xs border border-slate-200/80 font-black'
                   : 'text-slate-600 hover:text-slate-900'
@@ -857,10 +810,9 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
               )}
             </button>
 
-            {/* Tab 2: Chờ Track */}
             <button
               onClick={() => { sounds.playTap(); setActiveTab('ready') }}
-              className={`py-2 px-2 rounded-xl flex items-center justify-center gap-1.5 transition ${
+              className={`py-1.5 px-2 rounded-xl flex items-center justify-center gap-1.5 transition ${
                 activeTab === 'ready'
                   ? 'bg-white text-violet-950 shadow-xs border border-slate-200/80 font-black'
                   : 'text-slate-600 hover:text-slate-900'
@@ -873,10 +825,9 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
               </span>
             </button>
 
-            {/* Tab 3: Sổ Ghi Thời Gian (MISA Style) */}
             <button
               onClick={() => { sounds.playTap(); setActiveTab('history') }}
-              className={`py-2 px-2 rounded-xl flex items-center justify-center gap-1.5 transition ${
+              className={`py-1.5 px-2 rounded-xl flex items-center justify-center gap-1.5 transition ${
                 activeTab === 'history'
                   ? 'bg-white text-violet-950 shadow-xs border border-slate-200/80 font-black'
                   : 'text-slate-600 hover:text-slate-900'
@@ -894,7 +845,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
         </div>
       </div>
 
-      {/* ── 4. EDIT LOG MODAL / BOTTOM SHEET ── */}
+      {/* ── 4. EDIT LOG MODAL ── */}
       {editingLog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs anim-fade-in">
           <div className="bg-white border border-slate-200 rounded-3xl p-5 w-full max-w-md shadow-2xl space-y-4 text-slate-900">

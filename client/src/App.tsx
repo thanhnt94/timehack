@@ -16,16 +16,23 @@ import { LandingPage } from './pages/LandingPage'
 import { Admin } from './pages/Admin'
 import { useAuthStore } from './store/useAuthStore'
 import { useTimerStore } from './store/useTimerStore'
+import { useTaskStore } from './store/useTaskStore'
+import { useHabitStore } from './store/useHabitStore'
 import { sounds } from './utils/soundEffects'
 
 /* ── Inner app with router context ────── */
 const AppShell: React.FC = () => {
   const { user, logout } = useAuthStore()
   const { isRunning } = useTimerStore()
+  const { tasks } = useTaskStore()
+  const { habits } = useHabitStore()
   const [sheetOpen, setSheetOpen] = useState(false)
   const [focusOpen, setFocusOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const location = useLocation()
+
+  const doneTasks = tasks.filter(t => t.status === 'completed').length
+  const doneHabits = habits.filter(h => !!h.today_completed).length
 
   return (
     <div className="h-[100dvh] flex flex-col md:flex-row bg-[#F8FAFC] text-slate-900 overflow-hidden">
@@ -36,15 +43,42 @@ const AppShell: React.FC = () => {
       <div className="flex-1 flex flex-col min-h-0 md:ml-60">
         {/* Mobile top bar */}
         <header className="md:hidden shrink-0 flex items-center justify-between px-4 h-13 bg-white border-b border-slate-200 z-20">
-          {/* Brand Logo */}
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-xl bg-violet-600 flex items-center justify-center shadow-xs">
-              <Sparkles className="w-3.5 h-3.5 text-white" />
+          {/* Dynamic Title / Counter on Top Bar */}
+          {location.pathname === '/tasks' ? (
+            <div className="flex items-center gap-2">
+              <span className="text-base font-black text-slate-900 tracking-tight">Tasks</span>
+              <span className="text-xs font-black font-mono text-violet-700 bg-violet-50 px-2 py-0.5 rounded-lg border border-violet-200">
+                {doneTasks}/{tasks.length} done
+              </span>
             </div>
-            <span className="font-black text-sm tracking-wider font-mono text-slate-900">
-              TIME<span className="text-violet-600">HACK</span>
-            </span>
-          </div>
+          ) : location.pathname === '/habits' ? (
+            <div className="flex items-center gap-2">
+              <span className="text-base font-black text-slate-900 tracking-tight">Habits</span>
+              <span className="text-xs font-black font-mono text-violet-700 bg-violet-50 px-2 py-0.5 rounded-lg border border-violet-200">
+                {doneHabits}/{habits.length} done
+              </span>
+            </div>
+          ) : location.pathname === '/calendar' || location.pathname === '/schedule' ? (
+            <div className="flex items-center gap-2">
+              <span className="text-base font-black text-slate-900 tracking-tight">Calendar</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 bg-slate-100 px-2 py-0.5 rounded-lg">
+                Plan & Logs
+              </span>
+            </div>
+          ) : location.pathname === '/analytics' ? (
+            <div className="flex items-center gap-2">
+              <span className="text-base font-black text-slate-900 tracking-tight">Analytics</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-xl bg-violet-600 flex items-center justify-center shadow-xs">
+                <Sparkles className="w-3.5 h-3.5 text-white" />
+              </div>
+              <span className="font-black text-sm tracking-wider font-mono text-slate-900">
+                TIME<span className="text-violet-600">HACK</span>
+              </span>
+            </div>
+          )}
 
           {/* Right Header Actions: Analytics & User Profile Avatar */}
           <div className="flex items-center gap-2">

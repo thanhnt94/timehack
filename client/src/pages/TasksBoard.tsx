@@ -83,7 +83,7 @@ const PRIORITY_CHOICES = [
   },
 ] as const
 
-const PAGE_SIZE = 6
+const PAGE_SIZE = 8
 
 export const TasksBoard: React.FC = () => {
   const {
@@ -111,8 +111,8 @@ export const TasksBoard: React.FC = () => {
   const [createSheetOpen, setCreateSheetOpen] = useState(false)
   const [editTaskData, setEditTaskData] = useState<Task | null>(null)
 
-  // Track expanded subtask panels
-  const [collapsedTasks, setCollapsedTasks] = useState<Record<number, boolean>>({})
+  // Track expanded subtask panels (collapsed by default for compact cards)
+  const [expandedTasks, setExpandedTasks] = useState<Record<number, boolean>>({})
   const [newSubtaskInputs, setNewSubtaskInputs] = useState<Record<number, string>>({})
   const [editingSubtaskId, setEditingSubtaskId] = useState<number | null>(null)
   const [editingSubtaskText, setEditingSubtaskText] = useState('')
@@ -162,8 +162,6 @@ export const TasksBoard: React.FC = () => {
     return filteredTasks.slice(start, start + PAGE_SIZE)
   }, [filteredTasks, currentPage])
 
-  const doneCount = tasks.filter(t => t.status === 'completed').length
-
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newTitle.trim()) return
@@ -206,9 +204,9 @@ export const TasksBoard: React.FC = () => {
     navigate('/')
   }
 
-  const toggleCollapse = (taskId: number) => {
+  const toggleExpand = (taskId: number) => {
     sounds.playTap()
-    setCollapsedTasks(prev => ({ ...prev, [taskId]: !prev[taskId] }))
+    setExpandedTasks(prev => ({ ...prev, [taskId]: !prev[taskId] }))
   }
 
   const handleAddSubtask = async (taskId: number, e: React.FormEvent) => {
@@ -238,22 +236,7 @@ export const TasksBoard: React.FC = () => {
   }
 
   return (
-    <div className="space-y-3 pb-6">
-      {/* ── Top Header ─────────────────── */}
-      <div>
-        <div className="flex items-center justify-between">
-          <div>
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Deliverables & Action Items</span>
-            <h1 className="text-2xl font-black text-slate-900 mt-0.5">Tasks</h1>
-          </div>
-          {tasks.length > 0 && (
-            <span className="text-xs font-black font-mono text-violet-700 bg-violet-50 px-2.5 py-1 rounded-xl border border-violet-200">
-              {doneCount}/{tasks.length} done
-            </span>
-          )}
-        </div>
-      </div>
-
+    <div className="space-y-3 pb-4">
       {/* ── Integrated Search Bar ──────── */}
       <div className="relative">
         <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -261,7 +244,7 @@ export const TasksBoard: React.FC = () => {
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search tasks, deliverables, or subtasks..."
+          placeholder="Search deliverables, tasks or subtasks..."
           className="w-full pl-10 pr-9 py-2.5 rounded-2xl bg-white border border-slate-200 text-xs font-semibold text-slate-800 placeholder:text-slate-400 outline-none focus:border-violet-500 shadow-2xs transition"
         />
         {searchQuery && (
@@ -295,7 +278,7 @@ export const TasksBoard: React.FC = () => {
       </div>
 
       {/* ── Task List or Empty State ────── */}
-      <div className="space-y-3 pt-1">
+      <div className="space-y-2.5 pt-1">
         {filteredTasks.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
             <div className="w-16 h-16 rounded-3xl bg-violet-50 border border-violet-200 text-violet-600 flex items-center justify-center shadow-xs mb-3">
@@ -323,7 +306,7 @@ export const TasksBoard: React.FC = () => {
             const PIcon = pMeta.icon
             const subtasks = task.subtasks || []
             const doneSubtasks = subtasks.filter(s => s.is_completed).length
-            const isCollapsed = !!collapsedTasks[task.id]
+            const isExpanded = !!expandedTasks[task.id]
             const progressPercent = subtasks.length > 0 ? Math.round((doneSubtasks / subtasks.length) * 100) : 0
 
             return (
@@ -405,21 +388,21 @@ export const TasksBoard: React.FC = () => {
                         <span>{pMeta.label.split(' ')[0]}</span>
                       </span>
 
-                      {/* Subtask Progress Counter Pill (e.g. 2/3 subtasks) */}
-                      {subtasks.length > 0 && (
-                        <button
-                          onClick={() => toggleCollapse(task.id)}
-                          className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[10px] font-bold border transition ${
-                            doneSubtasks === subtasks.length
+                      {/* Subtask Trigger Badge */}
+                      <button
+                        onClick={() => toggleExpand(task.id)}
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold border transition ${
+                          subtasks.length > 0
+                            ? doneSubtasks === subtasks.length
                               ? 'bg-emerald-50 border-emerald-200 text-emerald-700 font-mono'
                               : 'bg-violet-50 border-violet-200 text-violet-700 font-mono'
-                          }`}
-                        >
-                          <ListTodo className="w-3 h-3" />
-                          <span>{doneSubtasks}/{subtasks.length} Subtasks ({progressPercent}%)</span>
-                          {isCollapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                        </button>
-                      )}
+                            : 'bg-white border-slate-200 text-slate-500 hover:border-violet-300'
+                        }`}
+                      >
+                        <ListTodo className="w-3 h-3" />
+                        <span>{subtasks.length > 0 ? `${doneSubtasks}/${subtasks.length} Subtasks (${progressPercent}%)` : '+ Subtask'}</span>
+                        {isExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                      </button>
 
                       {/* Due Date */}
                       {task.due_date && (
@@ -432,8 +415,8 @@ export const TasksBoard: React.FC = () => {
                   </div>
                 </div>
 
-                {/* ── Subtasks Checklist Section (Task Con) ── */}
-                {!isCollapsed && (
+                {/* ── Subtasks Checklist Section (Only shown when expanded) ── */}
+                {isExpanded && (
                   <div className="bg-slate-50/70 border-t border-slate-100 px-4 py-3 space-y-2.5">
                     {/* Progress Bar */}
                     {subtasks.length > 0 && (
@@ -455,7 +438,7 @@ export const TasksBoard: React.FC = () => {
 
                     {/* Subtask Items List */}
                     {subtasks.length > 0 && (
-                      <div className="space-y-1.5 pt-1">
+                      <div className="space-y-1.5 pt-0.5">
                         {subtasks.map(st => {
                           const isEditing = editingSubtaskId === st.id
                           return (
@@ -535,13 +518,13 @@ export const TasksBoard: React.FC = () => {
                           value={newSubtaskInputs[task.id] || ''}
                           onChange={(e) => setNewSubtaskInputs(prev => ({ ...prev, [task.id]: e.target.value }))}
                           placeholder="Add subtask / step..."
-                          className="w-full pl-8 pr-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-800 placeholder-slate-400 outline-none focus:border-violet-500 focus:bg-white transition shadow-2xs"
+                          className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-800 placeholder-slate-400 outline-none focus:border-violet-500 focus:bg-white transition shadow-2xs"
                         />
                       </div>
                       <button
                         type="submit"
                         disabled={!(newSubtaskInputs[task.id] || '').trim()}
-                        className="px-3.5 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold disabled:opacity-40 transition shadow-2xs active:scale-95 shrink-0"
+                        className="px-3 py-1.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold disabled:opacity-40 transition shadow-2xs active:scale-95 shrink-0"
                       >
                         Add
                       </button>
@@ -555,7 +538,7 @@ export const TasksBoard: React.FC = () => {
 
         {/* ── In-Content Pagination (Only renders when totalPages > 1) ── */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-center gap-2 pt-2 pb-1">
+          <div className="flex items-center justify-center gap-2 pt-3 pb-1">
             <button
               disabled={currentPage <= 1}
               onClick={() => { sounds.playTap(); setCurrentPage(p => Math.max(1, p - 1)) }}
@@ -583,7 +566,7 @@ export const TasksBoard: React.FC = () => {
         {/* ── Clean Dashed Add Task Button ── */}
         <button
           onClick={() => { sounds.playTap(); setCreateSheetOpen(true) }}
-          className="w-full py-3 rounded-2xl bg-white border border-dashed border-slate-300 hover:border-violet-400 text-slate-600 hover:text-violet-700 text-xs font-bold transition active:scale-[0.98] flex items-center justify-center gap-1.5 shadow-2xs"
+          className="w-full py-3 rounded-2xl bg-white border border-dashed border-slate-300 hover:border-violet-400 text-slate-600 hover:text-violet-700 text-xs font-bold transition active:scale-[0.98] flex items-center justify-center gap-1.5 shadow-2xs mt-2"
         >
           <Plus className="w-4 h-4" />
           <span>Add New Task</span>

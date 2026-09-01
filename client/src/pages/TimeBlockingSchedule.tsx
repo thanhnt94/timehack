@@ -128,6 +128,50 @@ export const TimeBlockingSchedule: React.FC = () => {
     return todayHabits.filter(h => !!h.reminder_time)
   }, [todayHabits])
 
+  // Filtered items for Timeline View based on blockFilter, searchQuery, and selectedCategoryType
+  const visibleSlots = useMemo(() => {
+    if (blockFilter !== 'all' && blockFilter !== 'plan') return []
+    return slots.filter(s => {
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase()
+        const matchTitle = s.title?.toLowerCase().includes(q)
+        const matchNotes = s.notes?.toLowerCase().includes(q)
+        if (!matchTitle && !matchNotes) return false
+      }
+      if (selectedCategoryType !== 'all') {
+        if (!s.category?.category_type || s.category.category_type !== selectedCategoryType) return false
+      }
+      return true
+    })
+  }, [slots, blockFilter, searchQuery, selectedCategoryType])
+
+  const visibleHabits = useMemo(() => {
+    if (blockFilter !== 'all' && blockFilter !== 'habit') return []
+    return habitReminders.filter(h => {
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase()
+        if (!h.title?.toLowerCase().includes(q)) return false
+      }
+      return true
+    })
+  }, [habitReminders, blockFilter, searchQuery])
+
+  const visibleDeadlines = useMemo(() => {
+    if (blockFilter !== 'all' && blockFilter !== 'deadline') return []
+    return deadlineTasks.filter(t => {
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase()
+        const matchTitle = t.title?.toLowerCase().includes(q)
+        const matchDesc = t.description?.toLowerCase().includes(q)
+        if (!matchTitle && !matchDesc) return false
+      }
+      if (selectedCategoryType !== 'all') {
+        if (!t.category?.category_type || t.category.category_type !== selectedCategoryType) return false
+      }
+      return true
+    })
+  }, [deadlineTasks, blockFilter, searchQuery, selectedCategoryType])
+
   // Update current time tick every minute
   useEffect(() => {
     const interval = setInterval(() => {
@@ -725,44 +769,74 @@ export const TimeBlockingSchedule: React.FC = () => {
           })}
         </div>
 
-        {/* Row 3: Ultra-Compact Stat Pill Strip */}
+        {/* Row 3: Interactive Filter Pill Strip (Tap to Filter Timeline & Blocks) */}
         <div className="grid grid-cols-3 gap-1.5">
-          {/* Stat 1: Planned Schedule */}
-          <div className="bg-sky-50/90 border border-sky-200/80 rounded-xl px-2 py-1 flex items-center justify-between shadow-2xs">
-            <div className="flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-sky-700 min-w-0">
+          {/* Stat 1: Filter Plan Schedule */}
+          <button
+            onClick={() => { sounds.playTap(); setBlockFilter(prev => prev === 'plan' ? 'all' : 'plan') }}
+            className={`rounded-xl px-2.5 py-1 flex items-center justify-between transition-all active:scale-95 text-left border ${
+              blockFilter === 'plan'
+                ? 'bg-sky-600 border-sky-600 text-white shadow-sm shadow-sky-600/25 ring-2 ring-sky-300 scale-[1.02]'
+                : blockFilter === 'all'
+                ? 'bg-sky-50/90 border-sky-200/80 text-sky-950 hover:bg-sky-100/80 shadow-2xs'
+                : 'bg-slate-50 border-slate-200 text-slate-400 opacity-60'
+            }`}
+            title={blockFilter === 'plan' ? 'Showing Plan only. Tap to show all' : 'Filter Plan slots'}
+          >
+            <div className={`flex items-center gap-1 text-[9px] font-black uppercase tracking-wider min-w-0 ${blockFilter === 'plan' ? 'text-white' : 'text-sky-700'}`}>
               <CalendarIcon className="w-2.5 h-2.5 shrink-0" />
               <span className="truncate">Plan</span>
             </div>
-            <div className="flex items-center gap-1 font-mono text-[10px] font-black text-sky-950">
+            <div className={`flex items-center gap-1 font-mono text-[10px] font-black ${blockFilter === 'plan' ? 'text-white' : 'text-sky-950'}`}>
               <span>{totalPlannedHoursFormatted}</span>
-              <span className="text-sky-600 text-[9px]">({slots.filter(s => s.is_done).length}/{slots.length})</span>
+              <span className={`text-[9px] ${blockFilter === 'plan' ? 'text-sky-200' : 'text-sky-600'}`}>({slots.filter(s => s.is_done).length}/{slots.length})</span>
             </div>
-          </div>
+          </button>
 
-          {/* Stat 2: Daily Habits */}
-          <div className="bg-emerald-50/90 border border-emerald-200/80 rounded-xl px-2 py-1 flex items-center justify-between shadow-2xs">
-            <div className="flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-emerald-700 min-w-0">
-              <Zap className="w-2.5 h-2.5 shrink-0 text-emerald-600" />
+          {/* Stat 2: Filter Daily Habits */}
+          <button
+            onClick={() => { sounds.playTap(); setBlockFilter(prev => prev === 'habit' ? 'all' : 'habit') }}
+            className={`rounded-xl px-2.5 py-1 flex items-center justify-between transition-all active:scale-95 text-left border ${
+              blockFilter === 'habit'
+                ? 'bg-emerald-600 border-emerald-600 text-white shadow-sm shadow-emerald-600/25 ring-2 ring-emerald-300 scale-[1.02]'
+                : blockFilter === 'all'
+                ? 'bg-emerald-50/90 border-emerald-200/80 text-emerald-950 hover:bg-emerald-100/80 shadow-2xs'
+                : 'bg-slate-50 border-slate-200 text-slate-400 opacity-60'
+            }`}
+            title={blockFilter === 'habit' ? 'Showing Habits only. Tap to show all' : 'Filter Habits'}
+          >
+            <div className={`flex items-center gap-1 text-[9px] font-black uppercase tracking-wider min-w-0 ${blockFilter === 'habit' ? 'text-white' : 'text-emerald-700'}`}>
+              <Zap className="w-2.5 h-2.5 shrink-0" />
               <span className="truncate">Habits</span>
             </div>
-            <div className="flex items-center gap-1 font-mono text-[10px] font-black text-emerald-950">
+            <div className={`flex items-center gap-1 font-mono text-[10px] font-black ${blockFilter === 'habit' ? 'text-white' : 'text-emerald-950'}`}>
               <span>{completedHabitsCount}/{todayHabits.length}</span>
               {completedHabitsCount === todayHabits.length && todayHabits.length > 0 && (
-                <span className="text-[8px] text-emerald-600 font-sans">✓</span>
+                <span className={`text-[9px] font-sans ${blockFilter === 'habit' ? 'text-emerald-200' : 'text-emerald-600'}`}>✓</span>
               )}
             </div>
-          </div>
+          </button>
 
-          {/* Stat 3: Deadlines */}
-          <div className="bg-rose-50/90 border border-rose-200/80 rounded-xl px-2 py-1 flex items-center justify-between shadow-2xs">
-            <div className="flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-rose-700 min-w-0">
-              <Target className="w-2.5 h-2.5 shrink-0 text-rose-600" />
+          {/* Stat 3: Filter Deadlines */}
+          <button
+            onClick={() => { sounds.playTap(); setBlockFilter(prev => prev === 'deadline' ? 'all' : 'deadline') }}
+            className={`rounded-xl px-2.5 py-1 flex items-center justify-between transition-all active:scale-95 text-left border ${
+              blockFilter === 'deadline'
+                ? 'bg-rose-600 border-rose-600 text-white shadow-sm shadow-rose-600/25 ring-2 ring-rose-300 scale-[1.02]'
+                : blockFilter === 'all'
+                ? 'bg-rose-50/90 border-rose-200/80 text-rose-950 hover:bg-rose-100/80 shadow-2xs'
+                : 'bg-slate-50 border-slate-200 text-slate-400 opacity-60'
+            }`}
+            title={blockFilter === 'deadline' ? 'Showing Deadlines only. Tap to show all' : 'Filter Deadlines'}
+          >
+            <div className={`flex items-center gap-1 text-[9px] font-black uppercase tracking-wider min-w-0 ${blockFilter === 'deadline' ? 'text-white' : 'text-rose-700'}`}>
+              <Target className="w-2.5 h-2.5 shrink-0" />
               <span className="truncate">Deadlines</span>
             </div>
-            <div className="flex items-center gap-1 font-mono text-[10px] font-black text-rose-950">
+            <div className={`flex items-center gap-1 font-mono text-[10px] font-black ${blockFilter === 'deadline' ? 'text-white' : 'text-rose-950'}`}>
               <span>{completedDeadlinesCount}/{deadlineTasks.length}</span>
             </div>
-          </div>
+          </button>
         </div>
 
         {/* Collapsible Search & Category Filters */}
@@ -1135,7 +1209,7 @@ export const TimeBlockingSchedule: React.FC = () => {
               )}
 
               {/* ── Render Habit Reminders directly on the Timeline ── */}
-              {habitReminders.map(habit => {
+              {visibleHabits.map(habit => {
                 const reminderMins = timeToMinutes(habit.reminder_time || '08:00')
                 const top = Math.max(0, ((reminderMins - START_HOUR * 60) / 60) * HOUR_HEIGHT)
                 const isDone = !!habit.today_completed
@@ -1176,16 +1250,16 @@ export const TimeBlockingSchedule: React.FC = () => {
                           ? 'bg-emerald-500 border-emerald-600 text-white shadow-2xs'
                           : 'bg-white border-fuchsia-300 text-fuchsia-700 hover:bg-fuchsia-100'
                       }`}
-                      title={isDone ? 'Đã điểm danh thói quen' : 'Điểm danh thói quen'}
+                      title={isDone ? 'Habit checked-in' : 'Check-in habit'}
                     >
-                      {isDone ? <Check className="w-3 h-3 stroke-[3]" /> : 'Điểm danh'}
+                      {isDone ? <Check className="w-3 h-3 stroke-[3]" /> : 'Check-in'}
                     </button>
                   </div>
                 )
               })}
 
               {/* ── Render Deadline Tasks on the Timeline ── */}
-              {deadlineTasks.map(task => {
+              {visibleDeadlines.map(task => {
                 let dueTime = '23:59'
                 if (task.due_date && task.due_date.includes(' ')) {
                   const timePart = task.due_date.split(' ')[1]?.slice(0, 5)
@@ -1225,7 +1299,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                             handleStartTaskFocus(task)
                           }}
                           className="h-6 px-2 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-bold flex items-center gap-1 shadow-2xs active:scale-90 transition"
-                          title="Bắt đầu làm nhiệm vụ này"
+                          title="Start focus timer"
                         >
                           <Play className="w-2 h-2 fill-current" />
                           <span>Focus</span>
@@ -1241,7 +1315,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                         className={`w-6 h-6 rounded-lg border flex items-center justify-center shrink-0 transition active:scale-90 ${
                           isDone ? 'bg-emerald-500 border-emerald-600 text-white' : 'bg-white border-rose-300 hover:border-rose-500'
                         }`}
-                        title={isDone ? 'Đánh dấu chưa hoàn thành' : 'Đánh dấu hoàn thành'}
+                        title={isDone ? 'Mark uncompleted' : 'Mark completed'}
                       >
                         {isDone && <Check className="w-3 h-3 stroke-[3]" />}
                       </button>
@@ -1251,7 +1325,7 @@ export const TimeBlockingSchedule: React.FC = () => {
               })}
 
               {/* ── Render Planned Slots (Full-Width Canvas with Drag & Resize) ── */}
-              {slots.map(slot => {
+              {visibleSlots.map(slot => {
                 const isBeingDragged = draggingSlot?.slotId === slot.id
 
                 const startMins = timeToMinutes(slot.start_time)

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Link } from 'react-router-dom'
-import { Sparkles, BarChart3 } from 'lucide-react'
+import { Sparkles, BarChart3, Clock, Plus } from 'lucide-react'
 import { Sidebar } from './components/Sidebar'
 import { BottomNav } from './components/BottomNav'
 import { FloatingTimerBar } from './components/FloatingTimerBar'
@@ -21,6 +21,7 @@ import { useAuthStore } from './store/useAuthStore'
 import { useTimerStore } from './store/useTimerStore'
 import { useTaskStore } from './store/useTaskStore'
 import { useHabitStore } from './store/useHabitStore'
+import { useTimeLogStore } from './store/useTimeLogStore'
 import { sounds } from './utils/soundEffects'
 
 /* ── Inner app with router context ────── */
@@ -29,6 +30,7 @@ const AppShell: React.FC = () => {
   const { isRunning } = useTimerStore()
   const { tasks } = useTaskStore()
   const { habits } = useHabitStore()
+  const { logs } = useTimeLogStore()
   const [sheetOpen, setSheetOpen] = useState(false)
   const [focusOpen, setFocusOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -37,6 +39,11 @@ const AppShell: React.FC = () => {
   const doneTasks = tasks.filter(t => t.status === 'completed').length
   const doneHabits = habits.filter(h => !!h.today_completed).length
 
+  const totalTrackedSec = logs.reduce((acc, cur) => acc + (cur.duration_seconds || 0), 0)
+  const totalTrackedH = Math.floor(totalTrackedSec / 3600)
+  const totalTrackedM = Math.round((totalTrackedSec % 3600) / 60)
+  const formattedTracked = totalTrackedH > 0 ? `${totalTrackedH}h ${totalTrackedM > 0 ? `${totalTrackedM}m` : ''}` : `${totalTrackedM}m`
+
   return (
     <div className="h-[100dvh] flex flex-col md:flex-row bg-[#F8FAFC] text-slate-900 overflow-hidden">
       {/* Desktop sidebar */}
@@ -44,7 +51,7 @@ const AppShell: React.FC = () => {
 
       {/* Main content column */}
       <div className="flex-1 flex flex-col min-h-0 md:ml-60">
-        {/* Mobile top bar */}
+        {/* Unified Mobile Top Bar (Single Header) */}
         <header className="md:hidden shrink-0 flex items-center justify-between px-4 h-13 bg-white border-b border-slate-200 z-20">
           {/* Always Show TIMEHACK Brand Logo + Active Page */}
           <div className="flex items-center gap-2 min-w-0">
@@ -71,7 +78,13 @@ const AppShell: React.FC = () => {
               </span>
             </div>
 
-            {/* Task/Habit Quick Counters */}
+            {/* Quick Badges in Header */}
+            {location.pathname === '/tracking' && (
+              <span className="text-[10px] font-black font-mono text-violet-700 bg-violet-50 px-2 py-0.5 rounded-md border border-violet-200 shrink-0 flex items-center gap-1">
+                <Clock className="w-2.5 h-2.5" />
+                <span>{formattedTracked}</span>
+              </span>
+            )}
             {location.pathname === '/tasks' && (
               <span className="text-[10px] font-black font-mono text-violet-700 bg-violet-50 px-1.5 py-0.2 rounded border border-violet-200 shrink-0">
                 {doneTasks}/{tasks.length}
@@ -139,45 +152,53 @@ const AppShell: React.FC = () => {
         <BottomNav onFabTap={() => setSheetOpen(true)} />
       </div>
 
-      {/* Quick action sheet */}
+      {/* Global Quick Action Sheet (FAB) */}
       <QuickActionSheet
         isOpen={sheetOpen}
         onClose={() => setSheetOpen(false)}
-        onStartFocus={() => { setSheetOpen(false); setFocusOpen(true) }}
+        onOpenFocus={() => setFocusOpen(true)}
       />
 
-      {/* User Settings & Timezone & Telegram modal */}
+      {/* Pomodoro Focus Modal */}
+      {focusOpen && (
+        <PomodoroFocus onClose={() => setFocusOpen(false)} />
+      )}
+
+      {/* User Settings, Timezone & Telegram Modal */}
       <UserSettingsModal
         isOpen={settingsOpen}
         onClose={() => setSettingsOpen(false)}
       />
-
-      {/* Focus overlay */}
-      {focusOpen && (
-        <PomodoroFocus onClose={() => setFocusOpen(false)} />
-      )}
     </div>
   )
 }
 
-/* ── Root ──────────────────────────────── */
 export const App: React.FC = () => {
-  const { user, isLoading, fetchUser } = useAuthStore()
+  const { token, fetchUser, setTokenFromUrl } = useAuthStore()
+  const { fetchTasks, fetchCategories } = useTaskStore()
+  const { fetchHabits } = useHabitStore()
+  const { fetchLogs } = useTimeLogStore()
+  const { fetchActiveTracks } = useTimerStore()
 
-  useEffect(() => { fetchUser() }, [])
+  useEffect(() => {
+    // 1. Process URL Token (CentralAuth SSO return)
+    const hasTokenInUrl = setTokenFromUrl()
+    const activeToken = hasTokenInUrl || token
 
-  if (isLoading) {
-    return (
-      <div className="h-[100dvh] flex flex-col items-center justify-center bg-[#F8FAFC] gap-3">
-        <div className="w-10 h-10 rounded-2xl bg-violet-600 flex items-center justify-center shadow-md shadow-violet-600/20 anim-pulse-ring">
-          <Sparkles className="w-5 h-5 text-white" />
-        </div>
-        <span className="text-xs font-bold text-slate-500 font-mono tracking-widest uppercase">Loading...</span>
-      </div>
-    )
+    if (activeToken) {
+      fetchUser()
+      fetchTasks()
+      fetchCategories()
+      fetchHabits()
+      fetchActiveTracks()
+      const todayIso = new Date().toISOString().split('T')[0]
+      fetchLogs(todayIso)
+    }
+  }, [token])
+
+  if (!token) {
+    return <LandingPage />
   }
-
-  if (!user) return <LandingPage />
 
   return (
     <Router>

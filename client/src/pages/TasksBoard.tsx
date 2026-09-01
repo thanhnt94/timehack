@@ -238,305 +238,298 @@ export const TasksBoard: React.FC = () => {
   }
 
   return (
-    <div className="space-y-3 pb-18">
-      {/* ── Rich Colored Priority Tabs with Icons ── */}
-      <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-1">
-        {PRIORITY_TABS.map(tab => {
-          const Icon = tab.icon
-          const isSelected = filter === tab.key
-          return (
-            <button
-              key={tab.key}
-              onClick={() => { sounds.playTap(); setFilter(tab.key) }}
-              className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition active:scale-95 border shadow-2xs ${
-                isSelected ? tab.activeClass : tab.inactiveClass
-              }`}
-            >
-              <Icon className="w-3.5 h-3.5" />
-              <span>{tab.label}</span>
-            </button>
-          )
-        })}
-      </div>
-
-      {/* ── Active Search Filter Notice (if filtered) ── */}
-      {searchQuery && (
-        <div className="flex items-center justify-between px-3 py-1.5 rounded-xl bg-violet-50 border border-violet-200 text-xs font-bold text-violet-800">
-          <div className="flex items-center gap-1.5 truncate">
-            <Search className="w-3.5 h-3.5 text-violet-600 shrink-0" />
-            <span className="truncate">"{searchQuery}" ({filteredTasks.length} results)</span>
+    <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+      {/* ── Scrollable Content Area (Category Tabs & Task List) ── */}
+      <div className="flex-1 overflow-y-auto px-4 py-3 min-h-0">
+        <div className="max-w-lg md:max-w-5xl mx-auto space-y-3 pb-2">
+          {/* Priority Categories */}
+          <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-1">
+            {PRIORITY_TABS.map(tab => {
+              const Icon = tab.icon
+              const isSelected = filter === tab.key
+              return (
+                <button
+                  key={tab.key}
+                  onClick={() => { sounds.playTap(); setFilter(tab.key) }}
+                  className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition active:scale-95 border shadow-2xs ${
+                    isSelected ? tab.activeClass : tab.inactiveClass
+                  }`}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                  <span>{tab.label}</span>
+                </button>
+              )
+            })}
           </div>
-          <button
-            onClick={() => setSearchQuery('')}
-            className="p-0.5 hover:text-violet-950 transition shrink-0"
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      )}
 
-      {/* ── Task List or Empty State ────── */}
-      <div className="space-y-2.5 pt-0.5">
-        {filteredTasks.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
-            <div className="w-16 h-16 rounded-3xl bg-violet-50 border border-violet-200 text-violet-600 flex items-center justify-center shadow-xs mb-3">
-              <CheckSquare className="w-8 h-8" />
-            </div>
-            <h3 className="text-base font-black text-slate-900">
-              {searchQuery ? 'No matching tasks found' : filter === 'all' ? 'No tasks found' : 'No tasks in this category'}
-            </h3>
-            <p className="text-xs text-slate-500 mt-1 max-w-[260px] leading-relaxed">
-              {searchQuery ? 'Try searching with different keywords.' : 'Add deliverables with subtasks, deadlines, and priority.'}
-            </p>
-
-            <button
-              onClick={() => { sounds.playTap(); setCreateSheetOpen(true) }}
-              className="mt-6 px-6 py-3 rounded-2xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold shadow-lg shadow-violet-600/25 active:scale-95 transition flex items-center gap-2"
-            >
-              <Plus className="w-4 h-4 stroke-[3]" />
-              <span>Create First Task</span>
-            </button>
-          </div>
-        ) : (
-          paginatedTasks.map(task => {
-            const done = task.status === 'completed'
-            const pMeta = getPriorityMeta(task.eisenhower)
-            const PIcon = pMeta.icon
-            const subtasks = task.subtasks || []
-            const doneSubtasks = subtasks.filter(s => s.is_completed).length
-            const isExpanded = !!expandedTasks[task.id]
-            const progressPercent = subtasks.length > 0 ? Math.round((doneSubtasks / subtasks.length) * 100) : 0
-
-            return (
-              <div
-                key={task.id}
-                className={`bg-white rounded-2xl border transition shadow-2xs overflow-hidden ${
-                  done
-                    ? 'opacity-60 bg-slate-50/80 border-slate-200'
-                    : 'border-slate-200 hover:border-violet-300'
-                }`}
+          {/* Active Search Filter Notice */}
+          {searchQuery && (
+            <div className="flex items-center justify-between px-3 py-1.5 rounded-xl bg-violet-50 border border-violet-200 text-xs font-bold text-violet-800">
+              <div className="flex items-center gap-1.5 truncate">
+                <Search className="w-3.5 h-3.5 text-violet-600 shrink-0" />
+                <span className="truncate">"{searchQuery}" ({filteredTasks.length} results)</span>
+              </div>
+              <button
+                onClick={() => setSearchQuery('')}
+                className="p-0.5 hover:text-violet-950 transition shrink-0"
               >
-                {/* ── Main Task Card Row ── */}
-                <div className="p-3.5 flex items-start gap-3">
-                  {/* Custom 24px Checkbox Circle */}
-                  <button
-                    onClick={() => { sounds.playTap(); toggleTaskStatus(task.id); if (!done) sounds.playSuccess() }}
-                    className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 active:scale-90 transition shadow-2xs ${
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
+          {/* Task List / Empty State */}
+          <div className="space-y-2.5 pt-0.5">
+            {filteredTasks.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+                <div className="w-16 h-16 rounded-3xl bg-violet-50 border border-violet-200 text-violet-600 flex items-center justify-center shadow-xs mb-3">
+                  <CheckSquare className="w-8 h-8" />
+                </div>
+                <h3 className="text-base font-black text-slate-900">
+                  {searchQuery ? 'No matching tasks found' : filter === 'all' ? 'No tasks found' : 'No tasks in this category'}
+                </h3>
+                <p className="text-xs text-slate-500 mt-1 max-w-[260px] leading-relaxed">
+                  {searchQuery ? 'Try searching with different keywords.' : 'Add deliverables with subtasks, deadlines, and priority.'}
+                </p>
+
+                <button
+                  onClick={() => { sounds.playTap(); setCreateSheetOpen(true) }}
+                  className="mt-6 px-6 py-3 rounded-2xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold shadow-lg shadow-violet-600/25 active:scale-95 transition flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4 stroke-[3]" />
+                  <span>Create First Task</span>
+                </button>
+              </div>
+            ) : (
+              paginatedTasks.map(task => {
+                const done = task.status === 'completed'
+                const pMeta = getPriorityMeta(task.eisenhower)
+                const PIcon = pMeta.icon
+                const subtasks = task.subtasks || []
+                const doneSubtasks = subtasks.filter(s => s.is_completed).length
+                const isExpanded = !!expandedTasks[task.id]
+                const progressPercent = subtasks.length > 0 ? Math.round((doneSubtasks / subtasks.length) * 100) : 0
+
+                return (
+                  <div
+                    key={task.id}
+                    className={`bg-white rounded-2xl border transition shadow-2xs overflow-hidden ${
                       done
-                        ? 'bg-emerald-500 border-emerald-500 text-white'
-                        : 'border-slate-300 hover:border-violet-500 bg-white'
+                        ? 'opacity-60 bg-slate-50/80 border-slate-200'
+                        : 'border-slate-200 hover:border-violet-300'
                     }`}
-                    aria-label="Mark task completed"
                   >
-                    {done && <Check className="w-3.5 h-3.5 stroke-[3]" />}
-                  </button>
-
-                  {/* Task Content */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <div
-                        onClick={() => handleOpenEdit(task)}
-                        className="cursor-pointer group flex-1 min-w-0"
+                    {/* Main Task Card Row */}
+                    <div className="p-3.5 flex items-start gap-3">
+                      {/* Checkbox Circle */}
+                      <button
+                        onClick={() => { sounds.playTap(); toggleTaskStatus(task.id); if (!done) sounds.playSuccess() }}
+                        className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 active:scale-90 transition shadow-2xs ${
+                          done
+                            ? 'bg-emerald-500 border-emerald-500 text-white'
+                            : 'border-slate-300 hover:border-violet-500 bg-white'
+                        }`}
+                        aria-label="Mark task completed"
                       >
-                        <h4 className={`text-sm font-bold truncate group-hover:text-violet-700 transition ${
-                          done ? 'line-through text-slate-400' : 'text-slate-900'
-                        }`}>
-                          {task.title}
-                        </h4>
-                      </div>
+                        {done && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                      </button>
 
-                      {/* Right Action Icons Group */}
-                      <div className="flex items-center gap-1 shrink-0 -mt-0.5">
-                        {/* Play Focus */}
-                        {!done && (
-                          <button
-                            onClick={() => handlePlayTask(task)}
-                            className="w-7 h-7 rounded-xl bg-violet-50 border border-violet-200 text-violet-700 hover:bg-violet-600 hover:text-white active:scale-90 transition flex items-center justify-center shadow-2xs"
-                            title="Start Focus"
+                      {/* Content */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <div
+                            onClick={() => handleOpenEdit(task)}
+                            className="cursor-pointer group flex-1 min-w-0"
                           >
-                            <Play className="w-3 h-3 fill-current ml-0.5" />
+                            <h4 className={`text-sm font-bold truncate group-hover:text-violet-700 transition ${
+                              done ? 'line-through text-slate-400' : 'text-slate-900'
+                            }`}>
+                              {task.title}
+                            </h4>
+                          </div>
+
+                          {/* Action Icons */}
+                          <div className="flex items-center gap-1 shrink-0 -mt-0.5">
+                            {!done && (
+                              <button
+                                onClick={() => handlePlayTask(task)}
+                                className="w-7 h-7 rounded-xl bg-violet-50 border border-violet-200 text-violet-700 hover:bg-violet-600 hover:text-white active:scale-90 transition flex items-center justify-center shadow-2xs"
+                                title="Start Focus"
+                              >
+                                <Play className="w-3 h-3 fill-current ml-0.5" />
+                              </button>
+                            )}
+
+                            <button
+                              onClick={() => handleOpenEdit(task)}
+                              className="w-7 h-7 rounded-xl text-slate-400 hover:text-violet-700 hover:bg-violet-50 active:scale-90 transition flex items-center justify-center"
+                              title="Edit Task"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                            </button>
+
+                            <button
+                              onClick={() => { sounds.playTap(); deleteTask(task.id) }}
+                              className="w-7 h-7 rounded-xl text-slate-300 hover:text-rose-600 hover:bg-rose-50 active:scale-90 transition flex items-center justify-center"
+                              title="Delete Task"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Badges Row */}
+                        <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold border ${pMeta.badgeBg}`}>
+                            <PIcon className="w-3 h-3" />
+                            <span>{pMeta.label.split(' ')[0]}</span>
+                          </span>
+
+                          <button
+                            onClick={() => toggleExpand(task.id)}
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold border transition ${
+                              subtasks.length > 0
+                                ? doneSubtasks === subtasks.length
+                                ? 'bg-emerald-50 border-emerald-200 text-emerald-700 font-mono'
+                                : 'bg-violet-50 border-violet-200 text-violet-700 font-mono'
+                                : 'bg-white border-slate-200 text-slate-500 hover:border-violet-300'
+                            }`}
+                          >
+                            <ListTodo className="w-3 h-3" />
+                            <span>{subtasks.length > 0 ? `${doneSubtasks}/${subtasks.length} Subtasks (${progressPercent}%)` : '+ Subtask'}</span>
+                            {isExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
                           </button>
+
+                          {task.due_date && (
+                            <span className="text-[10px] text-slate-500 font-mono flex items-center gap-1 bg-slate-100 px-2 py-0.5 rounded-lg border border-slate-200">
+                              <Calendar className="w-3 h-3 text-slate-400" />
+                              <span>{new Date(task.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Subtasks Checklist */}
+                    {isExpanded && (
+                      <div className="bg-slate-50/70 border-t border-slate-100 px-4 py-3 space-y-2.5">
+                        {subtasks.length > 0 && (
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                              <span>Subtasks Checklist ({doneSubtasks}/{subtasks.length})</span>
+                              <span className="font-mono text-violet-700">{progressPercent}%</span>
+                            </div>
+                            <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full transition-all duration-300 rounded-full ${
+                                  doneSubtasks === subtasks.length ? 'bg-emerald-500' : 'bg-violet-600'
+                                }`}
+                                style={{ width: `${progressPercent}%` }}
+                              />
+                            </div>
+                          </div>
                         )}
 
-                        {/* Edit task */}
-                        <button
-                          onClick={() => handleOpenEdit(task)}
-                          className="w-7 h-7 rounded-xl text-slate-400 hover:text-violet-700 hover:bg-violet-50 active:scale-90 transition flex items-center justify-center"
-                          title="Edit Task"
-                        >
-                          <Edit3 className="w-3.5 h-3.5" />
-                        </button>
-
-                        {/* Delete task */}
-                        <button
-                          onClick={() => { sounds.playTap(); deleteTask(task.id) }}
-                          className="w-7 h-7 rounded-xl text-slate-300 hover:text-rose-600 hover:bg-rose-50 active:scale-90 transition flex items-center justify-center"
-                          title="Delete Task"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Metadata Badges Row */}
-                    <div className="flex flex-wrap items-center gap-2 mt-1.5">
-                      {/* Priority Tag */}
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold border ${pMeta.badgeBg}`}>
-                        <PIcon className="w-3 h-3" />
-                        <span>{pMeta.label.split(' ')[0]}</span>
-                      </span>
-
-                      {/* Subtask Trigger Badge */}
-                      <button
-                        onClick={() => toggleExpand(task.id)}
-                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold border transition ${
-                          subtasks.length > 0
-                            ? doneSubtasks === subtasks.length
-                              ? 'bg-emerald-50 border-emerald-200 text-emerald-700 font-mono'
-                              : 'bg-violet-50 border-violet-200 text-violet-700 font-mono'
-                            : 'bg-white border-slate-200 text-slate-500 hover:border-violet-300'
-                        }`}
-                      >
-                        <ListTodo className="w-3 h-3" />
-                        <span>{subtasks.length > 0 ? `${doneSubtasks}/${subtasks.length} Subtasks (${progressPercent}%)` : '+ Subtask'}</span>
-                        {isExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-                      </button>
-
-                      {/* Due Date */}
-                      {task.due_date && (
-                        <span className="text-[10px] text-slate-500 font-mono flex items-center gap-1 bg-slate-100 px-2 py-0.5 rounded-lg border border-slate-200">
-                          <Calendar className="w-3 h-3 text-slate-400" />
-                          <span>{new Date(task.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* ── Subtasks Checklist Section (Only shown when expanded) ── */}
-                {isExpanded && (
-                  <div className="bg-slate-50/70 border-t border-slate-100 px-4 py-3 space-y-2.5">
-                    {/* Progress Bar */}
-                    {subtasks.length > 0 && (
-                      <div className="space-y-1">
-                        <div className="flex items-center justify-between text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                          <span>Subtasks Checklist ({doneSubtasks}/{subtasks.length})</span>
-                          <span className="font-mono text-violet-700">{progressPercent}%</span>
-                        </div>
-                        <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
-                          <div
-                            className={`h-full transition-all duration-300 rounded-full ${
-                              doneSubtasks === subtasks.length ? 'bg-emerald-500' : 'bg-violet-600'
-                            }`}
-                            style={{ width: `${progressPercent}%` }}
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Subtask Items List */}
-                    {subtasks.length > 0 && (
-                      <div className="space-y-1.5 pt-0.5">
-                        {subtasks.map(st => {
-                          const isEditing = editingSubtaskId === st.id
-                          return (
-                            <div
-                              key={st.id}
-                              className="group flex items-center justify-between gap-2.5 px-2.5 py-1.5 rounded-xl bg-white border border-slate-200/80 hover:border-violet-200 transition"
-                            >
-                              {/* Custom Subtask Checkbox */}
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  sounds.playTap()
-                                  toggleSubtask(st.id, !st.is_completed)
-                                  if (!st.is_completed) sounds.playSuccess()
-                                }}
-                                className={`w-4.5 h-4.5 rounded-full border flex items-center justify-center shrink-0 transition active:scale-90 ${
-                                  st.is_completed
-                                    ? 'bg-emerald-500 border-emerald-500 text-white'
-                                    : 'border-slate-300 hover:border-violet-500 bg-white'
-                                }`}
-                              >
-                                {st.is_completed && <Check className="w-3 h-3 stroke-[3]" />}
-                              </button>
-
-                              {/* Title / Inline Edit Input */}
-                              <div className="flex-1 min-w-0">
-                                {isEditing ? (
-                                  <input
-                                    type="text"
-                                    value={editingSubtaskText}
-                                    onChange={(e) => setEditingSubtaskText(e.target.value)}
-                                    onBlur={() => handleSaveSubtaskTitle(st.id)}
-                                    onKeyDown={(e) => {
-                                      if (e.key === 'Enter') handleSaveSubtaskTitle(st.id)
-                                      if (e.key === 'Escape') setEditingSubtaskId(null)
+                        {subtasks.length > 0 && (
+                          <div className="space-y-1.5 pt-0.5">
+                            {subtasks.map(st => {
+                              const isEditing = editingSubtaskId === st.id
+                              return (
+                                <div
+                                  key={st.id}
+                                  className="group flex items-center justify-between gap-2.5 px-2.5 py-1.5 rounded-xl bg-white border border-slate-200/80 hover:border-violet-200 transition"
+                                >
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      sounds.playTap()
+                                      toggleSubtask(st.id, !st.is_completed)
+                                      if (!st.is_completed) sounds.playSuccess()
                                     }}
-                                    autoFocus
-                                    className="w-full px-2 py-0.5 text-xs font-semibold text-slate-900 border border-violet-400 rounded-md outline-none bg-violet-50/40"
-                                  />
-                                ) : (
-                                  <span
-                                    onClick={() => handleStartEditSubtask(st)}
-                                    className={`text-xs font-semibold cursor-text block truncate ${
-                                      st.is_completed ? 'line-through text-slate-400' : 'text-slate-800'
+                                    className={`w-4.5 h-4.5 rounded-full border flex items-center justify-center shrink-0 transition active:scale-90 ${
+                                      st.is_completed
+                                        ? 'bg-emerald-500 border-emerald-500 text-white'
+                                        : 'border-slate-300 hover:border-violet-500 bg-white'
                                     }`}
-                                    title="Click to edit subtask"
                                   >
-                                    {st.title}
-                                  </span>
-                                )}
-                              </div>
+                                    {st.is_completed && <Check className="w-3 h-3 stroke-[3]" />}
+                                  </button>
 
-                              {/* Delete Subtask */}
-                              <button
-                                type="button"
-                                onClick={() => { sounds.playTap(); deleteSubtask(st.id) }}
-                                className="p-1 text-slate-300 hover:text-rose-600 rounded transition shrink-0 active:scale-90"
-                                title="Delete subtask"
-                              >
-                                <X className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          )
-                        })}
+                                  <div className="flex-1 min-w-0">
+                                    {isEditing ? (
+                                      <input
+                                        type="text"
+                                        value={editingSubtaskText}
+                                        onChange={(e) => setEditingSubtaskText(e.target.value)}
+                                        onBlur={() => handleSaveSubtaskTitle(st.id)}
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter') handleSaveSubtaskTitle(st.id)
+                                          if (e.key === 'Escape') setEditingSubtaskId(null)
+                                        }}
+                                        autoFocus
+                                        className="w-full px-2 py-0.5 text-xs font-semibold text-slate-900 border border-violet-400 rounded-md outline-none bg-violet-50/40"
+                                      />
+                                    ) : (
+                                      <span
+                                        onClick={() => handleStartEditSubtask(st)}
+                                        className={`text-xs font-semibold cursor-text block truncate ${
+                                          st.is_completed ? 'line-through text-slate-400' : 'text-slate-800'
+                                        }`}
+                                        title="Click to edit subtask"
+                                      >
+                                        {st.title}
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => { sounds.playTap(); deleteSubtask(st.id) }}
+                                    className="p-1 text-slate-300 hover:text-rose-600 rounded transition shrink-0 active:scale-90"
+                                    title="Delete subtask"
+                                  >
+                                    <X className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+
+                        <form
+                          onSubmit={(e) => handleAddSubtask(task.id, e)}
+                          className="flex items-center gap-2 pt-1"
+                        >
+                          <div className="relative flex-1">
+                            <CornerDownRight className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+                            <input
+                              type="text"
+                              value={newSubtaskInputs[task.id] || ''}
+                              onChange={(e) => setNewSubtaskInputs(prev => ({ ...prev, [task.id]: e.target.value }))}
+                              placeholder="Add subtask / step..."
+                              className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-800 placeholder-slate-400 outline-none focus:border-violet-500 focus:bg-white transition shadow-2xs"
+                            />
+                          </div>
+                          <button
+                            type="submit"
+                            disabled={!(newSubtaskInputs[task.id] || '').trim()}
+                            className="px-3 py-1.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold disabled:opacity-40 transition shadow-2xs active:scale-95 shrink-0"
+                          >
+                            Add
+                          </button>
+                        </form>
                       </div>
                     )}
-
-                    {/* Inline Add Subtask Input Form */}
-                    <form
-                      onSubmit={(e) => handleAddSubtask(task.id, e)}
-                      className="flex items-center gap-2 pt-1"
-                    >
-                      <div className="relative flex-1">
-                        <CornerDownRight className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
-                        <input
-                          type="text"
-                          value={newSubtaskInputs[task.id] || ''}
-                          onChange={(e) => setNewSubtaskInputs(prev => ({ ...prev, [task.id]: e.target.value }))}
-                          placeholder="Add subtask / step..."
-                          className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-800 placeholder-slate-400 outline-none focus:border-violet-500 focus:bg-white transition shadow-2xs"
-                        />
-                      </div>
-                      <button
-                        type="submit"
-                        disabled={!(newSubtaskInputs[task.id] || '').trim()}
-                        className="px-3 py-1.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold disabled:opacity-40 transition shadow-2xs active:scale-95 shrink-0"
-                      >
-                        Add
-                      </button>
-                    </form>
                   </div>
-                )}
-              </div>
-            )
-          })
-        )}
+                )
+              })
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* ═══════════ VOCABURN-STYLE FIXED ACTION & PAGINATION TOOLBAR (ABOVE BOTTOM NAV) ═══════════ */}
-      <div className="sticky bottom-0 -mx-4 -mb-4 px-4 py-2 bg-white/95 backdrop-blur-2xl border-t border-slate-200/90 z-20 shadow-[0_-3px_12px_rgba(0,0,0,0.04)]">
+      {/* ═══════════ VOCABURN-STYLE FIXED ACTION & PAGINATION TOOLBAR (DOCKED ABOVE BOTTOM NAV) ═══════════ */}
+      <div className="shrink-0 z-30 bg-white/95 backdrop-blur-2xl border-t border-slate-200/90 px-4 py-2 shadow-[0_-2px_12px_rgba(0,0,0,0.03)]">
         <div className="max-w-lg md:max-w-5xl mx-auto flex items-center justify-between gap-2 min-h-[36px]">
           {isSearchOpen ? (
             <div className="flex items-center gap-2 flex-1 animate-in fade-in duration-150">

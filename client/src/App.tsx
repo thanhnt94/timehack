@@ -109,20 +109,18 @@ const AppShell: React.FC = () => {
           </div>
         </header>
 
-        {/* Scrollable content area */}
-        <main className="flex-1 overflow-y-auto overflow-x-hidden bg-[#F8FAFC]">
-          <div className="max-w-lg mx-auto px-4 py-4 md:max-w-5xl md:px-8 md:py-6">
-            <Routes>
-              <Route path="/" element={<TodayPlanner onOpenFocus={() => setFocusOpen(true)} />} />
-              <Route path="/tasks" element={<TasksBoard />} />
-              <Route path="/habits" element={<HabitMatrix />} />
-              <Route path="/calendar" element={<TimeBlockingSchedule />} />
-              <Route path="/schedule" element={<TimeBlockingSchedule />} />
-              <Route path="/analytics" element={<ProductivityAnalytics />} />
-              <Route path="/admin" element={<Admin />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </div>
+        {/* Main page container */}
+        <main className="flex-1 flex flex-col min-h-0 overflow-hidden bg-[#F8FAFC]">
+          <Routes>
+            <Route path="/" element={<div className="flex-1 overflow-y-auto px-4 py-4 md:px-8 md:py-6"><div className="max-w-lg md:max-w-5xl mx-auto"><TodayPlanner onOpenFocus={() => setFocusOpen(true)} /></div></div>} />
+            <Route path="/tasks" element={<TasksBoard />} />
+            <Route path="/habits" element={<div className="flex-1 overflow-y-auto px-4 py-4 md:px-8 md:py-6"><div className="max-w-lg md:max-w-5xl mx-auto"><HabitMatrix /></div></div>} />
+            <Route path="/calendar" element={<div className="flex-1 overflow-y-auto px-4 py-4 md:px-8 md:py-6"><div className="max-w-lg md:max-w-5xl mx-auto"><TimeBlockingSchedule /></div></div>} />
+            <Route path="/schedule" element={<div className="flex-1 overflow-y-auto px-4 py-4 md:px-8 md:py-6"><div className="max-w-lg md:max-w-5xl mx-auto"><TimeBlockingSchedule /></div></div>} />
+            <Route path="/analytics" element={<div className="flex-1 overflow-y-auto px-4 py-4 md:px-8 md:py-6"><div className="max-w-lg md:max-w-5xl mx-auto"><ProductivityAnalytics /></div></div>} />
+            <Route path="/admin" element={<div className="flex-1 overflow-y-auto px-4 py-4 md:px-8 md:py-6"><div className="max-w-lg md:max-w-5xl mx-auto"><Admin /></div></div>} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
         </main>
 
         {/* Floating timer pill (above bottom nav) */}

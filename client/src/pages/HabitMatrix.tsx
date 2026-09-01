@@ -2,7 +2,8 @@ import React, { useEffect, useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Flame, Check, Plus, X, Zap, Sparkles, Layers, Search,
-  Snowflake, ChevronRight, Calendar, Clock, Edit3, Trash2
+  Snowflake, ChevronRight, Calendar, Clock, Edit3, Trash2,
+  Minus, CheckCircle2, RotateCcw
 } from 'lucide-react'
 import { useHabitStore, type Habit } from '../store/useHabitStore'
 import { TaskPagination } from '../components/TaskPagination'
@@ -10,7 +11,7 @@ import { sounds } from '../utils/soundEffects'
 
 const HABIT_COLORS = ['#7C3AED', '#0284C7', '#10B981', '#D97706', '#E11D48', '#6366F1', '#EC4899', '#059669']
 
-const ICONS = ['⚡', '🔥', '📚', '💧', '🏃', '🧘', '💪', '💊', '🎯', '✍️', '🍏', '💤']
+const ICONS = ['⚡', '💧', '🏃', '📚', '🧘', '💪', '🎯', '💊', '✍️', '🍏', '💤', '🔥']
 
 const FILTER_TABS = [
   { key: 'all', label: 'All Habits', icon: Layers, activeClass: 'bg-violet-600 border-violet-600 text-white shadow-2xs', inactiveClass: 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50' },
@@ -25,12 +26,10 @@ const PAGE_SIZE = 6
 export const HabitMatrix: React.FC = () => {
   const {
     habits,
-    isLoading,
     fetchHabits,
     createHabit,
     checkinHabit,
-    toggleFreezeHabit,
-    deleteHabit
+    upsertHabitLog
   } = useHabitStore()
 
   const navigate = useNavigate()
@@ -44,13 +43,16 @@ export const HabitMatrix: React.FC = () => {
   // Create Habit Sheet State
   const [createSheetOpen, setCreateSheetOpen] = useState(false)
   const [newTitle, setNewTitle] = useState('')
-  const [newDesc, setNewDesc] = useState('')
-  const [newFreq, setNewFreq] = useState<'daily' | 'weekly_days' | 'weekly_target' | 'monthly_target'>('daily')
+  const [presetType, setPresetType] = useState<'once' | 'count' | 'timer'>('once')
   const [newTargetCount, setNewTargetCount] = useState(1)
   const [newUnit, setNewUnit] = useState('times')
+  const [newFreq, setNewFreq] = useState<'daily' | 'weekly_days' | 'weekly_target' | 'monthly_target'>('daily')
   const [newColor, setNewColor] = useState(HABIT_COLORS[0])
   const [newIcon, setNewIcon] = useState('⚡')
-  const [newReminder, setNewReminder] = useState('')
+
+  // Quick Progress Adjustment Modal (for exact logging e.g. 12 mins / 30 mins)
+  const [progressModalHabit, setProgressModalHabit] = useState<Habit | null>(null)
+  const [inputCount, setInputCount] = useState(0)
 
   useEffect(() => {
     fetchHabits(true)
@@ -64,13 +66,11 @@ export const HabitMatrix: React.FC = () => {
   // Filtered habits
   const filteredHabits = useMemo(() => {
     return habits.filter(h => {
-      // 1. Status / Frequency filter
       if (filter === 'active' && h.archived) return false
       if (filter === 'frozen' && !h.archived) return false
       if (filter === 'daily' && h.frequency_type !== 'daily') return false
       if (filter === 'weekly' && h.frequency_type !== 'weekly_days' && h.frequency_type !== 'weekly_target') return false
 
-      // 2. Search query filter
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim()
         const matchTitle = h.title.toLowerCase().includes(q)
@@ -89,34 +89,80 @@ export const HabitMatrix: React.FC = () => {
     return filteredHabits.slice(start, start + PAGE_SIZE)
   }, [filteredHabits, currentPage])
 
+  const handleApplyPreset = (type: 'once' | 'count' | 'timer') => {
+    sounds.playTap()
+    setPresetType(type)
+    if (type === 'once') {
+      setNewTargetCount(1)
+      setNewUnit('times')
+    } else if (type === 'count') {
+      setNewTargetCount(2)
+      setNewUnit('times')
+    } else if (type === 'timer') {
+      setNewTargetCount(30)
+      setNewUnit('mins')
+    }
+  }
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newTitle.trim()) return
     sounds.playTap()
     const newId = await createHabit({
       title: newTitle.trim(),
-      description: newDesc.trim() || undefined,
       frequency_type: newFreq,
-      target_count: newTargetCount,
+      target_count: Math.max(1, Number(newTargetCount) || 1),
       unit: newUnit.trim() || 'times',
       color: newColor,
-      icon: newIcon,
-      reminder_time: newReminder || undefined
+      icon: newIcon
     })
     sounds.playSuccess()
     setNewTitle('')
-    setNewDesc('')
     setCreateSheetOpen(false)
     if (newId) {
       navigate(`/habits/${newId}`)
     }
   }
 
-  const handleCheckin = (e: React.MouseEvent, h: Habit) => {
+  const handleQuickCheckin = (e: React.MouseEvent, h: Habit) => {
     e.stopPropagation()
     sounds.playTap()
     checkinHabit(h.id)
     if (!h.today_completed) sounds.playSuccess()
+  }
+
+  const handleStepIncrement = (e: React.MouseEvent, h: Habit, step: number) => {
+    e.stopPropagation()
+    sounds.playTap()
+    const current = h.today_count || 0
+    const target = h.target_count || 1
+    const nextCount = Math.max(0, current + step)
+    checkinHabit(h.id, {
+      count: nextCount,
+      completed: nextCount >= target
+    })
+    if (nextCount >= target && current < target) sounds.playSuccess()
+  }
+
+  const handleOpenProgressModal = (e: React.MouseEvent, h: Habit) => {
+    e.stopPropagation()
+    sounds.playTap()
+    setProgressModalHabit(h)
+    setInputCount(h.today_count || 0)
+  }
+
+  const handleSaveProgressModal = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!progressModalHabit) return
+    sounds.playTap()
+    const target = progressModalHabit.target_count || 1
+    const finalCount = Math.max(0, inputCount)
+    await checkinHabit(progressModalHabit.id, {
+      count: finalCount,
+      completed: finalCount >= target
+    })
+    sounds.playSuccess()
+    setProgressModalHabit(null)
   }
 
   const handleCardClick = (habitId: number) => {
@@ -126,7 +172,7 @@ export const HabitMatrix: React.FC = () => {
 
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-      {/* ── 1. Fixed / Sticky Top Filter Bar (Luôn hiển thị khi cuộn) ── */}
+      {/* ── 1. Fixed / Sticky Top Filter Bar ── */}
       <div className="shrink-0 bg-[#F8FAFC] border-b border-slate-200/70 px-4 py-2 z-10 shadow-2xs">
         <div className="max-w-lg md:max-w-5xl mx-auto flex gap-1.5 overflow-x-auto no-scrollbar">
           {FILTER_TABS.map(tab => {
@@ -177,7 +223,7 @@ export const HabitMatrix: React.FC = () => {
                 {searchQuery ? 'No matching habits found' : filter === 'frozen' ? 'No frozen habits' : 'No habits tracked'}
               </h3>
               <p className="text-xs text-slate-500 mt-1 max-w-[260px] leading-relaxed">
-                {searchQuery ? 'Try searching with different keywords.' : 'Build daily discipline with streaks, reflection notes, and emotion logs.'}
+                {searchQuery ? 'Try searching with different keywords.' : 'Build daily discipline with partial progress, streaks, and reflections.'}
               </p>
 
               <button
@@ -192,6 +238,10 @@ export const HabitMatrix: React.FC = () => {
             paginatedHabits.map(h => {
               const done = !!h.today_completed
               const isFrozen = !!h.archived
+              const targetCount = h.target_count || 1
+              const todayCount = h.today_count || 0
+              const isMultiTarget = targetCount > 1
+              const progressPercent = Math.min(100, Math.round((todayCount / targetCount) * 100))
               const miniHistory = h.mini_history || []
 
               return (
@@ -206,71 +256,133 @@ export const HabitMatrix: React.FC = () => {
                       : 'border-slate-200'
                   }`}
                 >
-                  <div className="p-3.5 flex items-center gap-3.5">
-                    {/* Check-in Target (Clicking checks in today) */}
-                    <button
-                      type="button"
-                      onClick={(e) => handleCheckin(e, h)}
-                      className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition active:scale-90 shadow-2xs ${
-                        done
-                          ? 'bg-emerald-500 text-white shadow-emerald-500/20'
-                          : 'border-2 border-dashed border-slate-300 hover:border-violet-500 bg-white'
-                      }`}
-                      aria-label={done ? 'Habit done today' : 'Check in habit'}
-                    >
-                      {done ? (
-                        <Check className="w-6 h-6 text-white stroke-[3]" />
-                      ) : (
-                        <span className="text-lg">{h.icon || '⚡'}</span>
-                      )}
-                    </button>
+                  <div className="p-3.5">
+                    {/* Main Row */}
+                    <div className="flex items-center gap-3.5">
+                      {/* Check-in Target Button */}
+                      <button
+                        type="button"
+                        onClick={(e) => handleQuickCheckin(e, h)}
+                        className={`w-12 h-12 rounded-2xl flex flex-col items-center justify-center shrink-0 transition active:scale-90 shadow-2xs relative ${
+                          done
+                            ? 'bg-emerald-500 text-white shadow-emerald-500/20'
+                            : todayCount > 0
+                            ? 'bg-violet-50 border-2 border-violet-500 text-violet-700 font-bold'
+                            : 'border-2 border-dashed border-slate-300 hover:border-violet-500 bg-white'
+                        }`}
+                        title={isMultiTarget ? `Progress: ${todayCount}/${targetCount} ${h.unit}` : 'Check in habit'}
+                      >
+                        {done ? (
+                          <Check className="w-6 h-6 text-white stroke-[3]" />
+                        ) : isMultiTarget && todayCount > 0 ? (
+                          <span className="text-[11px] font-black font-mono leading-none">
+                            {todayCount}/{targetCount}
+                          </span>
+                        ) : (
+                          <span className="text-lg">{h.icon || '⚡'}</span>
+                        )}
+                      </button>
 
-                    {/* Habit Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          <h4 className={`text-sm font-bold truncate group-hover:text-violet-700 transition ${
-                            done ? 'text-emerald-950' : 'text-slate-900'
-                          }`}>
-                            {h.title}
-                          </h4>
-                          {isFrozen && (
-                            <span className="px-1.5 py-0.2 rounded-md bg-blue-50 text-blue-700 border border-blue-200 text-[9px] font-black shrink-0">
-                              ❄️ Frozen
+                      {/* Habit Info & Metrics */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <h4 className={`text-sm font-bold truncate group-hover:text-violet-700 transition ${
+                              done ? 'text-emerald-950' : 'text-slate-900'
+                            }`}>
+                              {h.title}
+                            </h4>
+                            {isFrozen && (
+                              <span className="px-1.5 py-0.2 rounded-md bg-blue-50 text-blue-700 border border-blue-200 text-[9px] font-black shrink-0">
+                                ❄️ Frozen
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Streak Badge */}
+                          {h.current_streak > 0 && (
+                            <span className="text-[10px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200 font-bold flex items-center gap-0.5 shrink-0">
+                              <Flame className="w-3 h-3 text-amber-500" /> {h.current_streak}d
                             </span>
                           )}
                         </div>
 
-                        {/* Streak Badge */}
-                        {h.current_streak > 0 && (
-                          <span className="text-[10px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200 font-bold flex items-center gap-0.5 shrink-0">
-                            <Flame className="w-3 h-3 text-amber-500" /> {h.current_streak}d
-                          </span>
-                        )}
-                      </div>
+                        {/* Progress Details / Stepper */}
+                        <div className="flex items-center justify-between mt-2 gap-2">
+                          {/* Mini 7-Day Sparkline Dots */}
+                          <div className="flex items-center gap-1">
+                            {miniHistory.map((day, idx) => (
+                              <div
+                                key={idx}
+                                className={`w-2.5 h-2.5 rounded-full transition ${
+                                  day.completed
+                                    ? 'bg-emerald-500 ring-1 ring-emerald-300'
+                                    : 'bg-slate-200'
+                                }`}
+                                title={day.date}
+                              />
+                            ))}
+                          </div>
 
-                      {/* Mini 7-Day Sparkline Dots & Target */}
-                      <div className="flex items-center justify-between mt-2 gap-2">
-                        <div className="flex items-center gap-1">
-                          {miniHistory.map((day, idx) => (
-                            <div
-                              key={idx}
-                              className={`w-2.5 h-2.5 rounded-full transition ${
-                                day.completed
-                                  ? 'bg-emerald-500 ring-1 ring-emerald-300'
-                                  : 'bg-slate-200'
-                              }`}
-                              title={day.date}
-                            />
-                          ))}
-                        </div>
+                          {/* Target / Partial Progress Stepper & Badge */}
+                          <div className="flex items-center gap-1.5">
+                            {isMultiTarget ? (
+                              <div className="flex items-center gap-1 bg-slate-100/90 px-1.5 py-0.5 rounded-lg border border-slate-200">
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleStepIncrement(e, h, -1)}
+                                  className="w-5 h-5 rounded-md bg-white hover:bg-slate-200 text-slate-600 flex items-center justify-center text-[10px] font-bold active:scale-90 transition shadow-2xs"
+                                  title="Decrease"
+                                >
+                                  <Minus className="w-3 h-3" />
+                                </button>
 
-                        <div className="flex items-center gap-1 text-[10px] font-bold text-slate-400">
-                          <span>{h.target_count} {h.unit}</span>
-                          <ChevronRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-violet-500 transition" />
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleOpenProgressModal(e, h)}
+                                  className="text-[10px] font-black font-mono px-1 hover:text-violet-700 transition"
+                                  title="Click to set exact progress"
+                                >
+                                  {todayCount}/{targetCount} {h.unit} ({progressPercent}%)
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleStepIncrement(e, h, 1)}
+                                  className="w-5 h-5 rounded-md bg-white hover:bg-violet-100 hover:text-violet-700 text-slate-700 flex items-center justify-center text-[10px] font-bold active:scale-90 transition shadow-2xs"
+                                  title="Increase +1"
+                                >
+                                  <Plus className="w-3 h-3" />
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-[10px] font-bold text-slate-400">
+                                1 {h.unit} / day
+                              </span>
+                            )}
+                            <ChevronRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-violet-500 transition shrink-0" />
+                          </div>
                         </div>
                       </div>
                     </div>
+
+                    {/* Multi-step Visual Progress Bar */}
+                    {isMultiTarget && (
+                      <div className="mt-2.5 pt-2 border-t border-slate-100/80">
+                        <div className="flex items-center justify-between text-[9px] font-bold text-slate-400 mb-1 font-mono">
+                          <span>Today: {todayCount} of {targetCount} {h.unit}</span>
+                          <span className={done ? 'text-emerald-600' : 'text-violet-600'}>{progressPercent}%</span>
+                        </div>
+                        <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full transition-all duration-300 rounded-full ${
+                              done ? 'bg-emerald-500' : 'bg-violet-600'
+                            }`}
+                            style={{ width: `${progressPercent}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )
@@ -279,7 +391,7 @@ export const HabitMatrix: React.FC = () => {
         </div>
       </div>
 
-      {/* ── 3. Fixed Bottom Toolbar (Neo cứng trên BottomNav) ── */}
+      {/* ── 3. Fixed Bottom Toolbar (Icon Only +) ── */}
       <div className="shrink-0 z-30 bg-white/95 backdrop-blur-2xl border-t border-slate-200/90 px-4 py-2 shadow-[0_-2px_12px_rgba(0,0,0,0.03)]">
         <div className="max-w-lg md:max-w-5xl mx-auto flex items-center justify-between gap-2 min-h-[36px]">
           {isSearchOpen ? (
@@ -322,7 +434,7 @@ export const HabitMatrix: React.FC = () => {
                 onPageChange={setCurrentPage}
               />
 
-              {/* Right: Quick Action Buttons (Search & Add Habit) */}
+              {/* Right: Quick Action Buttons (Search & Add Habit Icon-Only) */}
               <div className="flex items-center gap-1.5">
                 {/* Search Toggle Button */}
                 <button
@@ -337,14 +449,14 @@ export const HabitMatrix: React.FC = () => {
                   <Search className="w-4 h-4" />
                 </button>
 
-                {/* Add Habit Button */}
+                {/* Add Habit Button (Icon Only) */}
                 <button
                   onClick={() => { sounds.playTap(); setCreateSheetOpen(true) }}
-                  className="h-8 px-3 rounded-xl bg-violet-600 hover:bg-violet-700 text-white flex items-center gap-1 text-xs font-black shadow-xs shadow-violet-500/20 active:scale-95 transition cursor-pointer"
+                  className="h-8 w-8 rounded-xl bg-violet-600 hover:bg-violet-700 text-white flex items-center justify-center shadow-xs shadow-violet-500/20 active:scale-95 transition cursor-pointer"
                   title="Create new habit"
+                  aria-label="Create new habit"
                 >
                   <Plus className="w-4 h-4 stroke-[3]" />
-                  <span>New Habit</span>
                 </button>
               </div>
             </>
@@ -352,16 +464,16 @@ export const HabitMatrix: React.FC = () => {
         </div>
       </div>
 
-      {/* ── Create Habit Bottom Sheet Modal ── */}
+      {/* ── Modal 1: Streamlined & Clean Create Habit Sheet ── */}
       {createSheetOpen && (
         <>
           <div className="sheet-backdrop" onClick={() => setCreateSheetOpen(false)} />
           <div className="sheet-content max-w-lg mx-auto">
             <div className="sheet-handle" />
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-3.5">
               <div>
                 <h2 className="text-sm font-black text-slate-900">Create New Habit</h2>
-                <p className="text-[11px] text-slate-500 font-medium">Build consistency and track daily streaks</p>
+                <p className="text-[11px] text-slate-500 font-medium">Simple steps to build daily consistency</p>
               </div>
               <button onClick={() => setCreateSheetOpen(false)} className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700">
                 <X className="w-5 h-5" />
@@ -369,87 +481,111 @@ export const HabitMatrix: React.FC = () => {
             </div>
 
             <form onSubmit={handleCreate} className="space-y-3.5">
+              {/* Habit Name */}
               <div>
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  Habit Title
+                  Habit Name
                 </label>
                 <input
                   type="text"
                   value={newTitle}
                   onChange={e => setNewTitle(e.target.value)}
-                  placeholder="e.g. Read 20 mins, Drink 2L water, Morning Run..."
+                  placeholder="e.g. Drink 2L water, Read book, Morning workout..."
                   autoFocus
                   required
                   className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
                 />
               </div>
 
+              {/* Habit Tracking Preset Chips */}
               <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  Description / Intention (Optional)
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
+                  Tracking Goal Type
                 </label>
-                <input
-                  type="text"
-                  value={newDesc}
-                  onChange={e => setNewDesc(e.target.value)}
-                  placeholder="Why do you want to build this habit?"
-                  className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
-                />
+                <div className="grid grid-cols-3 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => handleApplyPreset('once')}
+                    className={`p-2.5 rounded-xl border text-left transition ${
+                      presetType === 'once'
+                        ? 'bg-violet-50 border-violet-400 text-violet-800 ring-2 ring-violet-500'
+                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="text-xs font-bold flex items-center gap-1">⚡ 1x / Day</div>
+                    <div className="text-[9px] text-slate-400 mt-0.5">Simple check-in</div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleApplyPreset('count')}
+                    className={`p-2.5 rounded-xl border text-left transition ${
+                      presetType === 'count'
+                        ? 'bg-violet-50 border-violet-400 text-violet-800 ring-2 ring-violet-500'
+                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="text-xs font-bold flex items-center gap-1">🔢 Multi-Count</div>
+                    <div className="text-[9px] text-slate-400 mt-0.5">e.g. 2, 4, 8 times</div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleApplyPreset('timer')}
+                    className={`p-2.5 rounded-xl border text-left transition ${
+                      presetType === 'timer'
+                        ? 'bg-violet-50 border-violet-400 text-violet-800 ring-2 ring-violet-500'
+                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="text-xs font-bold flex items-center gap-1">⏱️ Duration</div>
+                    <div className="text-[9px] text-slate-400 mt-0.5">e.g. 30 mins</div>
+                  </button>
+                </div>
               </div>
 
-              {/* Frequency & Target */}
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    Frequency
-                  </label>
-                  <select
-                    value={newFreq}
-                    onChange={e => setNewFreq(e.target.value as any)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
-                  >
-                    <option value="daily">Daily (Every day)</option>
-                    <option value="weekly_days">Specific Days / Week</option>
-                    <option value="weekly_target">Weekly Target</option>
-                    <option value="monthly_target">Monthly Target</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    Target & Unit
-                  </label>
-                  <div className="flex gap-1.5">
+              {/* Target & Unit (Customizable) */}
+              {presetType !== 'once' && (
+                <div className="grid grid-cols-2 gap-2 animate-in fade-in duration-150">
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                      Daily Target Number
+                    </label>
                     <input
                       type="number"
                       min="1"
                       value={newTargetCount}
                       onChange={e => setNewTargetCount(Number(e.target.value) || 1)}
-                      className="w-16 px-2.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition text-center"
+                      className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
                     />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                      Unit
+                    </label>
                     <input
                       type="text"
                       value={newUnit}
                       onChange={e => setNewUnit(e.target.value)}
-                      placeholder="times, mins, pages..."
-                      className="flex-1 px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
+                      placeholder="times, mins, pages, lít..."
+                      className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
                     />
                   </div>
                 </div>
-              </div>
+              )}
 
               {/* Icon & Color Badge */}
               <div>
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
-                  Icon & Color Badge
+                  Icon & Color
                 </label>
-                <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
                   {ICONS.map(ic => (
                     <button
                       key={ic}
                       type="button"
                       onClick={() => setNewIcon(ic)}
-                      className={`w-9 h-9 rounded-xl text-base flex items-center justify-center transition shrink-0 ${
+                      className={`w-8 h-8 rounded-xl text-sm flex items-center justify-center transition shrink-0 ${
                         newIcon === ic ? 'bg-violet-100 border-2 border-violet-600 scale-105' : 'bg-slate-100 border border-slate-200'
                       }`}
                     >
@@ -458,13 +594,13 @@ export const HabitMatrix: React.FC = () => {
                   ))}
                 </div>
 
-                <div className="flex items-center gap-2 mt-2">
+                <div className="flex items-center gap-1.5 mt-1.5">
                   {HABIT_COLORS.map(c => (
                     <button
                       key={c}
                       type="button"
                       onClick={() => setNewColor(c)}
-                      className={`w-8 h-8 rounded-xl transition active:scale-90 shrink-0 ${
+                      className={`w-7 h-7 rounded-xl transition active:scale-90 shrink-0 ${
                         newColor === c ? 'ring-2 ring-violet-600 ring-offset-2 scale-105' : ''
                       }`}
                       style={{ backgroundColor: c }}
@@ -478,6 +614,86 @@ export const HabitMatrix: React.FC = () => {
                 className="w-full py-3.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-xs active:scale-[0.98] transition shadow-md shadow-violet-600/20 mt-2"
               >
                 Create Habit
+              </button>
+            </form>
+          </div>
+        </>
+      )}
+
+      {/* ── Modal 2: Quick Exact Progress Setting Modal ── */}
+      {progressModalHabit && (
+        <>
+          <div className="sheet-backdrop" onClick={() => setProgressModalHabit(null)} />
+          <div className="sheet-content max-w-lg mx-auto">
+            <div className="sheet-handle" />
+            <div className="flex items-center justify-between mb-3.5">
+              <div>
+                <h2 className="text-sm font-black text-slate-900">Log Progress for Today</h2>
+                <p className="text-[11px] text-slate-500 font-medium">
+                  {progressModalHabit.title} (Target: {progressModalHabit.target_count} {progressModalHabit.unit})
+                </p>
+              </div>
+              <button onClick={() => setProgressModalHabit(null)} className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveProgressModal} className="space-y-4">
+              <div className="flex items-center justify-center gap-3 py-2">
+                <button
+                  type="button"
+                  onClick={() => setInputCount(Math.max(0, inputCount - 1))}
+                  className="w-11 h-11 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-lg font-bold flex items-center justify-center active:scale-90 transition"
+                >
+                  -
+                </button>
+
+                <div className="flex items-baseline gap-1 text-center">
+                  <input
+                    type="number"
+                    min="0"
+                    value={inputCount}
+                    onChange={e => setInputCount(Number(e.target.value) || 0)}
+                    autoFocus
+                    className="w-24 text-center text-3xl font-black font-mono text-slate-900 border-b-2 border-violet-500 outline-none bg-transparent"
+                  />
+                  <span className="text-sm font-bold text-slate-400">
+                    / {progressModalHabit.target_count} {progressModalHabit.unit}
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setInputCount(inputCount + 1)}
+                  className="w-11 h-11 rounded-2xl bg-violet-600 hover:bg-violet-700 text-white text-lg font-bold flex items-center justify-center active:scale-90 transition shadow-md shadow-violet-600/20"
+                >
+                  +
+                </button>
+              </div>
+
+              {/* Quick Preset Buttons */}
+              <div className="flex gap-2 justify-center">
+                <button
+                  type="button"
+                  onClick={() => setInputCount(Math.round(progressModalHabit.target_count / 2))}
+                  className="px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold hover:bg-slate-200 transition"
+                >
+                  Half (50%)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setInputCount(progressModalHabit.target_count)}
+                  className="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold hover:bg-emerald-100 transition"
+                >
+                  Full (100%)
+                </button>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-3.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-xs active:scale-[0.98] transition shadow-md shadow-violet-600/20"
+              >
+                Save Progress
               </button>
             </form>
           </div>

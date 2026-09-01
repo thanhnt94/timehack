@@ -586,14 +586,14 @@ export const TasksBoard: React.FC = () => {
                   <Search className="w-4 h-4" />
                 </button>
 
-                {/* Add Task Button */}
+                {/* Add Task Button (Icon Only) */}
                 <button
                   onClick={() => { sounds.playTap(); setCreateSheetOpen(true) }}
-                  className="h-8 px-3 rounded-xl bg-violet-600 hover:bg-violet-700 text-white flex items-center gap-1 text-xs font-black shadow-xs shadow-violet-500/20 active:scale-95 transition cursor-pointer"
+                  className="h-8 w-8 rounded-xl bg-violet-600 hover:bg-violet-700 text-white flex items-center justify-center shadow-xs shadow-violet-500/20 active:scale-95 transition cursor-pointer"
                   title="Create new task"
+                  aria-label="Create new task"
                 >
                   <Plus className="w-4 h-4 stroke-[3]" />
-                  <span>New Task</span>
                 </button>
               </div>
             </>

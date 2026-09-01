@@ -343,29 +343,53 @@ async def checkin_habit(habit_id: int, payload: dict, request: Request, db: Asyn
 
     current_time_str = datetime.now().strftime("%H:%M")
 
+    target_count = habit.target_count or 1
+
     if not log_obj:
+        initial_count = payload.get("count", 1)
+        is_completed = payload.get("completed", initial_count >= target_count)
         log_obj = HabitLog(
             habit_id=habit_id,
             user_id=user_id,
             logged_date=target_date,
             completed_time=payload.get("completed_time", current_time_str),
-            count=payload.get("count", 1),
-            completed=payload.get("completed", True),
+            count=initial_count,
+            completed=is_completed,
             notes=payload.get("notes"),
             mood=payload.get("mood")
         )
         db.add(log_obj)
     else:
-        if "completed" in payload:
+        if "count" in payload:
+            log_obj.count = payload["count"]
+            log_obj.completed = log_obj.count >= target_count
+        elif "step" in payload:
+            new_c = max(0, log_obj.count + payload["step"])
+            log_obj.count = new_c
+            log_obj.completed = new_c >= target_count
+        elif "completed" in payload:
             log_obj.completed = payload["completed"]
+            if log_obj.completed and log_obj.count < target_count:
+                log_obj.count = target_count
+            elif not log_obj.completed:
+                log_obj.count = 0
         else:
-            log_obj.completed = not log_obj.completed
+            # Default quick tap behavior:
+            if target_count > 1:
+                if log_obj.count < target_count:
+                    log_obj.count += 1
+                    log_obj.completed = log_obj.count >= target_count
+                else:
+                    # Reset to 0 if already full
+                    log_obj.count = 0
+                    log_obj.completed = False
+            else:
+                log_obj.completed = not log_obj.completed
+                log_obj.count = 1 if log_obj.completed else 0
 
         if log_obj.completed and not log_obj.completed_time:
             log_obj.completed_time = current_time_str
 
-        if "count" in payload:
-            log_obj.count = payload["count"]
         if "notes" in payload:
             log_obj.notes = payload["notes"]
         if "mood" in payload:
@@ -386,6 +410,8 @@ async def checkin_habit(habit_id: int, payload: dict, request: Request, db: Asyn
         "status": "ok", 
         "logged_date": target_date.isoformat(), 
         "completed": log_obj.completed,
+        "count": log_obj.count,
+        "target_count": target_count,
         "completed_time": log_obj.completed_time,
         "current_streak": streak_info["current_streak"]
     }

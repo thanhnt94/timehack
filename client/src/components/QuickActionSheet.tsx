@@ -63,6 +63,9 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
   const { createTask } = useTaskStore()
 
   const [habitTitle, setHabitTitle] = useState('')
+  const [habitPreset, setHabitPreset] = useState<'once' | 'count' | 'timer'>('once')
+  const [habitTargetCount, setHabitTargetCount] = useState(1)
+  const [habitUnit, setHabitUnit] = useState('times')
   const [habitColor, setHabitColor] = useState(HABIT_COLORS[0])
   const { createHabit } = useHabitStore()
 
@@ -95,6 +98,21 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
     handleClose()
   }
 
+  const handleApplyHabitPreset = (type: 'once' | 'count' | 'timer') => {
+    sounds.playTap()
+    setHabitPreset(type)
+    if (type === 'once') {
+      setHabitTargetCount(1)
+      setHabitUnit('times')
+    } else if (type === 'count') {
+      setHabitTargetCount(2)
+      setHabitUnit('times')
+    } else if (type === 'timer') {
+      setHabitTargetCount(30)
+      setHabitUnit('mins')
+    }
+  }
+
   const handleCreateHabit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!habitTitle.trim()) return
@@ -103,8 +121,8 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
       title: habitTitle.trim(),
       color: habitColor,
       icon: '⚡',
-      target_count: 1,
-      unit: 'times',
+      target_count: Math.max(1, Number(habitTargetCount) || 1),
+      unit: habitUnit.trim() || 'times',
       frequency_type: 'daily'
     })
     sounds.playSuccess()
@@ -233,7 +251,7 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
           </div>
         )}
 
-        {/* ── View 2: Form Task (Exact matching UI as Tasks page) ─────────── */}
+        {/* ── View 2: Form Task ─────────── */}
         {subView === 'task' && (
           <form onSubmit={handleCreateTask} className="space-y-3.5">
             <div>
@@ -302,7 +320,7 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
           </form>
         )}
 
-        {/* ── View 3: Form Habit ────────── */}
+        {/* ── View 3: Form Habit (With Clean Tracking Presets) ────────── */}
         {subView === 'habit' && (
           <form onSubmit={handleCreateHabit} className="space-y-3.5">
             <div>
@@ -313,12 +331,85 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
                 type="text"
                 value={habitTitle}
                 onChange={e => setHabitTitle(e.target.value)}
-                placeholder="e.g. Read 20 mins, Drink 2L water..."
+                placeholder="e.g. Read 20 mins, Drink 2L water, Morning Run..."
                 autoFocus
                 required
                 className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
               />
             </div>
+
+            {/* Presets */}
+            <div>
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
+                Tracking Goal Type
+              </label>
+              <div className="grid grid-cols-3 gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => handleApplyHabitPreset('once')}
+                  className={`p-2 rounded-xl border text-left transition ${
+                    habitPreset === 'once'
+                      ? 'bg-violet-50 border-violet-400 text-violet-800 ring-2 ring-violet-500'
+                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="text-xs font-bold">⚡ 1x / Day</div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleApplyHabitPreset('count')}
+                  className={`p-2 rounded-xl border text-left transition ${
+                    habitPreset === 'count'
+                      ? 'bg-violet-50 border-violet-400 text-violet-800 ring-2 ring-violet-500'
+                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="text-xs font-bold">🔢 Count</div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleApplyHabitPreset('timer')}
+                  className={`p-2 rounded-xl border text-left transition ${
+                    habitPreset === 'timer'
+                      ? 'bg-violet-50 border-violet-400 text-violet-800 ring-2 ring-violet-500'
+                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="text-xs font-bold">⏱️ Duration</div>
+                </button>
+              </div>
+            </div>
+
+            {habitPreset !== 'once' && (
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                    Daily Target
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={habitTargetCount}
+                    onChange={e => setHabitTargetCount(Number(e.target.value) || 1)}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                    Unit
+                  </label>
+                  <input
+                    type="text"
+                    value={habitUnit}
+                    onChange={e => setHabitUnit(e.target.value)}
+                    placeholder="times, mins, pages..."
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
+                  />
+                </div>
+              </div>
+            )}
 
             <div>
               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
@@ -330,7 +421,7 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
                     key={c}
                     type="button"
                     onClick={() => setHabitColor(c)}
-                    className={`w-9 h-9 rounded-xl transition active:scale-90 ${
+                    className={`w-8 h-8 rounded-xl transition active:scale-90 ${
                       habitColor === c ? 'ring-2 ring-violet-600 ring-offset-2 scale-105' : ''
                     }`}
                     style={{ backgroundColor: c }}

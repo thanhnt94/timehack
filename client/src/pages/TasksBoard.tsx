@@ -2,10 +2,11 @@ import React, { useEffect, useState, useMemo } from 'react'
 import {
   Check, Play, Trash2, Plus, X, CheckSquare, Calendar,
   Flame, Star, Users, Inbox, Layers, Edit3, ChevronDown,
-  ChevronRight, ListTodo, CornerDownRight, Search, ChevronLeft
+  ChevronRight, ListTodo, CornerDownRight, Search
 } from 'lucide-react'
 import { useTaskStore, type Task, type Subtask } from '../store/useTaskStore'
 import { useTimerStore } from '../store/useTimerStore'
+import { TaskPagination } from '../components/TaskPagination'
 import { useNavigate } from 'react-router-dom'
 import { sounds } from '../utils/soundEffects'
 
@@ -83,7 +84,7 @@ const PRIORITY_CHOICES = [
   },
 ] as const
 
-const PAGE_SIZE = 8
+const PAGE_SIZE = 5
 
 export const TasksBoard: React.FC = () => {
   const {
@@ -105,13 +106,14 @@ export const TasksBoard: React.FC = () => {
   // Filter & Search & Pagination State
   const [filter, setFilter] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
 
   // Modals state
   const [createSheetOpen, setCreateSheetOpen] = useState(false)
   const [editTaskData, setEditTaskData] = useState<Task | null>(null)
 
-  // Track expanded subtask panels (collapsed by default for compact cards)
+  // Track expanded subtask panels
   const [expandedTasks, setExpandedTasks] = useState<Record<number, boolean>>({})
   const [newSubtaskInputs, setNewSubtaskInputs] = useState<Record<number, string>>({})
   const [editingSubtaskId, setEditingSubtaskId] = useState<number | null>(null)
@@ -236,27 +238,7 @@ export const TasksBoard: React.FC = () => {
   }
 
   return (
-    <div className="space-y-3 pb-4">
-      {/* ── Integrated Search Bar ──────── */}
-      <div className="relative">
-        <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search deliverables, tasks or subtasks..."
-          className="w-full pl-10 pr-9 py-2.5 rounded-2xl bg-white border border-slate-200 text-xs font-semibold text-slate-800 placeholder:text-slate-400 outline-none focus:border-violet-500 shadow-2xs transition"
-        />
-        {searchQuery && (
-          <button
-            onClick={() => setSearchQuery('')}
-            className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-700"
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
-        )}
-      </div>
-
+    <div className="space-y-3 pb-18">
       {/* ── Rich Colored Priority Tabs with Icons ── */}
       <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-1">
         {PRIORITY_TABS.map(tab => {
@@ -277,8 +259,24 @@ export const TasksBoard: React.FC = () => {
         })}
       </div>
 
+      {/* ── Active Search Filter Notice (if filtered) ── */}
+      {searchQuery && (
+        <div className="flex items-center justify-between px-3 py-1.5 rounded-xl bg-violet-50 border border-violet-200 text-xs font-bold text-violet-800">
+          <div className="flex items-center gap-1.5 truncate">
+            <Search className="w-3.5 h-3.5 text-violet-600 shrink-0" />
+            <span className="truncate">"{searchQuery}" ({filteredTasks.length} results)</span>
+          </div>
+          <button
+            onClick={() => setSearchQuery('')}
+            className="p-0.5 hover:text-violet-950 transition shrink-0"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
       {/* ── Task List or Empty State ────── */}
-      <div className="space-y-2.5 pt-1">
+      <div className="space-y-2.5 pt-0.5">
         {filteredTasks.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
             <div className="w-16 h-16 rounded-3xl bg-violet-50 border border-violet-200 text-violet-600 flex items-center justify-center shadow-xs mb-3">
@@ -293,7 +291,7 @@ export const TasksBoard: React.FC = () => {
 
             <button
               onClick={() => { sounds.playTap(); setCreateSheetOpen(true) }}
-              className="mt-6 px-6 py-3.5 rounded-2xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold shadow-lg shadow-violet-600/25 active:scale-95 transition flex items-center gap-2"
+              className="mt-6 px-6 py-3 rounded-2xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold shadow-lg shadow-violet-600/25 active:scale-95 transition flex items-center gap-2"
             >
               <Plus className="w-4 h-4 stroke-[3]" />
               <span>Create First Task</span>
@@ -535,42 +533,79 @@ export const TasksBoard: React.FC = () => {
             )
           })
         )}
+      </div>
 
-        {/* ── In-Content Pagination (Only renders when totalPages > 1) ── */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-center gap-2 pt-3 pb-1">
-            <button
-              disabled={currentPage <= 1}
-              onClick={() => { sounds.playTap(); setCurrentPage(p => Math.max(1, p - 1)) }}
-              className="h-8 px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold flex items-center gap-1 transition active:scale-95 disabled:opacity-40 shadow-2xs"
-            >
-              <ChevronLeft className="w-3.5 h-3.5" />
-              <span>Previous</span>
-            </button>
+      {/* ═══════════ VOCABURN-STYLE FIXED ACTION & PAGINATION TOOLBAR (ABOVE BOTTOM NAV) ═══════════ */}
+      <div className="fixed bottom-[calc(48px+var(--safe-bottom))] left-0 right-0 md:left-60 bg-white/95 backdrop-blur-2xl border-t border-slate-200/90 px-4 py-1.5 z-20 shadow-[0_-2px_12px_rgba(0,0,0,0.03)]">
+        <div className="max-w-lg md:max-w-5xl mx-auto flex items-center justify-between gap-2 min-h-[36px]">
+          {isSearchOpen ? (
+            <div className="flex items-center gap-2 flex-1 animate-in fade-in duration-150">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 text-violet-600 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  autoFocus
+                  type="text"
+                  placeholder="Search tasks or subtasks..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-8 py-1.5 rounded-xl bg-slate-100/90 border border-violet-200 text-xs font-bold text-slate-800 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-violet-500 shadow-inner transition"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+              <button
+                onClick={() => {
+                  setSearchQuery('')
+                  setIsSearchOpen(false)
+                }}
+                className="h-8 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold transition shrink-0 active:scale-95 cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          ) : (
+            <>
+              {/* Left: Task Pagination Stepper */}
+              <TaskPagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+              />
 
-            <span className="px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-black font-mono">
-              {currentPage} / {totalPages}
-            </span>
+              {/* Right: Quick Action Buttons (Search & Add Task) */}
+              <div className="flex items-center gap-1.5">
+                {/* Search Toggle Button */}
+                <button
+                  onClick={() => { sounds.playTap(); setIsSearchOpen(true) }}
+                  className={`h-8 w-8 rounded-xl border flex items-center justify-center transition active:scale-95 cursor-pointer shadow-2xs ${
+                    searchQuery
+                      ? 'bg-violet-50 border-violet-300 text-violet-700 font-bold'
+                      : 'bg-slate-50 hover:bg-slate-100 border-slate-200/80 text-slate-700'
+                  }`}
+                  title="Search Tasks"
+                >
+                  <Search className="w-4 h-4" />
+                </button>
 
-            <button
-              disabled={currentPage >= totalPages}
-              onClick={() => { sounds.playTap(); setCurrentPage(p => Math.min(totalPages, p + 1)) }}
-              className="h-8 px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold flex items-center gap-1 transition active:scale-95 disabled:opacity-40 shadow-2xs"
-            >
-              <span>Next</span>
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        )}
-
-        {/* ── Clean Dashed Add Task Button ── */}
-        <button
-          onClick={() => { sounds.playTap(); setCreateSheetOpen(true) }}
-          className="w-full py-3 rounded-2xl bg-white border border-dashed border-slate-300 hover:border-violet-400 text-slate-600 hover:text-violet-700 text-xs font-bold transition active:scale-[0.98] flex items-center justify-center gap-1.5 shadow-2xs mt-2"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Add New Task</span>
-        </button>
+                {/* Add Task Button */}
+                <button
+                  onClick={() => { sounds.playTap(); setCreateSheetOpen(true) }}
+                  className="h-8 px-3 rounded-xl bg-violet-600 hover:bg-violet-700 text-white flex items-center gap-1 text-xs font-black shadow-xs shadow-violet-500/20 active:scale-95 transition cursor-pointer"
+                  title="Create new task"
+                >
+                  <Plus className="w-4 h-4 stroke-[3]" />
+                  <span>New Task</span>
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       {/* ── Modal 1: Create Task Bottom Sheet ── */}

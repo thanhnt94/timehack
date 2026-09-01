@@ -35,7 +35,7 @@ interface TimerState {
   // Timer interval reference (internal)
   intervalId: any | null
 
-  startTimer: (target?: { taskId?: number; habitId?: number; categoryId?: number; categoryName?: string; categoryColor?: string; categoryIcon?: string; categoryType?: string; title?: string; durationMinutes?: number; mode?: TimerMode }) => void
+  startTimer: (target?: { taskId?: number; habitId?: number; categoryId?: number; categoryName?: string; categoryColor?: string; categoryIcon?: string; categoryType?: string; title?: string; durationMinutes?: number; mode?: TimerMode }) => Promise<void>
   setCategory: (cat: { id: number; name: string; color: string; icon?: string; category_type?: string } | null) => void
   pauseTimer: () => void
   resumeTimer: () => void
@@ -109,9 +109,13 @@ export const useTimerStore = create<TimerState>((set, get) => ({
     })
   },
 
-  startTimer: (target) => {
-    const existing = get().intervalId
-    if (existing) clearInterval(existing)
+  startTimer: async (target) => {
+    if (get().isRunning && get().elapsedSeconds > 5) {
+      await get().stopTimer()
+    } else {
+      const existing = get().intervalId
+      if (existing) clearInterval(existing)
+    }
 
     const now = new Date()
     const chosenMode = target?.mode || get().mode || 'stopwatch'

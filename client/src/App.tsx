@@ -131,7 +131,7 @@ const AppShell: React.FC = () => {
         </main>
 
         {/* Floating timer pill (above bottom nav) */}
-        {isRunning && !focusOpen && (
+        {isRunning && !focusOpen && location.pathname !== '/tracking' && (
           <FloatingTimerBar onTap={() => setFocusOpen(true)} />
         )}
 

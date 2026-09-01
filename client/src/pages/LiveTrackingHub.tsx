@@ -29,15 +29,12 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
     isRunning,
     isPaused,
     mode,
-    currentPhase,
     secondsRemaining,
     elapsedSeconds,
     startTime,
     activeTitle,
-    activeTaskId,
     activeCategoryName,
-    activeCategoryColor,
-    activeCategoryType
+    activeCategoryColor
   } = useTimerStore()
 
   const { logs, fetchLogs, createLog, updateLog, deleteLog } = useTimeLogStore()
@@ -127,14 +124,14 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
     return `${hours}h ${mins > 0 ? `${mins}m` : ''}`
   }, [totalLoggedSeconds])
 
-  // Real-time Live Track Action (Stopwatch count-up)
-  const handleStartQuickTrack = (title?: string, catId?: number) => {
+  // Real-time Live Track Action (Stopwatch count-up, auto-saves previous active timer)
+  const handleStartQuickTrack = async (title?: string, catId?: number) => {
     sounds.playTap()
     const chosenTitle = title || quickTitle.trim() || 'Hoạt động thực tế'
     const chosenCatId = catId !== undefined ? catId : quickCategoryId
     const chosenCat = categories.find(c => c.id === chosenCatId)
 
-    startTimer({
+    await startTimer({
       title: chosenTitle,
       categoryId: chosenCat?.id,
       categoryName: chosenCat?.name,
@@ -145,11 +142,12 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
 
     setQuickTitle('')
     setShowReadyQueue(false)
+    fetchLogs(todayIso)
   }
 
-  const handleTrackTask = (task: Task) => {
+  const handleTrackTask = async (task: Task) => {
     sounds.playTap()
-    startTimer({
+    await startTimer({
       taskId: task.id,
       title: task.title,
       categoryId: task.category?.id,
@@ -158,11 +156,12 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
       mode: 'stopwatch'
     })
     setShowReadyQueue(false)
+    fetchLogs(todayIso)
   }
 
-  const handleTrackPlanSlot = (slot: ScheduleSlot) => {
+  const handleTrackPlanSlot = async (slot: ScheduleSlot) => {
     sounds.playTap()
-    startTimer({
+    await startTimer({
       title: slot.title,
       categoryId: slot.category_id || undefined,
       categoryName: slot.category?.name,
@@ -170,6 +169,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
       mode: 'stopwatch'
     })
     setShowReadyQueue(false)
+    fetchLogs(todayIso)
   }
 
   // Open Edit Modal for Log
@@ -277,12 +277,12 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
 
   // Real-world practical presets
   const presets = [
-    { title: '🚗 Đi làm / Di chuyển', catName: 'Công việc & Dự án', color: '#3B82F6', icon: '🚗' },
-    { title: '💻 Lập trình & Kỹ thuật', catName: 'Lập trình & Kỹ thuật', color: '#8B5CF6', icon: '💻' },
-    { title: '💼 Họp & Thảo luận', catName: 'Công việc & Dự án', color: '#3B82F6', icon: '💼' },
-    { title: '🏃 Chạy bộ & Thể thao', catName: 'Sức khỏe & Thể thao', color: '#F59E0B', icon: '🏃' },
-    { title: '☕ Ăn uống & Nghỉ giải lao', catName: 'Nghỉ ngơi & Giải trí', color: '#64748B', icon: '☕' },
-    { title: '📚 Đọc sách & Học tập', catName: 'Học tập & Ngoại ngữ', color: '#10B981', icon: '📚' }
+    { title: '🚗 Đi làm / Di chuyển', catName: 'Công việc & Dự án', color: '#3B82F6' },
+    { title: '💻 Lập trình & Kỹ thuật', catName: 'Lập trình & Kỹ thuật', color: '#8B5CF6' },
+    { title: '💼 Họp & Thảo luận', catName: 'Công việc & Dự án', color: '#3B82F6' },
+    { title: '🏃 Chạy bộ & Thể thao', catName: 'Sức khỏe & Thể thao', color: '#F59E0B' },
+    { title: '☕ Ăn uống & Nghỉ giải lao', catName: 'Nghỉ ngơi & Giải trí', color: '#64748B' },
+    { title: '📚 Đọc sách & Học tập', catName: 'Học tập & Ngoại ngữ', color: '#10B981' }
   ]
 
   return (
@@ -297,7 +297,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
             <div className="flex items-center gap-2">
               <h1 className="text-base font-black tracking-tight text-white">Tracking Hub</h1>
               <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-md bg-emerald-500/20 text-emerald-300 font-mono border border-emerald-500/30">
-                ACTUAL STOPWATCH
+                LIVE STOPWATCH
               </span>
             </div>
             <p className="text-[11px] text-slate-400 font-medium hidden sm:block">
@@ -327,81 +327,63 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
       </header>
 
       {/* ── 2. MAIN APP CONTENT SCROLL AREA ── */}
-      <main className="flex-1 overflow-y-auto px-3.5 py-3.5 sm:px-6 sm:py-5 space-y-4 max-w-4xl w-full mx-auto pb-24">
+      <main className="flex-1 overflow-y-auto px-3.5 py-3.5 sm:px-6 sm:py-5 space-y-3.5 max-w-4xl w-full mx-auto pb-24">
 
-        {/* ── A. ACTIVE LIVE REAL-TIME STOPWATCH RUNNER ── */}
-        {isRunning ? (
-          <div className="bg-gradient-to-br from-violet-950 via-slate-900 to-indigo-950 rounded-3xl p-4 sm:p-5 border border-violet-700/50 shadow-xl shadow-violet-950/40 space-y-3 relative overflow-hidden anim-fade-in">
-            {/* Background Glow */}
-            <div className="absolute top-0 right-0 w-48 h-48 bg-violet-500/15 rounded-full blur-3xl pointer-events-none" />
+        {/* ── A. SLEEK COMPACT ACTIVE RUNNER BAR (WHEN TRACKING) ── */}
+        {isRunning && (
+          <div className="bg-gradient-to-r from-violet-950/90 via-slate-900/95 to-indigo-950/90 rounded-2xl p-3.5 sm:p-4 border border-violet-600/60 shadow-lg shadow-violet-950/50 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 relative overflow-hidden anim-fade-in">
+            {/* Pulsing indicator & Activity Title */}
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <span className="relative flex h-3 w-3 shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+              </span>
 
-            {/* Status Pulse Bar */}
-            <div className="flex items-center justify-between relative z-10">
-              <div className="flex items-center gap-2">
-                <span className="relative flex h-3 w-3">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-                </span>
-                <span className="text-xs font-black uppercase tracking-wider text-emerald-400 font-mono">
-                  {isPaused ? '⏸️ Đang tạm dừng' : '⏱️ Đang bấm giờ thực tế (Counting Up)'}
-                </span>
-              </div>
-
-              <div className="flex items-center gap-1.5">
-                <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-white/10 text-slate-300 font-mono">
-                  {mode === 'stopwatch' ? '⏱️ Bấm giờ thực tế' : '🔥 Pomodoro'}
-                </span>
-              </div>
-            </div>
-
-            {/* Title, Start Time & Live Digits */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 relative z-10 pt-1">
-              <div className="min-w-0 flex-1 space-y-1">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-violet-300/80">
-                  Hoạt động đang diễn ra
-                </span>
-                <h2 className="text-lg sm:text-2xl font-black text-white truncate">
-                  {activeTitle || 'Hoạt động thực tế'}
-                </h2>
-
-                <div className="flex items-center gap-2 pt-0.5 flex-wrap">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="text-sm sm:text-base font-black text-white truncate">
+                    {activeTitle || 'Hoạt động thực tế'}
+                  </h3>
                   {activeCategoryName && (
                     <span
-                      className="text-[10px] font-bold px-2 py-0.5 rounded-md text-white shadow-xs"
+                      className="text-[9px] font-bold px-1.5 py-0.2 rounded-md text-white shadow-xs shrink-0"
                       style={{ backgroundColor: activeCategoryColor || '#8B5CF6' }}
                     >
                       {activeCategoryName}
                     </span>
                   )}
-                  {formattedStartTime && (
-                    <span className="text-[10px] font-mono font-bold text-slate-300 bg-black/40 px-2 py-0.5 rounded-md border border-white/10">
-                      Bắt đầu lúc: {formattedStartTime}
-                    </span>
-                  )}
                 </div>
-              </div>
 
-              {/* Big Stopwatch Digits Counting UP */}
-              <div className="bg-black/50 px-5 py-3 rounded-2xl border border-white/10 self-start sm:self-center shadow-inner">
-                <div className="text-3xl sm:text-4xl font-black font-mono tracking-tight text-emerald-400 tabular-nums drop-shadow-md">
-                  {mode === 'stopwatch' ? formatClockDigits(elapsedSeconds) : formatClockDigits(secondsRemaining)}
+                <div className="flex items-center gap-2 text-[10px] text-slate-400 font-mono mt-0.5">
+                  {formattedStartTime && <span>Bắt đầu: {formattedStartTime}</span>}
+                  <span>•</span>
+                  <span className="text-emerald-400 font-bold">
+                    {mode === 'stopwatch' ? '⏱️ Bấm giờ' : '🔥 Pomodoro'}
+                  </span>
                 </div>
-                <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400 font-mono block text-center mt-0.5">
-                  Thời gian đã trôi qua
-                </span>
               </div>
             </div>
 
-            {/* Quick Action Buttons */}
-            <div className="flex items-center gap-2 pt-2 border-t border-white/10 relative z-10 flex-wrap">
+            {/* Big Digits & Quick Control Buttons */}
+            <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-800">
+              {/* Digital counter */}
+              <div className="bg-black/60 px-3.5 py-1.5 rounded-xl border border-white/10 text-right">
+                <span className="text-xl sm:text-2xl font-black font-mono tracking-tight text-emerald-400 tabular-nums">
+                  {mode === 'stopwatch' ? formatClockDigits(elapsedSeconds) : formatClockDigits(secondsRemaining)}
+                </span>
+              </div>
+
+              {/* Pause / Resume */}
               <button
                 onClick={() => { sounds.playTap(); isPaused ? resumeTimer() : pauseTimer() }}
-                className="flex-1 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition active:scale-95 border border-white/15"
+                className="p-2 sm:px-3 sm:py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold flex items-center gap-1 transition active:scale-95 border border-white/15"
+                title={isPaused ? 'Tiếp tục' : 'Tạm dừng'}
               >
-                {isPaused ? <Play className="w-3.5 h-3.5 fill-current text-emerald-400" /> : <Pause className="w-3.5 h-3.5 fill-current text-amber-400" />}
-                <span>{isPaused ? 'Tiếp tục' : 'Tạm dừng'}</span>
+                {isPaused ? <Play className="w-4 h-4 fill-current text-emerald-400" /> : <Pause className="w-4 h-4 fill-current text-amber-400" />}
+                <span className="hidden sm:inline">{isPaused ? 'Tiếp tục' : 'Tạm dừng'}</span>
               </button>
 
+              {/* Finish & Save Log */}
               <button
                 onClick={async () => {
                   sounds.playTap()
@@ -409,122 +391,128 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                   sounds.playSuccess()
                   fetchLogs(todayIso)
                 }}
-                className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black flex items-center justify-center gap-1.5 transition active:scale-95 shadow-md shadow-emerald-600/30"
+                className="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black flex items-center gap-1.5 transition active:scale-95 shadow-md shadow-emerald-600/30"
+                title="Dừng và lưu vào Actual"
               >
                 <Square className="w-3.5 h-3.5 fill-current" />
-                <span>Hoàn tất & Lưu Actual</span>
+                <span>Kết thúc</span>
               </button>
 
+              {/* Fullscreen focus */}
               <button
                 onClick={() => { sounds.playTap(); onOpenFullscreenFocus() }}
-                className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white transition active:scale-90"
+                className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white transition active:scale-90"
                 title="Toàn màn hình Focus"
               >
                 <Maximize2 className="w-4 h-4" />
               </button>
 
+              {/* Reset */}
               <button
                 onClick={() => { sounds.playTap(); resetTimer() }}
-                className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white transition active:scale-90"
+                className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-slate-400 hover:text-white transition active:scale-90"
                 title="Hủy phiên"
               >
                 <RotateCcw className="w-4 h-4" />
               </button>
             </div>
           </div>
-        ) : (
-          /* ── B. QUICK TRACK LAUNCHER BAR (COMPACT APP STYLE) ── */
-          <div className="bg-slate-800/90 rounded-2xl p-3 sm:p-4 border border-slate-700/80 shadow-md space-y-3">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <Zap className="w-4 h-4 text-amber-400" />
-                <span className="text-xs font-black text-white uppercase tracking-wider">
-                  Bấm giờ Track Nhanh
-                </span>
-              </div>
+        )}
 
-              {/* Mode Toggle (Default to Stopwatch) */}
-              <div className="flex items-center p-0.5 bg-slate-900 rounded-lg text-[11px] font-bold border border-slate-700">
-                <button
-                  onClick={() => { sounds.playTap(); switchMode('stopwatch') }}
-                  className={`px-2.5 py-0.5 rounded-md transition ${
-                    mode === 'stopwatch' ? 'bg-violet-600 text-white shadow-xs' : 'text-slate-400'
-                  }`}
-                >
-                  ⏱️ Bấm giờ
-                </button>
-                <button
-                  onClick={() => { sounds.playTap(); switchMode('pomodoro') }}
-                  className={`px-2.5 py-0.5 rounded-md transition ${
-                    mode === 'pomodoro' ? 'bg-violet-600 text-white shadow-xs' : 'text-slate-400'
-                  }`}
-                >
-                  🔥 Pomodoro
-                </button>
-              </div>
+        {/* ── B. QUICK TRACK LAUNCHER BAR (ALWAYS ACCESSIBLE TO SWITCH / START) ── */}
+        <div className="bg-slate-800/90 rounded-2xl p-3 sm:p-4 border border-slate-700/80 shadow-md space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Zap className="w-4 h-4 text-amber-400" />
+              <span className="text-xs font-black text-white uppercase tracking-wider">
+                {isRunning ? 'Chuyển sang Track việc khác' : 'Bắt đầu Track Nhanh'}
+              </span>
             </div>
 
-            {/* Quick Track Input Row */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-              <input
-                type="text"
-                value={quickTitle}
-                onChange={e => setQuickTitle(e.target.value)}
-                placeholder="Ví dụ: Đi làm, Họp Sprint, Code API, Đọc sách..."
-                className="flex-1 px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-white placeholder:text-slate-500 outline-none focus:border-violet-500 transition"
-              />
-
-              <select
-                value={quickCategoryId || ''}
-                onChange={e => setQuickCategoryId(e.target.value ? Number(e.target.value) : null)}
-                className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-slate-300 outline-none focus:border-violet-500 transition shrink-0"
-              >
-                <option value="">📁 Chọn danh mục...</option>
-                {categories.map(c => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-
+            {/* Mode Switcher */}
+            <div className="flex items-center p-0.5 bg-slate-900 rounded-lg text-[10px] font-bold border border-slate-700">
               <button
-                onClick={() => handleStartQuickTrack()}
-                className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-black flex items-center justify-center gap-1.5 shadow-md shadow-violet-600/30 active:scale-95 transition shrink-0"
+                onClick={() => { sounds.playTap(); switchMode('stopwatch') }}
+                className={`px-2 py-0.5 rounded-md transition ${
+                  mode === 'stopwatch' ? 'bg-violet-600 text-white shadow-xs' : 'text-slate-400'
+                }`}
               >
-                <Play className="w-3.5 h-3.5 fill-current" />
-                <span>Bắt đầu Track</span>
+                ⏱️ Bấm giờ
               </button>
-            </div>
-
-            {/* Quick Activity Chips */}
-            <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-700/60 flex-wrap">
-              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0">
-                  Phổ biến:
-                </span>
-                {presets.slice(0, 4).map((p, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => {
-                      const matchedCat = categories.find(c => c.name.toLowerCase().includes(p.catName.toLowerCase().slice(0, 5)))
-                      handleStartQuickTrack(p.title, matchedCat?.id)
-                    }}
-                    className="px-2 py-0.5 rounded-lg bg-slate-900/80 hover:bg-slate-700 text-[11px] font-bold text-slate-300 border border-slate-700/80 transition active:scale-95 shrink-0"
-                  >
-                    {p.title}
-                  </button>
-                ))}
-              </div>
-
               <button
-                onClick={() => { sounds.playTap(); setShowReadyQueue(!showReadyQueue) }}
-                className="text-[11px] font-bold text-violet-400 hover:text-violet-300 flex items-center gap-1 shrink-0 ml-auto"
+                onClick={() => { sounds.playTap(); switchMode('pomodoro') }}
+                className={`px-2 py-0.5 rounded-md transition ${
+                  mode === 'pomodoro' ? 'bg-violet-600 text-white shadow-xs' : 'text-slate-400'
+                }`}
               >
-                <span>{showReadyQueue ? 'Thu gọn hàng đợi ▲' : 'Chọn từ Task/Lịch ▼'}</span>
+                🔥 Pomodoro
               </button>
             </div>
           </div>
-        )}
+
+          {/* Quick Track Input Row */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            <input
+              type="text"
+              value={quickTitle}
+              onChange={e => setQuickTitle(e.target.value)}
+              placeholder="Ví dụ: Đi làm, Họp Sprint, Code API, Đọc sách..."
+              className="flex-1 px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-white placeholder:text-slate-500 outline-none focus:border-violet-500 transition"
+              onKeyDown={e => {
+                if (e.key === 'Enter') handleStartQuickTrack()
+              }}
+            />
+
+            <select
+              value={quickCategoryId || ''}
+              onChange={e => setQuickCategoryId(e.target.value ? Number(e.target.value) : null)}
+              className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-slate-300 outline-none focus:border-violet-500 transition shrink-0"
+            >
+              <option value="">📁 Chọn danh mục...</option>
+              {categories.map(c => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+
+            <button
+              onClick={() => handleStartQuickTrack()}
+              className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-black flex items-center justify-center gap-1.5 shadow-md shadow-violet-600/30 active:scale-95 transition shrink-0"
+            >
+              <Play className="w-3.5 h-3.5 fill-current" />
+              <span>{isRunning ? 'Đổi Track' : 'Track ngay'}</span>
+            </button>
+          </div>
+
+          {/* Quick Activity Chips */}
+          <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-700/60 flex-wrap">
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0">
+                Gợi ý nhanh:
+              </span>
+              {presets.slice(0, 4).map((p, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => {
+                    const matchedCat = categories.find(c => c.name.toLowerCase().includes(p.catName.toLowerCase().slice(0, 5)))
+                    handleStartQuickTrack(p.title, matchedCat?.id)
+                  }}
+                  className="px-2.5 py-1 rounded-lg bg-slate-900/80 hover:bg-slate-700 text-[11px] font-bold text-slate-300 border border-slate-700/80 transition active:scale-95 shrink-0"
+                >
+                  {p.title}
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={() => { sounds.playTap(); setShowReadyQueue(!showReadyQueue) }}
+              className="text-[11px] font-bold text-violet-400 hover:text-violet-300 flex items-center gap-1 shrink-0 ml-auto"
+            >
+              <span>{showReadyQueue ? 'Thu gọn hàng đợi ▲' : 'Chọn từ Task/Lịch ▼'}</span>
+            </button>
+          </div>
+        </div>
 
         {/* ── C. READY-TO-TRACK QUEUE DRAWER (OPTIONAL EXPANDABLE) ── */}
         {showReadyQueue && (
@@ -677,7 +665,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
               <Clock className="w-8 h-8 mx-auto opacity-30 text-violet-400" />
               <p className="text-xs font-bold text-slate-400">Chưa có phiên tracking nào hôm nay</p>
               <p className="text-[11px] text-slate-500 max-w-xs mx-auto">
-                Bấm nút "Bắt đầu Track" ở trên hoặc bắt đầu bấm giờ để ghi nhận thời gian thực tế.
+                Bấm nút "Track ngay" ở trên hoặc bắt đầu bấm giờ để ghi nhận thời gian thực tế.
               </p>
             </div>
           ) : (

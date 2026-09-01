@@ -21,7 +21,9 @@ const MOODS = [
 
 const HABIT_COLORS = ['#7C3AED', '#0284C7', '#10B981', '#D97706', '#E11D48', '#6366F1', '#EC4899', '#059669']
 
-const ICONS = ['⚡', '💧', '🏃', '📚', '🧘', '💪', '🎯', '💊', '✍️', '🍏', '💤', '🔥']
+const ICONS = ['⚡', '💧', '🏃', '📚', '🧘', '💪', '🎯', '💊', '✍️', '🍏', '💤', '🔥', '🏊', '🚴', '🧹']
+
+const COMMON_UNITS = ['lần', 'phút', 'giờ', 'trang', 'ly', 'km', 'bài', 'cuốn']
 
 export const HabitDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>()
@@ -48,7 +50,7 @@ export const HabitDetailPage: React.FC = () => {
   const [editFreq, setEditFreq] = useState<'daily' | 'weekly_days' | 'weekly_target' | 'monthly_target'>('daily')
   const [editTimeOfDay, setEditTimeOfDay] = useState<'morning' | 'afternoon' | 'evening' | 'anytime'>('anytime')
   const [editTargetCount, setEditTargetCount] = useState(1)
-  const [editUnit, setEditUnit] = useState('times')
+  const [editUnit, setEditUnit] = useState('lần')
   const [editColor, setEditColor] = useState(HABIT_COLORS[0])
   const [editIcon, setEditIcon] = useState('⚡')
   const [editReminder, setEditReminder] = useState('')
@@ -65,7 +67,7 @@ export const HabitDetailPage: React.FC = () => {
   const [logNotes, setLogNotes] = useState('')
 
   useEffect(() => {
-    if (habitId) {
+    if (habitId && !isNaN(habitId)) {
       fetchHabitDetail(habitId)
     }
   }, [habitId])
@@ -73,23 +75,41 @@ export const HabitDetailPage: React.FC = () => {
   // Populate edit form when activeDetail loads
   useEffect(() => {
     if (activeDetail) {
-      setEditTitle(activeDetail.title)
+      setEditTitle(activeDetail.title || '')
       setEditDescription(activeDetail.description || '')
       setEditFreq(activeDetail.frequency_type || 'daily')
       setEditTimeOfDay(activeDetail.time_of_day || 'anytime')
       setEditTargetCount(activeDetail.target_count || 1)
-      setEditUnit(activeDetail.unit || 'times')
+      setEditUnit(activeDetail.unit || 'lần')
       setEditColor(activeDetail.color || HABIT_COLORS[0])
       setEditIcon(activeDetail.icon || '⚡')
       setEditReminder(activeDetail.reminder_time || '')
     }
   }, [activeDetail])
 
-  if (isDetailLoading || !activeDetail) {
+  if (isDetailLoading) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center py-20">
         <div className="w-10 h-10 border-4 border-violet-600 border-t-transparent rounded-full animate-spin mb-3" />
-        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Loading Habit Details...</span>
+        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Đang tải thông tin thói quen...</span>
+      </div>
+    )
+  }
+
+  if (!activeDetail) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center py-20 px-4 text-center">
+        <div className="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center mb-3">
+          <AlertCircle className="w-6 h-6" />
+        </div>
+        <h3 className="text-sm font-black text-slate-900">Không tìm thấy thói quen</h3>
+        <p className="text-xs text-slate-500 mt-1 mb-4">Thói quen này không tồn tại hoặc đã bị xóa.</p>
+        <button
+          onClick={() => navigate('/habits')}
+          className="px-4 py-2 rounded-xl bg-violet-600 text-white text-xs font-bold shadow-xs active:scale-95 transition"
+        >
+          Quay lại danh sách Habits
+        </button>
       </div>
     )
   }
@@ -104,7 +124,7 @@ export const HabitDetailPage: React.FC = () => {
       frequency_type: editFreq,
       time_of_day: editTimeOfDay,
       target_count: editTargetCount,
-      unit: editUnit.trim() || 'times',
+      unit: editUnit.trim() || 'lần',
       color: editColor,
       icon: editIcon,
       reminder_time: editReminder || undefined
@@ -116,13 +136,14 @@ export const HabitDetailPage: React.FC = () => {
   const handleOpenLogModal = (existingDate?: string) => {
     sounds.playTap()
     const targetD = existingDate || new Date().toISOString().split('T')[0]
-    const existingLog = activeDetail.logs.find(l => l.logged_date === targetD)
+    const logsList = activeDetail.logs || []
+    const existingLog = logsList.find(l => l.logged_date === targetD)
 
     setLogDate(targetD)
     setLogCompletedTime(existingLog?.completed_time || new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }))
     setLogCompleted(existingLog ? existingLog.completed : true)
     setLogFrozenDay(existingLog ? existingLog.is_frozen_day : false)
-    setLogCount(existingLog?.count || (activeDetail.unit === 'mins' ? activeDetail.target_count : 1))
+    setLogCount(existingLog?.count || (activeDetail.unit === 'phút' || activeDetail.unit === 'mins' ? activeDetail.target_count : 1))
     setLogTimeSpent(existingLog?.time_spent || 0)
     setLogMood(existingLog?.mood || 'energized')
     setLogNotes(existingLog?.notes || '')
@@ -148,7 +169,7 @@ export const HabitDetailPage: React.FC = () => {
 
   const handleStartFocus = () => {
     sounds.playTap()
-    const duration = activeDetail.unit === 'mins' ? activeDetail.target_count : 25
+    const duration = (activeDetail.unit === 'phút' || activeDetail.unit === 'mins') ? activeDetail.target_count : 25
     startTimer({
       habitId: activeDetail.id,
       title: `Habit: ${activeDetail.title}`,
@@ -170,7 +191,7 @@ export const HabitDetailPage: React.FC = () => {
   }
 
   const handleDelete = async () => {
-    if (!window.confirm('Are you sure you want to permanently delete this habit?')) return
+    if (!window.confirm('Bạn có chắc chắn muốn xóa vĩnh viễn thói quen này không?')) return
     sounds.playTap()
     await deleteHabit(habitId, true)
     navigate('/habits')
@@ -183,17 +204,19 @@ export const HabitDetailPage: React.FC = () => {
   const getRankBadge = (rank?: string) => {
     switch (rank) {
       case 'S':
-        return { label: '👑 Rank S · Mastered', color: 'bg-amber-100 text-amber-900 border-amber-300 ring-2 ring-amber-400 font-black' }
+        return { label: '👑 Rank S · Huyền Thoại', color: 'bg-amber-100 text-amber-900 border-amber-300 ring-2 ring-amber-400 font-black' }
       case 'A':
-        return { label: '💎 Rank A · Consistent', color: 'bg-violet-100 text-violet-800 border-violet-300 ring-2 ring-violet-400 font-bold' }
+        return { label: '💎 Rank A · Vững Vàng', color: 'bg-violet-100 text-violet-800 border-violet-300 ring-2 ring-violet-400 font-bold' }
       case 'B':
-        return { label: '⚡ Rank B · Building', color: 'bg-emerald-100 text-emerald-800 border-emerald-300 ring-2 ring-emerald-400 font-bold' }
+        return { label: '⚡ Rank B · Đang Xây Dựng', color: 'bg-emerald-100 text-emerald-800 border-emerald-300 ring-2 ring-emerald-400 font-bold' }
       default:
-        return { label: '🌱 Rank C · Starting', color: 'bg-slate-100 text-slate-600 border-slate-200' }
+        return { label: '🌱 Rank C · Khởi Đầu', color: 'bg-slate-100 text-slate-600 border-slate-200' }
     }
   }
 
   const rankMeta = getRankBadge(activeDetail.mastery_rank)
+  const heatmapList = activeDetail.heatmap || []
+  const logsList = activeDetail.logs || []
 
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
@@ -205,7 +228,7 @@ export const HabitDetailPage: React.FC = () => {
             <button
               onClick={() => { sounds.playTap(); navigate('/habits') }}
               className="p-1.5 -ml-1.5 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition active:scale-95 shrink-0"
-              title="Back to Habits"
+              title="Quay lại Habits"
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
@@ -213,7 +236,7 @@ export const HabitDetailPage: React.FC = () => {
             <div className="flex items-center gap-2 min-w-0">
               <div
                 className="w-8 h-8 rounded-xl flex items-center justify-center text-base shrink-0 shadow-2xs"
-                style={{ backgroundColor: `${activeDetail.color}15`, border: `1px solid ${activeDetail.color}40` }}
+                style={{ backgroundColor: `${activeDetail.color || '#7C3AED'}15`, border: `1px solid ${activeDetail.color || '#7C3AED'}40` }}
               >
                 {activeDetail.icon || '⚡'}
               </div>
@@ -224,10 +247,10 @@ export const HabitDetailPage: React.FC = () => {
                 <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-bold uppercase tracking-wider">
                   <span>{activeDetail.time_of_day !== 'anytime' ? activeDetail.time_of_day : 'anytime'}</span>
                   <span>•</span>
-                  <span>{activeDetail.target_count} {activeDetail.unit}</span>
+                  <span>{activeDetail.target_count} {activeDetail.unit || 'lần'}</span>
                   {activeDetail.archived && (
                     <span className="px-1.5 py-0.2 rounded-md bg-blue-50 text-blue-700 border border-blue-200 text-[9px] font-black">
-                      ❄️ Frozen
+                      ❄️ Đã đóng băng
                     </span>
                   )}
                 </div>
@@ -241,7 +264,7 @@ export const HabitDetailPage: React.FC = () => {
             <button
               onClick={handleStartFocus}
               className="px-2.5 py-1.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold flex items-center gap-1 shadow-xs shadow-violet-600/20 active:scale-95 transition"
-              title="Start Pomodoro Focus Session"
+              title="Khởi động phiên Pomodoro Focus"
             >
               <Play className="w-3 h-3 fill-current" />
               <span>Focus</span>
@@ -254,7 +277,7 @@ export const HabitDetailPage: React.FC = () => {
                   ? 'bg-blue-50 text-blue-700 border-blue-200'
                   : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
               }`}
-              title={activeDetail.archived ? 'Unfreeze Habit' : 'Freeze / Pause Habit'}
+              title={activeDetail.archived ? 'Mở lại thói quen' : 'Đóng băng thói quen'}
             >
               <Snowflake className="w-4 h-4" />
             </button>
@@ -262,7 +285,7 @@ export const HabitDetailPage: React.FC = () => {
             <button
               onClick={() => { sounds.playTap(); setEditSheetOpen(true) }}
               className="p-2 rounded-xl bg-white border border-slate-200 text-slate-600 hover:text-violet-700 hover:bg-violet-50 transition active:scale-95"
-              title="Edit Habit Settings"
+              title="Chỉnh sửa thói quen"
             >
               <Edit3 className="w-4 h-4" />
             </button>
@@ -270,7 +293,7 @@ export const HabitDetailPage: React.FC = () => {
             <button
               onClick={handleDelete}
               className="p-2 rounded-xl bg-white border border-slate-200 text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition active:scale-95"
-              title="Delete Habit"
+              title="Xóa thói quen"
             >
               <Trash2 className="w-4 h-4" />
             </button>
@@ -294,11 +317,11 @@ export const HabitDetailPage: React.FC = () => {
                     {rankMeta.label}
                   </span>
                   <span className="text-xs text-violet-200 font-mono font-bold">
-                    {activeDetail.strength_percent}% Strength
+                    {activeDetail.strength_percent}% Sức mạnh
                   </span>
                 </div>
                 <h2 className="text-sm sm:text-base font-black mt-1">
-                  30-Day Habit Resilience Score
+                  Độ Bền Bỉ Thói Quen 30 Ngày
                 </h2>
               </div>
             </div>
@@ -307,10 +330,10 @@ export const HabitDetailPage: React.FC = () => {
             <button
               onClick={handleApplyShieldToday}
               className="px-3 py-2 rounded-xl bg-white/15 hover:bg-white/25 border border-white/30 text-white text-xs font-bold flex items-center gap-1.5 active:scale-95 transition shrink-0"
-              title="Protect streak with freeze shield"
+              title="Bảo vệ chuỗi ngày bằng khiên"
             >
               <Shield className="w-3.5 h-3.5 text-blue-300" />
-              <span>Shield ({activeDetail.streak_freeze_count || 0})</span>
+              <span>Khiên ({activeDetail.streak_freeze_count || 0})</span>
             </button>
           </div>
 
@@ -319,48 +342,48 @@ export const HabitDetailPage: React.FC = () => {
             {/* Current Streak */}
             <div className="bg-white rounded-2xl p-3.5 border border-slate-200/90 shadow-2xs flex flex-col justify-between">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Current Streak</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Chuỗi hiện tại</span>
                 <Flame className="w-4 h-4 text-amber-500" />
               </div>
               <div className="mt-2">
                 <span className="text-2xl font-black text-slate-900 font-mono">{activeDetail.current_streak}</span>
-                <span className="text-xs text-slate-400 ml-1 font-bold">{activeDetail.streak_unit || 'days'}</span>
+                <span className="text-xs text-slate-400 ml-1 font-bold">{activeDetail.streak_unit || 'ngày'}</span>
               </div>
             </div>
 
             {/* Best Streak */}
             <div className="bg-white rounded-2xl p-3.5 border border-slate-200/90 shadow-2xs flex flex-col justify-between">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Best Streak</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Kỷ lục chuỗi</span>
                 <Trophy className="w-4 h-4 text-yellow-500" />
               </div>
               <div className="mt-2">
                 <span className="text-2xl font-black text-slate-900 font-mono">{activeDetail.longest_streak}</span>
-                <span className="text-xs text-slate-400 ml-1 font-bold">{activeDetail.streak_unit || 'days'}</span>
+                <span className="text-xs text-slate-400 ml-1 font-bold">{activeDetail.streak_unit || 'ngày'}</span>
               </div>
             </div>
 
             {/* Total Completions */}
             <div className="bg-white rounded-2xl p-3.5 border border-slate-200/90 shadow-2xs flex flex-col justify-between">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Done</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tổng số lần</span>
                 <CheckCircle2 className="w-4 h-4 text-emerald-500" />
               </div>
               <div className="mt-2">
                 <span className="text-2xl font-black text-slate-900 font-mono">{activeDetail.total_completions}</span>
-                <span className="text-xs text-slate-400 ml-1 font-bold">times</span>
+                <span className="text-xs text-slate-400 ml-1 font-bold">lần</span>
               </div>
             </div>
 
             {/* Focus Minutes */}
             <div className="bg-white rounded-2xl p-3.5 border border-slate-200/90 shadow-2xs flex flex-col justify-between">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Focus Time</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Thời gian Focus</span>
                 <Clock className="w-4 h-4 text-violet-500" />
               </div>
               <div className="mt-2">
                 <span className="text-2xl font-black text-slate-900 font-mono">{activeDetail.total_time_spent || 0}</span>
-                <span className="text-xs text-slate-400 ml-1 font-bold">mins</span>
+                <span className="text-xs text-slate-400 ml-1 font-bold">phút</span>
               </div>
             </div>
           </div>
@@ -369,23 +392,23 @@ export const HabitDetailPage: React.FC = () => {
           <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-2xs space-y-3">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">30-Day Heatmap</h3>
-                <p className="text-[10px] text-slate-400 font-medium">Tap any square to view or edit reflection</p>
+                <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">Bản Đồ Nhiệt 30 Ngày</h3>
+                <p className="text-[10px] text-slate-400 font-medium">Bấm vào ô vuông để xem hoặc ghi nhận cảm xúc</p>
               </div>
               <button
                 onClick={() => handleOpenLogModal()}
                 className="px-2.5 py-1 rounded-xl bg-violet-50 border border-violet-200 text-violet-700 text-xs font-bold hover:bg-violet-100 transition active:scale-95 flex items-center gap-1"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>Log Today</span>
+                <span>Ghi nhận hôm nay</span>
               </button>
             </div>
 
             {/* Heatmap Grid */}
             <div className="grid grid-cols-6 sm:grid-cols-10 gap-1.5 pt-1">
-              {activeDetail.heatmap.map((item, idx) => {
+              {heatmapList.map((item, idx) => {
                 const dateObj = new Date(item.date)
-                const dayStr = dateObj.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' })
+                const dayStr = dateObj.toLocaleDateString('vi-VN', { month: 'numeric', day: 'numeric' })
                 const isToday = item.date === new Date().toISOString().split('T')[0]
 
                 return (
@@ -401,7 +424,7 @@ export const HabitDetailPage: React.FC = () => {
                         ? 'bg-violet-50 border-violet-400 text-violet-700 ring-2 ring-violet-300'
                         : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'
                     }`}
-                    title={`${item.date}: ${item.completed ? 'Completed' : item.is_frozen_day ? 'Shield Protected' : 'Not completed'}`}
+                    title={`${item.date}: ${item.completed ? 'Hoàn thành' : item.is_frozen_day ? 'Được bảo vệ bằng khiên' : 'Chưa thực hiện'}`}
                   >
                     <span className="leading-none">{dayStr}</span>
                     {item.completed ? (
@@ -421,26 +444,26 @@ export const HabitDetailPage: React.FC = () => {
           <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-2xs space-y-3">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">Completion & Mood Logs</h3>
-                <p className="text-[10px] text-slate-400 font-medium">History of check-in timestamps, focus minutes, and notes</p>
+                <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">Lịch Sử Hoàn Thành & Cảm Xúc</h3>
+                <p className="text-[10px] text-slate-400 font-medium">Nhật ký chi tiết các lần check-in, số phút focus và cảm xúc</p>
               </div>
               <span className="text-xs font-mono font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-lg">
-                {activeDetail.logs.length} entries
+                {logsList.length} bản ghi
               </span>
             </div>
 
-            {activeDetail.logs.length === 0 ? (
+            {logsList.length === 0 ? (
               <div className="py-8 text-center text-slate-400">
                 <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                <p className="text-xs font-bold">No reflection logs yet</p>
-                <p className="text-[10px] mt-0.5">Check in daily to track timestamps, reflections, and moods!</p>
+                <p className="text-xs font-bold">Chưa có nhật ký ghi nhận nào</p>
+                <p className="text-[10px] mt-0.5">Check-in hàng ngày để theo dõi mốc thời gian và cảm xúc nhé!</p>
               </div>
             ) : (
               <div className="space-y-2 pt-1">
-                {activeDetail.logs.map(log => {
+                {logsList.map(log => {
                   const moodMeta = getMoodMeta(log.mood)
-                  const dateFormatted = new Date(log.logged_date).toLocaleDateString('en-US', {
-                    weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
+                  const dateFormatted = new Date(log.logged_date).toLocaleDateString('vi-VN', {
+                    weekday: 'short', month: 'numeric', day: 'numeric', year: 'numeric'
                   })
 
                   return (
@@ -484,7 +507,7 @@ export const HabitDetailPage: React.FC = () => {
                             )}
                             {log.is_frozen_day && (
                               <span className="inline-flex items-center gap-0.5 text-[10px] text-blue-700 bg-blue-50 px-1.5 py-0.2 rounded border border-blue-200 font-bold">
-                                <span>🛡️ Shield</span>
+                                <span>🛡️ Khiên bảo vệ</span>
                               </span>
                             )}
                             {log.mood && (
@@ -506,7 +529,7 @@ export const HabitDetailPage: React.FC = () => {
                       <button
                         onClick={(e) => { e.stopPropagation(); handleOpenLogModal(log.logged_date) }}
                         className="p-1 rounded-lg text-slate-400 group-hover:text-violet-600 transition shrink-0"
-                        title="Edit Log"
+                        title="Chỉnh sửa bản ghi"
                       >
                         <Edit3 className="w-3.5 h-3.5" />
                       </button>
@@ -527,8 +550,8 @@ export const HabitDetailPage: React.FC = () => {
             <div className="sheet-handle" />
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h2 className="text-sm font-black text-slate-900">Habit Check-in & Reflection</h2>
-                <p className="text-[11px] text-slate-500 font-medium">Record timestamp, focus minutes, and daily notes</p>
+                <h2 className="text-sm font-black text-slate-900">Ghi Nhận & Cảm Xúc Thói Quen</h2>
+                <p className="text-[11px] text-slate-500 font-medium">Lưu mốc thời gian, số phút focus và cảm xúc ngày hôm nay</p>
               </div>
               <button onClick={() => setLogModalOpen(false)} className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700">
                 <X className="w-5 h-5" />
@@ -540,7 +563,7 @@ export const HabitDetailPage: React.FC = () => {
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    Log Date
+                    Ngày ghi nhận
                   </label>
                   <input
                     type="date"
@@ -553,7 +576,7 @@ export const HabitDetailPage: React.FC = () => {
 
                 <div>
                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    Completed Time
+                    Giờ hoàn thành
                   </label>
                   <input
                     type="time"
@@ -568,7 +591,7 @@ export const HabitDetailPage: React.FC = () => {
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    Status
+                    Trạng thái
                   </label>
                   <button
                     type="button"
@@ -580,13 +603,13 @@ export const HabitDetailPage: React.FC = () => {
                     }`}
                   >
                     <Check className="w-3.5 h-3.5 stroke-[3]" />
-                    <span>{logCompleted ? 'Completed' : 'Missed'}</span>
+                    <span>{logCompleted ? 'Hoàn thành' : 'Chưa hoàn thành'}</span>
                   </button>
                 </div>
 
                 <div>
                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    Streak Shield
+                    Khiên bảo vệ
                   </label>
                   <button
                     type="button"
@@ -598,7 +621,7 @@ export const HabitDetailPage: React.FC = () => {
                     }`}
                   >
                     <Shield className="w-3.5 h-3.5" />
-                    <span>{logFrozenDay ? 'Shield Active 🛡️' : 'No Shield'}</span>
+                    <span>{logFrozenDay ? 'Khiên bật 🛡️' : 'Không dùng'}</span>
                   </button>
                 </div>
               </div>
@@ -607,7 +630,7 @@ export const HabitDetailPage: React.FC = () => {
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    Quantity ({activeDetail.unit})
+                    Số lượng ({activeDetail.unit || 'lần'})
                   </label>
                   <input
                     type="number"
@@ -619,7 +642,7 @@ export const HabitDetailPage: React.FC = () => {
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    Focus Time (Minutes)
+                    Thời gian Focus (Phút)
                   </label>
                   <input
                     type="number"
@@ -634,7 +657,7 @@ export const HabitDetailPage: React.FC = () => {
               {/* Mood Selector */}
               <div>
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
-                  How did it feel today? (Mood / Emotion)
+                  Cảm xúc hôm nay của bạn thế nào?
                 </label>
                 <div className="grid grid-cols-3 gap-1.5">
                   {MOODS.map(m => {
@@ -661,13 +684,13 @@ export const HabitDetailPage: React.FC = () => {
               {/* Notes */}
               <div>
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  Daily Reflection / Notes
+                  Nhật ký / Ghi chú phản tư
                 </label>
                 <textarea
                   rows={2}
                   value={logNotes}
                   onChange={e => setLogNotes(e.target.value)}
-                  placeholder="e.g. Completed 30m reading with deep focus..."
+                  placeholder="Ví dụ: Đã hoàn thành 30 phút đọc sách rất tập trung..."
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
                 />
               </div>
@@ -676,7 +699,7 @@ export const HabitDetailPage: React.FC = () => {
                 type="submit"
                 className="w-full py-3.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-xs active:scale-[0.98] transition shadow-md shadow-violet-600/20"
               >
-                Save Daily Log
+                Lưu Nhật Ký
               </button>
             </form>
           </div>
@@ -691,18 +714,18 @@ export const HabitDetailPage: React.FC = () => {
             <div className="sheet-handle" />
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h2 className="text-sm font-black text-slate-900">Edit Habit Properties</h2>
-                <p className="text-[11px] text-slate-500 font-medium">Update frequency, routines, and appearance</p>
+                <h2 className="text-sm font-black text-slate-900">Chỉnh Sửa Thói Quen</h2>
+                <p className="text-[11px] text-slate-500 font-medium">Cập nhật chu kỳ, mục tiêu và màu sắc</p>
               </div>
               <button onClick={() => setEditSheetOpen(false)} className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveHabit} className="space-y-3.5">
+            <form onSubmit={handleSaveHabit} className="space-y-4">
               <div>
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  Habit Title
+                  Tên Thói Quen
                 </label>
                 <input
                   type="text"
@@ -715,46 +738,18 @@ export const HabitDetailPage: React.FC = () => {
 
               <div>
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  Description / Intention
+                  Mô tả / Ý định
                 </label>
                 <input
                   type="text"
                   value={editDescription}
                   onChange={e => setEditDescription(e.target.value)}
-                  placeholder="e.g. Read 20 pages before going to sleep"
+                  placeholder="Ví dụ: Đọc 20 trang sách trước khi đi ngủ"
                   className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
                 />
               </div>
 
-              {/* Time of Day Routine */}
-              <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
-                  Time of Day Routine
-                </label>
-                <div className="grid grid-cols-4 gap-1.5">
-                  {[
-                    { id: 'morning', label: '🌅 Morning' },
-                    { id: 'afternoon', label: '☀️ Afternoon' },
-                    { id: 'evening', label: '🌙 Evening' },
-                    { id: 'anytime', label: '⚡ Anytime' }
-                  ].map(t => (
-                    <button
-                      key={t.id}
-                      type="button"
-                      onClick={() => setEditTimeOfDay(t.id as any)}
-                      className={`py-2 px-1 text-center rounded-xl border text-[11px] font-bold transition ${
-                        editTimeOfDay === t.id
-                          ? 'bg-violet-50 border-violet-400 text-violet-800 ring-2 ring-violet-500'
-                          : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-                      }`}
-                    >
-                      {t.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Frequency & Target & Unit Chips */}
+              {/* Chu kỳ & Mục tiêu & Đơn vị */}
               <div className="space-y-2">
                 <div className="grid grid-cols-2 gap-2">
                   <div>
@@ -793,7 +788,7 @@ export const HabitDetailPage: React.FC = () => {
                     Đơn vị tính ({editTargetCount} {editUnit})
                   </label>
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    {['lần', 'phút', 'giờ', 'trang', 'ly', 'km', 'bài', 'cuốn'].map(u => (
+                    {COMMON_UNITS.map(u => (
                       <button
                         key={u}
                         type="button"
@@ -811,7 +806,35 @@ export const HabitDetailPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Biểu Tượng (Icon) */}
+              {/* Time of Day Routine */}
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
+                  Buổi trong ngày (Routine)
+                </label>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {[
+                    { id: 'morning', label: '🌅 Sáng' },
+                    { id: 'afternoon', label: '☀️ Chiều' },
+                    { id: 'evening', label: '🌙 Tối' },
+                    { id: 'anytime', label: '⚡ Linh hoạt' }
+                  ].map(t => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => setEditTimeOfDay(t.id as any)}
+                      className={`py-2 px-1 text-center rounded-xl border text-[11px] font-bold transition ${
+                        editTimeOfDay === t.id
+                          ? 'bg-violet-50 border-violet-400 text-violet-800 ring-2 ring-violet-500'
+                          : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Biểu Tượng (Icon riêng biệt) */}
               <div>
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
                   Biểu Tượng (Icon)
@@ -832,7 +855,7 @@ export const HabitDetailPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Màu Sắc (Color) */}
+              {/* Màu Sắc (Color riêng biệt) */}
               <div>
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
                   Màu Sắc (Color)
@@ -854,9 +877,9 @@ export const HabitDetailPage: React.FC = () => {
 
               <button
                 type="submit"
-                className="w-full py-3.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-xs active:scale-[0.98] transition shadow-md shadow-violet-600/20 mt-2"
+                className="w-full py-3.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-xs active:scale-[0.98] transition shadow-md shadow-violet-600/20 mt-3"
               >
-                Save Habit Changes
+                Lưu Thay Đổi
               </button>
             </form>
           </div>

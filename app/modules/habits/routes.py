@@ -19,13 +19,13 @@ class HabitCreateSchema(BaseModel):
     description: Optional[str] = None
     category_id: Optional[int] = None
     frequency_type: Optional[str] = "daily" # daily, weekly_target, monthly_target, weekly_days
-    weekly_days: Optional[List[int]] = None # [0,1,2,3,4,5,6] (Mon-Sun)
+    weekly_days: Optional[List[int]] = None
     time_of_day: Optional[str] = "anytime" # morning, afternoon, evening, anytime
     target_count: Optional[int] = 1
-    unit: Optional[str] = "times"
+    unit: Optional[str] = "lần"
     reminder_time: Optional[str] = None
-    icon: Optional[str] = "zap"
-    color: Optional[str] = "#10B981"
+    icon: Optional[str] = "⚡"
+    color: Optional[str] = "#7C3AED"
 
 class HabitUpdateSchema(BaseModel):
     title: Optional[str] = None
@@ -91,31 +91,29 @@ def calculate_daily_streak(valid_dates: List[date], today_d: Optional[date] = No
             longest_streak = temp_streak
         prev_d = d
 
-    return {"current_streak": current_streak, "longest_streak": longest_streak}
+    return {"current_streak": current_streak, "longest_streak": max(longest_streak, current_streak)}
 
 def calculate_weekly_streak(logs: List[HabitLog], target_count: int, today_d: date) -> dict:
-    # Group by (year, isoweek)
+    safe_target = max(1, target_count)
     weeks_map: Dict[tuple, int] = {}
     for l in logs:
-        if l.completed or l.is_frozen_day or (l.count and l.count > 0):
+        if l.logged_date and (l.completed or l.is_frozen_day or (l.count and l.count > 0)):
             iso_year, iso_week, _ = l.logged_date.isocalendar()
             weeks_map[(iso_year, iso_week)] = weeks_map.get((iso_year, iso_week), 0) + (l.count or 1)
 
     cur_iso_year, cur_iso_week, _ = today_d.isocalendar()
-    prev_iso_year, prev_iso_week, _ = (today_d - timedelta(days=7)).isocalendar()
-
     cur_week_count = weeks_map.get((cur_iso_year, cur_iso_week), 0)
-    cur_week_done = cur_week_count >= target_count
+    cur_week_done = cur_week_count >= safe_target
 
-    # Calculate streak of weeks
     current_streak = 0
     check_d = today_d
     if not cur_week_done:
         check_d = today_d - timedelta(days=7)
 
-    while True:
+    # Max 104 iterations safety guard
+    for _ in range(104):
         y, w, _ = check_d.isocalendar()
-        if weeks_map.get((y, w), 0) >= target_count:
+        if weeks_map.get((y, w), 0) >= safe_target:
             current_streak += 1
             check_d -= timedelta(days=7)
         else:
@@ -129,15 +127,16 @@ def calculate_weekly_streak(logs: List[HabitLog], target_count: int, today_d: da
     }
 
 def calculate_monthly_streak(logs: List[HabitLog], target_count: int, today_d: date) -> dict:
+    safe_target = max(1, target_count)
     months_map: Dict[tuple, int] = {}
     for l in logs:
-        if l.completed or l.is_frozen_day or (l.count and l.count > 0):
+        if l.logged_date and (l.completed or l.is_frozen_day or (l.count and l.count > 0)):
             key = (l.logged_date.year, l.logged_date.month)
             months_map[key] = months_map.get(key, 0) + (l.count or 1)
 
     cur_key = (today_d.year, today_d.month)
     cur_month_count = months_map.get(cur_key, 0)
-    cur_month_done = cur_month_count >= target_count
+    cur_month_done = cur_month_count >= safe_target
 
     current_streak = 0
     check_y = today_d.year
@@ -148,8 +147,9 @@ def calculate_monthly_streak(logs: List[HabitLog], target_count: int, today_d: d
             check_m = 12
             check_y -= 1
 
-    while True:
-        if months_map.get((check_y, check_m), 0) >= target_count:
+    # Max 36 months safety guard
+    for _ in range(36):
+        if months_map.get((check_y, check_m), 0) >= safe_target:
             current_streak += 1
             check_m -= 1
             if check_m == 0:
@@ -167,17 +167,22 @@ def calculate_monthly_streak(logs: List[HabitLog], target_count: int, today_d: d
 
 def calculate_habit_strength(
     logs: List[HabitLog],
-    created_at: datetime,
+    created_at: Optional[datetime],
     today_d: date,
     window_days: int = 30
 ) -> Dict[str, Any]:
     start_d = today_d - timedelta(days=window_days - 1)
-    effective_start = max(start_d, created_at.date())
+    effective_start = start_d
+    if created_at and hasattr(created_at, 'date'):
+        try:
+            effective_start = max(start_d, created_at.date())
+        except Exception:
+            effective_start = start_d
     total_days = max(1, (today_d - effective_start).days + 1)
 
     valid_log_dates = set()
     for l in logs:
-        if (l.completed or l.is_frozen_day) and l.logged_date >= effective_start:
+        if l.logged_date and (l.completed or l.is_frozen_day) and l.logged_date >= effective_start:
             valid_log_dates.add(l.logged_date)
 
     success_days = len(valid_log_dates)
@@ -244,19 +249,18 @@ async def get_habits(
             longest_streak = streak_res["longest_streak"]
             current_period_count = streak_res["current_period_count"]
             period_completed = streak_res["period_completed"]
-            period_label = "This Week"
-            streak_unit = "weeks"
+            period_label = "Tuần này"
+            streak_unit = "tuần"
         elif freq == "monthly_target":
             streak_res = calculate_monthly_streak(all_logs, target_count, today_user_date)
             current_streak = streak_res["current_streak"]
             longest_streak = streak_res["longest_streak"]
             current_period_count = streak_res["current_period_count"]
             period_completed = streak_res["period_completed"]
-            period_label = "This Month"
-            streak_unit = "months"
+            period_label = "Tháng này"
+            streak_unit = "tháng"
         else:
-            # Daily or weekly_days
-            valid_dates = [l.logged_date for l in all_logs if l.completed or l.is_frozen_day]
+            valid_dates = [l.logged_date for l in all_logs if l.logged_date and (l.completed or l.is_frozen_day)]
             streak_res = calculate_daily_streak(valid_dates, today_user_date)
             current_streak = streak_res["current_streak"]
             longest_streak = streak_res["longest_streak"]
@@ -264,12 +268,10 @@ async def get_habits(
             today_log = next((l for l in all_logs if l.logged_date == today_user_date), None)
             current_period_count = today_log.count if today_log else 0
             period_completed = today_log.completed if today_log else False
-            period_label = "Today"
-            streak_unit = "days"
+            period_label = "Hôm nay"
+            streak_unit = "ngày"
 
         strength_info = calculate_habit_strength(all_logs, h.created_at, today_user_date, 30)
-
-        # Check today status in user timezone
         today_log = next((l for l in all_logs if l.logged_date == today_user_date), None)
 
         cat_info = None
@@ -281,7 +283,7 @@ async def get_habits(
 
         # 7-day mini sparkline
         mini_history = []
-        log_date_map = {l.logged_date: l for l in all_logs}
+        log_date_map = {l.logged_date: l for l in all_logs if l.logged_date}
         for i in range(6, -1, -1):
             d = today_user_date - timedelta(days=i)
             lg = log_date_map.get(d)
@@ -290,6 +292,8 @@ async def get_habits(
                 "completed": lg.completed if lg else False,
                 "is_frozen_day": lg.is_frozen_day if lg else False
             })
+
+        created_str = (h.created_at.isoformat() + "Z") if h.created_at else (datetime.utcnow().isoformat() + "Z")
 
         result.append({
             "id": h.id,
@@ -301,12 +305,12 @@ async def get_habits(
             "weekly_days": h.weekly_days,
             "time_of_day": h.time_of_day or "anytime",
             "target_count": target_count,
-            "unit": h.unit,
+            "unit": h.unit or "lần",
             "reminder_time": h.reminder_time,
-            "icon": h.icon,
-            "color": h.color,
-            "archived": h.archived,
-            "streak_freeze_count": h.streak_freeze_count or 2,
+            "icon": h.icon or "⚡",
+            "color": h.color or "#7C3AED",
+            "archived": bool(h.archived),
+            "streak_freeze_count": h.streak_freeze_count if h.streak_freeze_count is not None else 2,
             "current_streak": current_streak,
             "longest_streak": longest_streak,
             "streak_unit": streak_unit,
@@ -324,7 +328,7 @@ async def get_habits(
             "today_notes": today_log.notes if today_log else None,
             "today_mood": today_log.mood if today_log else None,
             "mini_history": mini_history,
-            "created_at": h.created_at.isoformat() + "Z"
+            "created_at": created_str
         })
 
     return result
@@ -357,32 +361,32 @@ async def get_habit_detail(habit_id: int, request: Request, db: AsyncSession = D
         longest_streak = streak_res["longest_streak"]
         current_period_count = streak_res["current_period_count"]
         period_completed = streak_res["period_completed"]
-        period_label = "This Week"
-        streak_unit = "weeks"
+        period_label = "Tuần này"
+        streak_unit = "tuần"
     elif freq == "monthly_target":
         streak_res = calculate_monthly_streak(logs, target_count, today_user_date)
         current_streak = streak_res["current_streak"]
         longest_streak = streak_res["longest_streak"]
         current_period_count = streak_res["current_period_count"]
         period_completed = streak_res["period_completed"]
-        period_label = "This Month"
-        streak_unit = "months"
+        period_label = "Tháng này"
+        streak_unit = "tháng"
     else:
-        valid_dates = [l.logged_date for l in logs if l.completed or l.is_frozen_day]
+        valid_dates = [l.logged_date for l in logs if l.logged_date and (l.completed or l.is_frozen_day)]
         streak_res = calculate_daily_streak(valid_dates, today_user_date)
         current_streak = streak_res["current_streak"]
         longest_streak = streak_res["longest_streak"]
         today_log = next((l for l in logs if l.logged_date == today_user_date), None)
         current_period_count = today_log.count if today_log else 0
         period_completed = today_log.completed if today_log else False
-        period_label = "Today"
-        streak_unit = "days"
+        period_label = "Hôm nay"
+        streak_unit = "ngày"
 
     strength_info = calculate_habit_strength(logs, habit.created_at, today_user_date, 30)
 
     # 30-day heatmap
     heatmap_30d = []
-    log_map = {l.logged_date.isoformat(): l for l in logs}
+    log_map = {l.logged_date.isoformat(): l for l in logs if l.logged_date}
     total_time_spent = sum(l.time_spent or 0 for l in logs)
 
     for i in range(29, -1, -1):
@@ -407,6 +411,8 @@ async def get_habit_detail(habit_id: int, request: Request, db: AsyncSession = D
         if c_obj:
             cat_info = {"id": c_obj.id, "name": c_obj.name, "color": c_obj.color, "icon": c_obj.icon}
 
+    created_str = (habit.created_at.isoformat() + "Z") if habit.created_at else (datetime.utcnow().isoformat() + "Z")
+
     return {
         "id": habit.id,
         "title": habit.title,
@@ -417,12 +423,12 @@ async def get_habit_detail(habit_id: int, request: Request, db: AsyncSession = D
         "weekly_days": habit.weekly_days,
         "time_of_day": habit.time_of_day or "anytime",
         "target_count": target_count,
-        "unit": habit.unit,
+        "unit": habit.unit or "lần",
         "reminder_time": habit.reminder_time,
-        "icon": habit.icon,
-        "color": habit.color,
-        "archived": habit.archived,
-        "streak_freeze_count": habit.streak_freeze_count or 2,
+        "icon": habit.icon or "⚡",
+        "color": habit.color or "#7C3AED",
+        "archived": bool(habit.archived),
+        "streak_freeze_count": habit.streak_freeze_count if habit.streak_freeze_count is not None else 2,
         "current_streak": current_streak,
         "longest_streak": longest_streak,
         "streak_unit": streak_unit,
@@ -434,20 +440,20 @@ async def get_habit_detail(habit_id: int, request: Request, db: AsyncSession = D
         "rank_title": strength_info["rank_title"],
         "total_completions": len([l for l in logs if l.completed]),
         "total_time_spent": total_time_spent,
-        "created_at": habit.created_at.isoformat() + "Z",
+        "created_at": created_str,
         "heatmap": heatmap_30d,
         "logs": [
             {
                 "id": l.id,
-                "logged_date": l.logged_date.isoformat(),
+                "logged_date": l.logged_date.isoformat() if l.logged_date else "",
                 "completed_time": l.completed_time,
-                "count": l.count,
-                "completed": l.completed,
-                "is_frozen_day": l.is_frozen_day,
+                "count": l.count or 1,
+                "completed": bool(l.completed),
+                "is_frozen_day": bool(l.is_frozen_day),
                 "time_spent": l.time_spent or 0,
                 "notes": l.notes,
                 "mood": l.mood,
-                "created_at": l.created_at.isoformat() + "Z"
+                "created_at": (l.created_at.isoformat() + "Z") if l.created_at else ""
             }
             for l in logs[:50]
         ]
@@ -465,10 +471,10 @@ async def create_habit(payload: HabitCreateSchema, request: Request, db: AsyncSe
         weekly_days=payload.weekly_days or [0,1,2,3,4,5,6],
         time_of_day=payload.time_of_day or "anytime",
         target_count=payload.target_count or 1,
-        unit=payload.unit or "times",
+        unit=payload.unit or "lần",
         reminder_time=payload.reminder_time,
-        icon=payload.icon or "zap",
-        color=payload.color or "#10B981",
+        icon=payload.icon or "⚡",
+        color=payload.color or "#7C3AED",
         streak_freeze_count=2
     )
     db.add(habit)
@@ -556,7 +562,7 @@ async def freeze_habit_day(habit_id: int, payload: HabitFreezeDaySchema, request
             logged_date=target_date,
             is_frozen_day=True,
             completed=False,
-            notes="🛡️ Streak Freeze applied"
+            notes="🛡️ Khiên bảo vệ Streak"
         )
         db.add(log_obj)
     else:
@@ -571,7 +577,7 @@ async def freeze_habit_day(habit_id: int, payload: HabitFreezeDaySchema, request
         select(HabitLog).where(HabitLog.habit_id == habit_id)
     )
     logs_list = all_logs.scalars().all()
-    valid_dates = [l.logged_date for l in logs_list if l.completed or l.is_frozen_day]
+    valid_dates = [l.logged_date for l in logs_list if l.logged_date and (l.completed or l.is_frozen_day)]
     streak_info = calculate_daily_streak(valid_dates, target_date)
 
     return {
@@ -609,7 +615,7 @@ async def log_habit_focus(habit_id: int, payload: HabitLogFocusSchema, request: 
     current_time_str = datetime.now().strftime("%H:%M")
 
     if not log_obj:
-        new_count = payload.duration_minutes if habit.unit == "mins" else 1
+        new_count = payload.duration_minutes if (habit.unit in ["phút", "mins"]) else 1
         is_completed = new_count >= target_count
         log_obj = HabitLog(
             habit_id=habit_id,
@@ -619,12 +625,12 @@ async def log_habit_focus(habit_id: int, payload: HabitLogFocusSchema, request: 
             time_spent=payload.duration_minutes,
             count=new_count,
             completed=is_completed,
-            notes=payload.notes or f"⏱️ Pomodoro session: {payload.duration_minutes} mins"
+            notes=payload.notes or f"⏱️ Phiên Pomodoro: {payload.duration_minutes} phút"
         )
         db.add(log_obj)
     else:
         log_obj.time_spent = (log_obj.time_spent or 0) + payload.duration_minutes
-        if habit.unit == "mins":
+        if habit.unit in ["phút", "mins"]:
             log_obj.count = (log_obj.count or 0) + payload.duration_minutes
         else:
             log_obj.count = (log_obj.count or 0) + 1
@@ -638,7 +644,7 @@ async def log_habit_focus(habit_id: int, payload: HabitLogFocusSchema, request: 
     all_logs = await db.execute(
         select(HabitLog).where(HabitLog.habit_id == habit_id)
     )
-    valid_dates = [l.logged_date for l in all_logs.scalars().all() if l.completed or l.is_frozen_day]
+    valid_dates = [l.logged_date for l in all_logs.scalars().all() if l.logged_date and (l.completed or l.is_frozen_day)]
     streak_info = calculate_daily_streak(valid_dates, target_date)
 
     return {
@@ -749,7 +755,7 @@ async def checkin_habit(habit_id: int, payload: dict, request: Request, db: Asyn
     elif habit.frequency_type == "monthly_target":
         streak_info = calculate_monthly_streak(logs_list, target_count, target_date)
     else:
-        valid_dates = [l.logged_date for l in logs_list if l.completed or l.is_frozen_day]
+        valid_dates = [l.logged_date for l in logs_list if l.logged_date and (l.completed or l.is_frozen_day)]
         streak_info = calculate_daily_streak(valid_dates, target_date)
 
     return {

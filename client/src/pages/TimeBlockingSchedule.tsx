@@ -1,19 +1,21 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react'
+import axios from 'axios'
 import {
   Calendar as CalendarIcon, Plus, Check, Clock, Trash2, X,
   Sparkles, ArrowRight, Play, CheckCircle2, Flame, BarChart2,
   TrendingUp, AlertCircle, ChevronLeft, ChevronRight, LayoutList,
-  Columns, Clock3, SplitSquareVertical, Layers, Filter, Search, Tag,
-  Edit3
+  Clock3, Search, Tag, Edit3, RotateCcw, Zap, Target, BookOpen,
+  Activity, Smile, Coffee, Droplets
 } from 'lucide-react'
 import { useScheduleStore, type ScheduleSlot } from '../store/useScheduleStore'
-import { useTimeLogStore, type TimeLogItem } from '../store/useTimeLogStore'
+import { useTimeLogStore } from '../store/useTimeLogStore'
 import { useTimerStore } from '../store/useTimerStore'
 import { useTaskStore, type Task } from '../store/useTaskStore'
+import { useHabitStore, type Habit } from '../store/useHabitStore'
 import { sounds } from '../utils/soundEffects'
 
 type ViewMode = 'timeline' | 'blocks'
-type BlockFilter = 'all' | 'plan' | 'timelog' | 'compare'
+type BlockFilter = 'all' | 'plan' | 'habit' | 'deadline'
 
 // Start from 06:00 (6 AM) to 23:00 (11 PM) for high-density daily schedule
 const START_HOUR = 6
@@ -21,7 +23,7 @@ const END_HOUR = 23
 const HOUR_HEIGHT = 64 // pixels per hour block
 
 interface CombinedBlockItem {
-  type: 'slot' | 'log' | 'deadline'
+  type: 'slot' | 'habit' | 'deadline'
   id: number
   startTimeStr: string
   endTimeStr: string
@@ -29,11 +31,10 @@ interface CombinedBlockItem {
   notes?: string
   durationMinutes: number
   isDone?: boolean
-  timerType?: string
   category_id?: number
   category?: { id: number; name: string; color: string; category_type?: string }
   rawSlot?: ScheduleSlot
-  rawLog?: TimeLogItem
+  rawHabit?: Habit
   rawTask?: Task
 }
 
@@ -49,24 +50,28 @@ interface DraggingState {
 
 export const TimeBlockingSchedule: React.FC = () => {
   const { slots, selectedDate, setSelectedDate, fetchSlots, createSlot, updateSlot, toggleSlotDone, deleteSlot } = useScheduleStore()
-  const { logs, fetchLogs, createLog, updateLog, deleteLog } = useTimeLogStore()
+  const { createLog } = useTimeLogStore()
   const { startTimer } = useTimerStore()
   const { categories, tasks, fetchTasks, fetchCategories, toggleTaskStatus } = useTaskStore()
+  const { habits, fetchHabits, checkinHabit } = useHabitStore()
 
-  // 1. Primary View Mode Switcher: Timeline vs Blocks (No empty hours)
-  const [viewMode, setViewMode] = useState<ViewMode>('blocks')
+  // 1. Primary View Mode Switcher: Timeline vs Blocks
+  const [viewMode, setViewMode] = useState<ViewMode>('timeline')
 
   // 2. Filter Tab for Blocks View
   const [blockFilter, setBlockFilter] = useState<BlockFilter>('all')
 
-  // 3. Search & Category Filter State (Identical to Tasks page)
+  // 3. Search & Category Filter State
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategoryType, setSelectedCategoryType] = useState<string>('all')
 
-  // Drag and Drop & Resize State for Timeline Slots
+  // 4. Drag and Drop & Resize State for Timeline Slots
   const [draggingSlot, setDraggingSlot] = useState<DraggingState | null>(null)
 
-  // Create Plan Slot modal state
+  // 5. Seeding state for Reset Sample Data
+  const [isSeeding, setIsSeeding] = useState(false)
+
+  // 6. Create Plan Slot modal state
   const [planModalOpen, setPlanModalOpen] = useState(false)
   const [slotTitle, setSlotTitle] = useState('')
   const [slotStart, setSlotStart] = useState('09:00')
@@ -74,7 +79,7 @@ export const TimeBlockingSchedule: React.FC = () => {
   const [slotNotes, setSlotNotes] = useState('')
   const [slotCategoryId, setSlotCategoryId] = useState<number | null>(null)
 
-  // Edit Plan Slot modal state
+  // 7. Edit Plan Slot modal state
   const [editPlanModalOpen, setEditPlanModalOpen] = useState(false)
   const [editingSlot, setEditingSlot] = useState<ScheduleSlot | null>(null)
   const [editSlotTitle, setEditSlotTitle] = useState('')
@@ -82,23 +87,6 @@ export const TimeBlockingSchedule: React.FC = () => {
   const [editSlotEnd, setEditSlotEnd] = useState('10:30')
   const [editSlotNotes, setEditSlotNotes] = useState('')
   const [editSlotCategoryId, setEditSlotCategoryId] = useState<number | null>(null)
-
-  // Create Manual TimeLog modal state
-  const [logModalOpen, setLogModalOpen] = useState(false)
-  const [logNotes, setLogNotes] = useState('')
-  const [logStart, setLogStart] = useState('09:00')
-  const [logEnd, setLogEnd] = useState('10:00')
-  const [logType, setLogType] = useState('manual')
-  const [logCategoryId, setLogCategoryId] = useState<number | null>(null)
-
-  // Edit Actual TimeLog modal state
-  const [editLogModalOpen, setEditLogModalOpen] = useState(false)
-  const [editingLog, setEditingLog] = useState<TimeLogItem | null>(null)
-  const [editLogNotes, setEditLogNotes] = useState('')
-  const [editLogStart, setEditLogStart] = useState('09:00')
-  const [editLogEnd, setEditLogEnd] = useState('10:00')
-  const [editLogType, setEditLogType] = useState('manual')
-  const [editLogCategoryId, setEditLogCategoryId] = useState<number | null>(null)
 
   // Current time marker for live Timeline
   const [currentTimeMinutes, setCurrentTimeMinutes] = useState(() => {
@@ -110,9 +98,9 @@ export const TimeBlockingSchedule: React.FC = () => {
 
   useEffect(() => {
     fetchSlots(selectedDate)
-    fetchLogs(selectedDate)
     fetchTasks()
     fetchCategories()
+    fetchHabits()
   }, [selectedDate])
 
   // Tasks with deadline on the selected date
@@ -122,6 +110,22 @@ export const TimeBlockingSchedule: React.FC = () => {
       return t.due_date.startsWith(selectedDate)
     })
   }, [tasks, selectedDate])
+
+  // Habits active today (daily or matching day of week)
+  const todayHabits = useMemo(() => {
+    const d = new Date(selectedDate)
+    const dayOfWeek = (d.getDay() + 6) % 7 // 0 = Mon, 6 = Sun
+    return habits.filter(h => {
+      if (h.archived) return false
+      if (h.frequency_type === 'daily' || !h.weekly_days || h.weekly_days.length === 0) return true
+      return h.weekly_days.includes(dayOfWeek)
+    })
+  }, [habits, selectedDate])
+
+  // Habits with a reminder time for the timeline
+  const habitReminders = useMemo(() => {
+    return todayHabits.filter(h => !!h.reminder_time)
+  }, [todayHabits])
 
   // Update current time tick every minute
   useEffect(() => {
@@ -178,15 +182,6 @@ export const TimeBlockingSchedule: React.FC = () => {
     setSelectedDate(new Date().toISOString().split('T')[0])
   }
 
-  const formatLocalTime = (isoString: string) => {
-    try {
-      const d = new Date(isoString)
-      return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
-    } catch {
-      return ''
-    }
-  }
-
   const timeToMinutes = (timeStr: string) => {
     if (!timeStr) return 0
     const [h, m] = timeStr.split(':').map(Number)
@@ -200,7 +195,7 @@ export const TimeBlockingSchedule: React.FC = () => {
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
   }
 
-  // Combined and sorted list of Blocks (No empty hours)
+  // Combined and sorted list of Blocks for Blocks View
   const combinedBlocks = useMemo(() => {
     const list: CombinedBlockItem[] = []
 
@@ -228,34 +223,33 @@ export const TimeBlockingSchedule: React.FC = () => {
       })
     })
 
-    // 2. Add Focus Time Logs
-    logs.forEach(l => {
-      const st = formatLocalTime(l.start_time)
-      const et = formatLocalTime(l.end_time)
-      const dur = Math.round((l.duration_seconds || 0) / 60)
+    // 2. Add Habits with reminder times
+    todayHabits.forEach(h => {
+      const timeStr = h.reminder_time || '08:00'
       list.push({
-        type: 'log',
-        id: l.id,
-        startTimeStr: st,
-        endTimeStr: et,
-        title: l.task_title || l.habit_title || l.notes || 'Focus Session',
-        notes: l.notes && l.task_title ? l.notes : undefined,
-        durationMinutes: dur,
-        timerType: l.timer_type,
-        category_id: l.category_id || undefined,
-        category: l.category_name ? { id: l.category_id || 0, name: l.category_name, color: l.category_color || '#8B5CF6' } : undefined,
-        rawLog: l
+        type: 'habit',
+        id: h.id,
+        startTimeStr: timeStr,
+        endTimeStr: timeStr,
+        title: h.title,
+        notes: h.description,
+        durationMinutes: 0,
+        isDone: h.today_completed,
+        category_id: h.category_id,
+        category: h.category,
+        rawHabit: h
       })
     })
 
     // 3. Add Deadlines for this date
     deadlineTasks.forEach(task => {
       let dueTime = '23:59'
-      if (task.due_date && task.due_date.includes('T')) {
+      if (task.due_date && task.due_date.includes(' ')) {
+        const timePart = task.due_date.split(' ')[1]?.slice(0, 5)
+        if (timePart) dueTime = timePart
+      } else if (task.due_date && task.due_date.includes('T')) {
         const timePart = task.due_date.split('T')[1]?.slice(0, 5)
-        if (timePart && timePart !== '23:59') {
-          dueTime = timePart
-        }
+        if (timePart) dueTime = timePart
       }
       list.push({
         type: 'deadline',
@@ -274,14 +268,15 @@ export const TimeBlockingSchedule: React.FC = () => {
 
     // Sort chronologically by start time
     return list.sort((a, b) => a.startTimeStr.localeCompare(b.startTimeStr))
-  }, [slots, logs, deadlineTasks])
+  }, [slots, todayHabits, deadlineTasks])
 
   // Filtered blocks based on blockFilter, searchQuery and selectedCategoryType
   const filteredBlocks = useMemo(() => {
     return combinedBlocks.filter(b => {
-      // 1. Type Filter (All / Plan / TimeLog)
+      // 1. Type Filter (All / Plan / Habit / Deadline)
       if (blockFilter === 'plan' && b.type !== 'slot') return false
-      if (blockFilter === 'timelog' && b.type !== 'log') return false
+      if (blockFilter === 'habit' && b.type !== 'habit') return false
+      if (blockFilter === 'deadline' && b.type !== 'deadline') return false
 
       // 2. Category Type Filter
       if (selectedCategoryType !== 'all') {
@@ -302,48 +297,59 @@ export const TimeBlockingSchedule: React.FC = () => {
     })
   }, [combinedBlocks, blockFilter, selectedCategoryType, searchQuery])
 
-  // Total metrics
-  const totalLogSeconds = useMemo(() => {
-    return logs.reduce((acc, cur) => acc + (cur.duration_seconds || 0), 0)
-  }, [logs])
-
-  const totalLogHoursFormatted = useMemo(() => {
-    const hours = Math.floor(totalLogSeconds / 3600)
-    const mins = Math.floor((totalLogSeconds % 3600) / 60)
-    if (hours === 0) return `${mins}m`
-    return `${hours}h ${mins > 0 ? `${mins}m` : ''}`
-  }, [totalLogSeconds])
-
+  // Summary Metrics calculations
   const totalPlannedMinutes = useMemo(() => {
-    return slots.reduce((acc, slot) => {
-      try {
-        const startMins = timeToMinutes(slot.start_time)
-        let endMins = timeToMinutes(slot.end_time)
-        if (endMins <= startMins) {
-          endMins = slot.end_time === '00:00' ? 24 * 60 : startMins + 30
-        }
-        const mins = endMins - startMins
-        return acc + (mins > 0 ? mins : 0)
-      } catch {
-        return acc
+    return slots.reduce((acc, s) => {
+      const startMins = timeToMinutes(s.start_time)
+      let endMins = timeToMinutes(s.end_time)
+      if (endMins <= startMins) {
+        endMins = s.end_time === '00:00' ? 24 * 60 : startMins + 30
       }
+      return acc + Math.max(15, endMins - startMins)
     }, 0)
   }, [slots])
 
   const totalPlannedHoursFormatted = useMemo(() => {
-    const hours = Math.floor(totalPlannedMinutes / 60)
-    const mins = totalPlannedMinutes % 60
-    if (hours === 0) return `${mins}m`
-    return `${hours}h ${mins > 0 ? `${mins}m` : ''}`
+    const h = Math.floor(totalPlannedMinutes / 60)
+    const m = totalPlannedMinutes % 60
+    return `${h}h ${m > 0 ? `${m}m` : '00m'}`
   }, [totalPlannedMinutes])
 
-  // Drag & Drop Handlers for Timeline Slots
-  const handleStartMove = (e: React.PointerEvent, slot: ScheduleSlot) => {
-    if ((e.target as HTMLElement).closest('button')) return
-    e.preventDefault()
-    e.stopPropagation()
-    sounds.playTap()
+  const completedHabitsCount = useMemo(() => {
+    return todayHabits.filter(h => h.today_completed).length
+  }, [todayHabits])
 
+  const completedDeadlinesCount = useMemo(() => {
+    return deadlineTasks.filter(t => t.status === 'completed').length
+  }, [deadlineTasks])
+
+  // Reset & Seed Sample Data
+  const handleResetSampleData = async () => {
+    if (!window.confirm('Khôi phục và nạp bộ dữ liệu mẫu chuẩn (Kế hoạch, Thói quen, Nhiệm vụ) cho tài khoản này?')) return
+    sounds.playTap()
+    setIsSeeding(true)
+    try {
+      await axios.post('/api/v1/user/settings/reset-sample-data')
+      await Promise.all([
+        fetchSlots(selectedDate),
+        fetchTasks(),
+        fetchCategories(),
+        fetchHabits()
+      ])
+      sounds.playSuccess()
+    } catch (e) {
+      console.error('Failed to reset sample data', e)
+    } finally {
+      setIsSeeding(false)
+    }
+  }
+
+  // Pointer event handlers for Drag & Move / Resize
+  const handleStartMove = (e: React.PointerEvent, slot: ScheduleSlot) => {
+    if ((e.target as HTMLElement).closest('button') || (e.target as HTMLElement).closest('.group\\/resize')) {
+      return
+    }
+    e.currentTarget.setPointerCapture(e.pointerId)
     const startMins = timeToMinutes(slot.start_time)
     let endMins = timeToMinutes(slot.end_time)
     if (endMins <= startMins) {
@@ -362,10 +368,8 @@ export const TimeBlockingSchedule: React.FC = () => {
   }
 
   const handleStartResize = (e: React.PointerEvent, slot: ScheduleSlot) => {
-    e.preventDefault()
     e.stopPropagation()
-    sounds.playTap()
-
+    e.currentTarget.setPointerCapture(e.pointerId)
     const startMins = timeToMinutes(slot.start_time)
     let endMins = timeToMinutes(slot.end_time)
     if (endMins <= startMins) {
@@ -473,33 +477,7 @@ export const TimeBlockingSchedule: React.FC = () => {
     setPlanModalOpen(false)
   }
 
-  const handleCreateManualLog = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!logNotes.trim()) return
-    sounds.playTap()
-    const [sh, sm] = logStart.split(':').map(Number)
-    const [eh, em] = logEnd.split(':').map(Number)
-    let durMins = (eh * 60 + em) - (sh * 60 + sm)
-    if (durMins <= 0) durMins = 30
-
-    const startIso = `${selectedDate}T${logStart}:00`
-    const endIso = `${selectedDate}T${logEnd}:00`
-
-    await createLog({
-      start_time: startIso,
-      end_time: endIso,
-      duration_seconds: durMins * 60,
-      timer_type: logType,
-      category_id: logCategoryId || undefined,
-      notes: logNotes.trim()
-    })
-    sounds.playSuccess()
-    setLogNotes('')
-    setLogCategoryId(null)
-    setLogModalOpen(false)
-  }
-
-  // ── Open Edit Handlers ──
+  // Open Edit Plan Slot Modal
   const handleOpenEditSlot = (slot: ScheduleSlot) => {
     sounds.playTap()
     setEditingSlot(slot)
@@ -511,18 +489,6 @@ export const TimeBlockingSchedule: React.FC = () => {
     setEditPlanModalOpen(true)
   }
 
-  const handleOpenEditLog = (log: TimeLogItem) => {
-    sounds.playTap()
-    setEditingLog(log)
-    setEditLogNotes(log.notes || log.task_title || log.habit_title || '')
-    setEditLogStart(formatLocalTime(log.start_time))
-    setEditLogEnd(formatLocalTime(log.end_time))
-    setEditLogType(log.timer_type || 'manual')
-    setEditLogCategoryId(log.category_id || null)
-    setEditLogModalOpen(true)
-  }
-
-  // ── Save Edit Handlers ──
   const handleSaveEditSlot = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!editingSlot || !editSlotTitle.trim()) return
@@ -552,37 +518,10 @@ export const TimeBlockingSchedule: React.FC = () => {
     setEditingSlot(null)
   }
 
-  const handleSaveEditLog = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!editingLog) return
-    sounds.playTap()
-
-    const [sh, sm] = editLogStart.split(':').map(Number)
-    const [eh, em] = editLogEnd.split(':').map(Number)
-    let durMins = (eh * 60 + em) - (sh * 60 + sm)
-    if (durMins <= 0) durMins = 30
-
-    const startIso = `${selectedDate}T${editLogStart}:00`
-    const endIso = `${selectedDate}T${editLogEnd}:00`
-
-    await updateLog(editingLog.id, {
-      notes: editLogNotes.trim(),
-      start_time: startIso,
-      end_time: endIso,
-      duration_seconds: durMins * 60,
-      timer_type: editLogType,
-      category_id: editLogCategoryId || undefined
-    })
-    sounds.playSuccess()
-    setEditLogModalOpen(false)
-    setEditingLog(null)
-  }
-
-  // ── Convert Plan Slot to Actual Log ──
+  // Convert Plan Slot to Actual Log
   const handleConvertSlotToActual = async (slot: ScheduleSlot) => {
     sounds.playTap()
     if (slot.is_done) {
-      // Toggle back
       await toggleSlotDone(slot.id, false)
       return
     }
@@ -597,7 +536,7 @@ export const TimeBlockingSchedule: React.FC = () => {
     const startIso = `${selectedDate}T${slot.start_time}:00`
     const endIso = `${selectedDate}T${slot.end_time === '00:00' ? '23:59' : slot.end_time}:00`
 
-    // 1. Create Actual Time Log so it counts toward actual metrics
+    // 1. Create Actual Time Log
     await createLog({
       task_id: slot.task_id || undefined,
       habit_id: slot.habit_id || undefined,
@@ -663,7 +602,7 @@ export const TimeBlockingSchedule: React.FC = () => {
   const isViewingToday = selectedDate === new Date().toISOString().split('T')[0]
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 h-full overflow-hidden space-y-2">
+    <div className="flex-1 flex flex-col min-h-0 h-full overflow-hidden space-y-2 pb-1">
       {/* ── 1. FIXED TOP SECTION (Date Navigator, Date Strip, Metrics, Search & Category Filters) ── */}
       <div className="shrink-0 space-y-2">
         {/* Date Navigator & Switch View Button */}
@@ -695,28 +634,25 @@ export const TimeBlockingSchedule: React.FC = () => {
             {!isViewingToday && (
               <button
                 onClick={handleToday}
-                className="px-2.5 py-1 rounded-xl bg-violet-50 border border-violet-200 text-violet-700 text-[11px] font-bold hover:bg-violet-100 transition active:scale-95 shadow-2xs"
+                className="px-2 py-1 rounded-xl bg-violet-50 border border-violet-200 text-violet-700 text-[11px] font-bold hover:bg-violet-100 transition active:scale-95 shadow-2xs"
               >
                 Today
               </button>
             )}
+
+            {/* Quick Reset Sample Data Button */}
+            <button
+              onClick={handleResetSampleData}
+              disabled={isSeeding}
+              className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-600 text-xs font-bold transition active:scale-90 shadow-2xs flex items-center gap-1"
+              title="Khôi phục dữ liệu mẫu chuẩn"
+            >
+              <RotateCcw className={`w-3.5 h-3.5 ${isSeeding ? 'animate-spin text-violet-600' : ''}`} />
+            </button>
           </div>
 
-          {/* Primary View Switcher: [ 📦 Blocks ] vs [ ⏱️ Timeline ] */}
+          {/* Primary View Switcher: [ ⏱️ Timeline ] vs [ 📦 Blocks ] */}
           <div className="flex items-center p-0.5 bg-slate-200/80 rounded-xl border border-slate-200 text-xs font-bold shrink-0">
-            <button
-              onClick={() => { sounds.playTap(); setViewMode('blocks') }}
-              className={`px-2.5 py-1 rounded-lg transition flex items-center gap-1.5 ${
-                viewMode === 'blocks'
-                  ? 'bg-white text-violet-700 shadow-2xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-              title="Compact blocks view"
-            >
-              <LayoutList className="w-3.5 h-3.5" />
-              <span>Blocks</span>
-            </button>
-
             <button
               onClick={() => { sounds.playTap(); setViewMode('timeline') }}
               className={`px-2.5 py-1 rounded-lg transition flex items-center gap-1.5 ${
@@ -724,10 +660,23 @@ export const TimeBlockingSchedule: React.FC = () => {
                   ? 'bg-white text-violet-700 shadow-2xs'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
-              title="Hourly Timeline with ruler"
+              title="Lịch trình chi tiết theo giờ"
             >
               <Clock3 className="w-3.5 h-3.5" />
               <span>Timeline</span>
+            </button>
+
+            <button
+              onClick={() => { sounds.playTap(); setViewMode('blocks') }}
+              className={`px-2.5 py-1 rounded-lg transition flex items-center gap-1.5 ${
+                viewMode === 'blocks'
+                  ? 'bg-white text-violet-700 shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+              title="Danh sách khối tập trung"
+            >
+              <LayoutList className="w-3.5 h-3.5" />
+              <span>Blocks</span>
             </button>
           </div>
         </div>
@@ -760,75 +709,90 @@ export const TimeBlockingSchedule: React.FC = () => {
           })}
         </div>
 
-        {/* Quick Metrics Overview Strip */}
-        <div className="grid grid-cols-2 gap-2">
-          <div className="bg-sky-50/90 border border-sky-200/80 rounded-2xl p-2 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <CalendarIcon className="w-3.5 h-3.5 text-sky-600 shrink-0" />
-              <div>
-                <div className="text-[9px] font-bold uppercase text-sky-700 tracking-wider">Planned</div>
-                <div className="text-xs font-black text-sky-950 font-mono">{totalPlannedHoursFormatted}</div>
-              </div>
+        {/* 3 High-Density Summary Cards (Plan, Habits, Deadlines) */}
+        <div className="grid grid-cols-3 gap-1.5">
+          {/* Card 1: Planned Schedule */}
+          <div className="bg-sky-50/90 border border-sky-200/80 rounded-2xl p-2 flex flex-col justify-between shadow-2xs">
+            <div className="flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-sky-700">
+              <CalendarIcon className="w-3 h-3 shrink-0" />
+              <span className="truncate">Kế hoạch</span>
             </div>
-            <span className="text-[10px] font-bold text-sky-800 bg-white/80 px-2 py-0.5 rounded-lg border border-sky-200">
-              {slots.filter(s => s.is_done).length}/{slots.length} done
-            </span>
+            <div className="mt-1 flex items-baseline justify-between">
+              <span className="text-xs font-black text-sky-950 font-mono">{totalPlannedHoursFormatted}</span>
+              <span className="text-[10px] font-bold text-sky-700 font-mono">
+                {slots.filter(s => s.is_done).length}/{slots.length}
+              </span>
+            </div>
           </div>
 
-          <div className="bg-violet-50/90 border border-violet-200/80 rounded-2xl p-2 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Clock className="w-3.5 h-3.5 text-violet-600 shrink-0" />
-              <div>
-                <div className="text-[9px] font-bold uppercase text-violet-700 tracking-wider">Actual Focused</div>
-                <div className="text-xs font-black text-violet-950 font-mono">{totalLogHoursFormatted}</div>
-              </div>
+          {/* Card 2: Daily Habits */}
+          <div className="bg-emerald-50/90 border border-emerald-200/80 rounded-2xl p-2 flex flex-col justify-between shadow-2xs">
+            <div className="flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-emerald-700">
+              <Zap className="w-3 h-3 shrink-0 text-emerald-600" />
+              <span className="truncate">Thói quen</span>
             </div>
-            <span className="text-[10px] font-bold text-violet-800 bg-white/80 px-2 py-0.5 rounded-lg border border-violet-200">
-              {logs.length} logs
-            </span>
+            <div className="mt-1 flex items-baseline justify-between">
+              <span className="text-xs font-black text-emerald-950 font-mono">{completedHabitsCount}/{todayHabits.length}</span>
+              <span className="text-[10px] font-bold text-emerald-700">
+                {completedHabitsCount === todayHabits.length && todayHabits.length > 0 ? '🔥 Xong' : 'Điểm danh'}
+              </span>
+            </div>
+          </div>
+
+          {/* Card 3: Deadlines */}
+          <div className="bg-rose-50/90 border border-rose-200/80 rounded-2xl p-2 flex flex-col justify-between shadow-2xs">
+            <div className="flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-rose-700">
+              <Target className="w-3 h-3 shrink-0 text-rose-600" />
+              <span className="truncate">Deadlines</span>
+            </div>
+            <div className="mt-1 flex items-baseline justify-between">
+              <span className="text-xs font-black text-rose-950 font-mono">{completedDeadlinesCount}/{deadlineTasks.length}</span>
+              <span className="text-[10px] font-bold text-rose-700">
+                {deadlineTasks.length > 0 ? `${deadlineTasks.length} task` : '0 task'}
+              </span>
+            </div>
           </div>
         </div>
 
         {/* Search Bar & Category Filter Bar */}
         <div className="space-y-1.5">
-          {/* Search Input */}
           <div className="relative">
             <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Search blocks, notes, or categories..."
-              className="w-full pl-8 pr-8 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-900 placeholder:text-slate-400 outline-none focus:border-violet-500 shadow-2xs transition"
+              placeholder="Tìm kế hoạch, thói quen, deadline..."
+              className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-medium text-slate-900 outline-none focus:border-violet-500 transition placeholder:text-slate-400 shadow-2xs"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-700"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
             )}
           </div>
 
-          {/* Category Value Group Filter Chips */}
-          <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+          {/* Value Category Pills Filter */}
+          <div className="flex items-center gap-1 overflow-x-auto no-scrollbar pb-0.5">
             {[
-              { key: 'all', label: 'All Values' },
-              { key: 'productive', label: '🟢 Productive' },
-              { key: 'neutral', label: '🔵 Neutral' },
-              { key: 'wasted', label: '🔴 Wasted' },
-            ].map(grp => (
+              { id: 'all', label: 'Tất cả' },
+              { id: 'productive', label: '🟢 Productive' },
+              { id: 'neutral', label: '🔵 Neutral' },
+              { id: 'wasted', label: '🔴 Wasted' },
+            ].map(pill => (
               <button
-                key={grp.key}
-                onClick={() => { sounds.playTap(); setSelectedCategoryType(grp.key) }}
-                className={`shrink-0 px-2.5 py-0.5 rounded-lg text-[10px] font-bold transition active:scale-95 border ${
-                  selectedCategoryType === grp.key
-                    ? 'bg-violet-600 border-violet-600 text-white shadow-2xs'
-                    : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                key={pill.id}
+                onClick={() => { sounds.playTap(); setSelectedCategoryType(pill.id) }}
+                className={`px-2 py-1 rounded-xl text-[10px] font-bold shrink-0 transition active:scale-95 border ${
+                  selectedCategoryType === pill.id
+                    ? 'bg-violet-600 text-white border-violet-600 shadow-2xs'
+                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                 }`}
               >
-                {grp.label}
+                {pill.label}
               </button>
             ))}
           </div>
@@ -836,70 +800,31 @@ export const TimeBlockingSchedule: React.FC = () => {
       </div>
 
       {/* ══════════════════════════════════════════════════════════════════════ */}
-      {/* ── VIEW MODE 1: COMPACT BLOCKS (NO EMPTY HOURS SHOWN) ─────────────── */}
+      {/* ── 2. BLOCKS VIEW (Compact Flow of Today's Plan, Habits & Deadlines) ── */}
       {/* ══════════════════════════════════════════════════════════════════════ */}
       {viewMode === 'blocks' && (
-        <div className="flex-1 min-h-0 overflow-y-auto space-y-2.5 pr-0.5 pb-20 no-scrollbar animate-fade-in">
-          {/* Sub-Filter Pills */}
-          <div className="flex items-center justify-between gap-1.5 shrink-0">
-            <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
-              {[
-                { id: 'all', label: `All (${combinedBlocks.length})` },
-                { id: 'plan', label: `Plan (${slots.length})` },
-                { id: 'timelog', label: `Time Logs (${logs.length})` },
-                { id: 'compare', label: 'Variance' },
-              ].map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => { sounds.playTap(); setBlockFilter(tab.id as BlockFilter) }}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition active:scale-95 whitespace-nowrap border ${
-                    blockFilter === tab.id
-                      ? 'bg-slate-900 border-slate-900 text-white shadow-2xs'
-                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Search notice */}
-          {searchQuery && (
-            <div className="flex items-center justify-between px-3 py-1.5 rounded-xl bg-violet-50 border border-violet-200 text-xs font-bold text-violet-800 shrink-0">
-              <div className="flex items-center gap-1.5 truncate">
-                <Search className="w-3.5 h-3.5 text-violet-600 shrink-0" />
-                <span className="truncate">"{searchQuery}" ({filteredBlocks.length} results)</span>
-              </div>
+        <div className="flex-1 min-h-0 overflow-y-auto pr-1 space-y-3 pb-16">
+          {/* Sub-Filter Tabs */}
+          <div className="flex items-center gap-1 p-0.5 bg-slate-200/80 rounded-xl border border-slate-200 text-xs font-bold shrink-0">
+            {[
+              { id: 'all', label: 'Tất cả' },
+              { id: 'plan', label: '📅 Kế hoạch' },
+              { id: 'habit', label: '⚡ Thói quen' },
+              { id: 'deadline', label: '🚩 Deadlines' },
+            ].map(tab => (
               <button
-                onClick={() => setSearchQuery('')}
-                className="p-0.5 hover:text-violet-950 transition shrink-0"
+                key={tab.id}
+                onClick={() => { sounds.playTap(); setBlockFilter(tab.id as BlockFilter) }}
+                className={`flex-1 py-1 rounded-lg text-center transition ${
+                  blockFilter === tab.id
+                    ? 'bg-white text-violet-700 shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
               >
-                <X className="w-3.5 h-3.5" />
+                {tab.label}
               </button>
-            </div>
-          )}
-
-          {/* Variance Analysis (When Compare Tab Selected) */}
-          {blockFilter === 'compare' && (
-            <div className="bg-white rounded-2xl p-3.5 border border-slate-200/90 shadow-2xs space-y-2.5 shrink-0">
-              <div className="flex items-start gap-2.5">
-                <TrendingUp className="w-4 h-4 text-violet-600 shrink-0 mt-0.5" />
-                <div className="text-xs text-slate-700 leading-relaxed">
-                  <strong>Time Auditing:</strong> Planned budget is <strong>{totalPlannedHoursFormatted}</strong> and actual recorded time is <strong>{totalLogHoursFormatted}</strong>.
-                  {totalLogSeconds > totalPlannedMinutes * 60 ? (
-                    <span className="text-emerald-700 font-semibold block mt-0.5">
-                      🎉 You focused +{Math.round((totalLogSeconds - totalPlannedMinutes * 60) / 60)} mins over your plan!
-                    </span>
-                  ) : (
-                    <span className="text-amber-700 font-semibold block mt-0.5">
-                      📌 {Math.max(0, Math.round((totalPlannedMinutes * 60 - totalLogSeconds) / 60))} mins remaining against plan.
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
+            ))}
+          </div>
 
           {/* Blocks List */}
           {filteredBlocks.length === 0 ? (
@@ -909,15 +834,21 @@ export const TimeBlockingSchedule: React.FC = () => {
               </div>
               <div>
                 <h3 className="text-sm font-black text-slate-900">
-                  {searchQuery ? 'No matching time blocks found' : 'No time blocks for this date'}
+                  {searchQuery ? 'Không tìm thấy mục phù hợp' : 'Chưa có kế hoạch cho ngày này'}
                 </h3>
                 <p className="text-xs text-slate-500 mt-1 max-w-[260px] mx-auto">
-                  {searchQuery ? 'Try searching with different keywords.' : 'Plan your time blocks or record actual focus time below.'}
+                  {searchQuery ? 'Thử tìm kiếm với từ khóa khác.' : 'Lên lịch các khối thời gian hoặc điểm danh thói quen hôm nay.'}
                 </p>
               </div>
+              <button
+                onClick={() => { sounds.playTap(); setPlanModalOpen(true) }}
+                className="px-4 py-2 rounded-xl bg-violet-600 text-white text-xs font-bold hover:bg-violet-700 transition active:scale-95 shadow-2xs"
+              >
+                + Thêm khối kế hoạch
+              </button>
             </div>
           ) : (
-            <div className="space-y-2.5">
+            <div className="space-y-2">
               {filteredBlocks.map(item => {
                 // 1. Deadline Task Block
                 if (item.type === 'deadline' && item.rawTask) {
@@ -926,7 +857,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                   return (
                     <div
                       key={`deadline-card-${task.id}`}
-                      className={`rounded-2xl p-3.5 border transition shadow-2xs ${
+                      className={`rounded-2xl p-3 border transition shadow-2xs ${
                         isDone
                           ? 'opacity-65 bg-slate-50 border-slate-200'
                           : 'bg-gradient-to-r from-rose-50/90 to-amber-50/50 border-rose-300 hover:border-rose-400'
@@ -940,7 +871,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                               ? 'bg-emerald-500 border-emerald-500 text-white'
                               : 'border-rose-400 hover:border-rose-600 bg-white'
                           }`}
-                          title={isDone ? 'Mark Pending' : 'Mark Completed'}
+                          title={isDone ? 'Đánh dấu chưa hoàn thành' : 'Đánh dấu hoàn thành'}
                         >
                           {isDone && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                         </button>
@@ -959,7 +890,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                               </span>
                             )}
                           </div>
-                          <h4 className={`text-xs font-bold mt-1.5 truncate ${isDone ? 'line-through text-slate-400' : 'text-slate-900'}`}>
+                          <h4 className={`text-xs font-bold mt-1 truncate ${isDone ? 'line-through text-slate-400' : 'text-slate-900'}`}>
                             {task.title}
                           </h4>
                           {task.description && (
@@ -972,7 +903,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                             <button
                               onClick={() => handleStartTaskFocus(task)}
                               className="h-7 px-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold flex items-center gap-1 shadow-2xs active:scale-95 transition"
-                              title="Focus on Deadline Task"
+                              title="Bắt đầu tập trung làm nhiệm vụ này"
                             >
                               <Play className="w-2.5 h-2.5 fill-current" />
                               <span>Focus</span>
@@ -984,14 +915,81 @@ export const TimeBlockingSchedule: React.FC = () => {
                   )
                 }
 
-                // 2. Planned Slot Block
+                // 2. Habit Routine Block
+                if (item.type === 'habit' && item.rawHabit) {
+                  const habit = item.rawHabit
+                  const isDone = !!habit.today_completed
+                  return (
+                    <div
+                      key={`habit-card-${habit.id}`}
+                      className={`bg-white rounded-2xl p-3 border transition shadow-2xs ${
+                        isDone
+                          ? 'opacity-75 bg-emerald-50/40 border-emerald-200'
+                          : 'border-fuchsia-200 hover:border-fuchsia-400'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <button
+                          onClick={() => {
+                            sounds.playTap()
+                            checkinHabit(habit.id, { logged_date: selectedDate, completed: !isDone })
+                            if (!isDone) sounds.playSuccess()
+                          }}
+                          className={`w-6 h-6 rounded-xl border flex items-center justify-center shrink-0 transition active:scale-90 ${
+                            isDone
+                              ? 'bg-emerald-500 border-emerald-500 text-white shadow-2xs'
+                              : 'border-fuchsia-300 hover:border-fuchsia-500 bg-white'
+                          }`}
+                          title={isDone ? 'Đã điểm danh' : 'Điểm danh thói quen'}
+                        >
+                          {isDone && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                        </button>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-[10px] font-mono font-bold text-fuchsia-800 bg-fuchsia-50 px-2 py-0.5 rounded-md border border-fuchsia-200">
+                              ⚡ {habit.reminder_time || 'Thói quen'}
+                            </span>
+                            {habit.target_count && (
+                              <span className="text-[9px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.2 rounded">
+                                {habit.target_count} {habit.unit}
+                              </span>
+                            )}
+                            {habit.category && (
+                              <span
+                                className="text-[9px] font-bold px-1.5 py-0.2 rounded text-white flex items-center gap-1 shadow-2xs"
+                                style={{ backgroundColor: habit.category.color }}
+                              >
+                                {habit.category.name}
+                              </span>
+                            )}
+                          </div>
+                          <h4 className={`text-xs font-bold mt-1 truncate ${isDone ? 'line-through text-slate-400' : 'text-slate-900'}`}>
+                            {habit.title}
+                          </h4>
+                          {habit.description && (
+                            <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-1 italic">{habit.description}</p>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-1 shrink-0">
+                          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-lg">
+                            🔥 {habit.current_streak || 0}d
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                }
+
+                // 3. Planned Slot Block
                 if (item.type === 'slot' && item.rawSlot) {
                   const slot = item.rawSlot
                   const isDone = !!slot.is_done
                   return (
                     <div
                       key={`slot-${slot.id}`}
-                      className={`bg-white rounded-2xl p-3.5 border transition shadow-2xs ${
+                      className={`bg-white rounded-2xl p-3 border transition shadow-2xs ${
                         isDone
                           ? 'opacity-65 bg-emerald-50/20 border-emerald-200'
                           : 'border-slate-200 hover:border-violet-300'
@@ -1006,7 +1004,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                               ? 'bg-emerald-500 border-emerald-500 text-white shadow-2xs'
                               : 'border-slate-300 hover:border-violet-500 bg-white'
                           }`}
-                          title={isDone ? '✓ Đã chuyển thành Actual' : 'Chuyển thành Actual'}
+                          title={isDone ? '✓ Đã hoàn thành' : 'Chuyển thành Actual'}
                         >
                           {isDone && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                         </button>
@@ -1032,7 +1030,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                               </span>
                             )}
                           </div>
-                          <h4 className={`text-xs font-bold mt-1.5 truncate ${isDone ? 'line-through text-slate-400' : 'text-slate-900'}`}>
+                          <h4 className={`text-xs font-bold mt-1 truncate ${isDone ? 'line-through text-slate-400' : 'text-slate-900'}`}>
                             {slot.title}
                           </h4>
                           {slot.notes && (
@@ -1046,7 +1044,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                             <button
                               onClick={() => handleStartSlotFocus(slot)}
                               className="h-7 px-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-[11px] font-bold flex items-center gap-1 shadow-2xs active:scale-95 transition"
-                              title="Start Focus Timer"
+                              title="Bắt đầu tính giờ tập trung"
                             >
                               <Play className="w-2.5 h-2.5 fill-current" />
                               <span>Focus</span>
@@ -1055,78 +1053,18 @@ export const TimeBlockingSchedule: React.FC = () => {
                           <button
                             onClick={() => handleOpenEditSlot(slot)}
                             className="p-1.5 text-slate-400 hover:text-violet-600 transition active:scale-90"
-                            title="Edit Plan Slot"
+                            title="Sửa kế hoạch"
                           >
                             <Edit3 className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => { sounds.playTap(); deleteSlot(slot.id) }}
                             className="p-1.5 text-slate-300 hover:text-rose-600 transition active:scale-90"
-                            title="Delete Slot"
+                            title="Xóa kế hoạch"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
-                      </div>
-                    </div>
-                  )
-                }
-
-                // 3. Actual Time Log
-                if (item.type === 'log' && item.rawLog) {
-                  const log = item.rawLog
-                  return (
-                    <div
-                      key={`log-${log.id}`}
-                      className="bg-white rounded-2xl p-3.5 border border-slate-200/90 flex items-center justify-between gap-3 hover:border-violet-300 transition shadow-2xs"
-                    >
-                      <div className="w-2 self-stretch rounded-full bg-violet-500 shrink-0" />
-
-                      <div
-                        onClick={() => handleOpenEditLog(log)}
-                        className="flex-1 min-w-0 cursor-pointer"
-                      >
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-[10px] font-mono font-bold text-violet-800 bg-violet-50 px-2 py-0.5 rounded-md border border-violet-200">
-                            {item.startTimeStr} - {item.endTimeStr} ({item.durationMinutes}m)
-                          </span>
-                          <span className="text-[9px] font-bold uppercase text-violet-700 bg-violet-100/70 px-1.5 py-0.2 rounded">
-                            {log.timer_type === 'pomodoro' ? '🔥 Pomodoro' : log.timer_type === 'stopwatch' ? '⏱️ Stopwatch' : '📝 Log'}
-                          </span>
-                          {log.category_name && (
-                            <span
-                              className="text-[9px] font-bold px-1.5 py-0.2 rounded text-white flex items-center gap-1 shadow-2xs"
-                              style={{ backgroundColor: log.category_color || '#8B5CF6' }}
-                            >
-                              {log.category_name}
-                            </span>
-                          )}
-                        </div>
-
-                        <h4 className="text-xs font-bold text-slate-900 mt-1.5 truncate">
-                          {item.title}
-                        </h4>
-
-                        {item.notes && (
-                          <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-1 italic">{item.notes}</p>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-1 shrink-0">
-                        <button
-                          onClick={() => handleOpenEditLog(log)}
-                          className="p-1.5 text-slate-400 hover:text-violet-600 transition active:scale-90"
-                          title="Edit Time Log"
-                        >
-                          <Edit3 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => { sounds.playTap(); deleteLog(log.id) }}
-                          className="p-1.5 text-slate-300 hover:text-rose-600 transition active:scale-90"
-                          title="Delete Time Log"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
                       </div>
                     </div>
                   )
@@ -1140,147 +1078,175 @@ export const TimeBlockingSchedule: React.FC = () => {
       )}
 
       {/* ══════════════════════════════════════════════════════════════════════ */}
-      {/* ── VIEW MODE 2: HOURLY TIMELINE WITH RULER ─────────────────────────── */}
+      {/* ── 3. TIMELINE VIEW (Clean Daily Schedule with Habit Reminders & Deadlines) ── */}
       {/* ══════════════════════════════════════════════════════════════════════ */}
       {viewMode === 'timeline' && (
-        <div className="bg-white rounded-3xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col flex-1 min-h-0 mb-18">
-          {/* Header Legend */}
-          <div className="px-4 py-2 bg-slate-50 border-b border-slate-100 flex items-center justify-between text-xs font-bold text-slate-600 shrink-0">
-            <div className="flex items-center gap-3">
-              <span className="flex items-center gap-1.5 text-sky-700">
-                <span className="w-2.5 h-2.5 rounded-full bg-sky-500" />
-                <span>Plan</span>
-              </span>
-              <span className="flex items-center gap-1.5 text-violet-700">
-                <span className="w-2.5 h-2.5 rounded-full bg-violet-500" />
-                <span>Actual</span>
-              </span>
-              {deadlineTasks.length > 0 && (
-                <span className="flex items-center gap-1.5 text-rose-700 font-bold">
-                  <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse" />
-                  <span>{deadlineTasks.length} Deadline{deadlineTasks.length > 1 ? 's' : ''}</span>
-                </span>
-              )}
+        <div className="flex-1 min-h-0 flex flex-col bg-white rounded-3xl border border-slate-200 shadow-2xs overflow-hidden">
+          {/* Timeline Header bar */}
+          <div className="px-3 py-2 bg-slate-50/90 border-b border-slate-200 flex items-center justify-between text-xs font-bold text-slate-600 shrink-0">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-sky-500" />
+              <span>Khối Kế hoạch hôm nay</span>
             </div>
-            <span className="text-[10px] text-slate-400">Click any hour to plan</span>
+            <span className="text-[11px] text-slate-400 font-medium">Nhấp vào bất kỳ khung giờ nào để lên lịch</span>
           </div>
 
-          {/* Timeline Scroll Area */}
-          <div ref={timelineScrollRef} className="flex-1 min-h-0 overflow-y-auto relative p-3 pb-16">
-            <div
-              className="relative"
-              style={{ height: `${(END_HOUR - START_HOUR + 1) * HOUR_HEIGHT}px` }}
-            >
-              {/* Hour Grid Lines */}
-              {Array.from({ length: END_HOUR - START_HOUR + 1 }).map((_, idx) => {
-                const hour = START_HOUR + idx
-                const top = idx * HOUR_HEIGHT
+          {/* Timeline Scroll Container */}
+          <div ref={timelineScrollRef} className="flex-1 min-h-0 overflow-y-auto relative">
+            <div className="relative" style={{ height: `${(END_HOUR - START_HOUR + 1) * HOUR_HEIGHT}px` }}>
+              {/* Hour Grid Lines & Labels */}
+              {Array.from({ length: END_HOUR - START_HOUR + 1 }).map((_, i) => {
+                const hour = START_HOUR + i
+                const top = i * HOUR_HEIGHT
+                const hourStr = `${String(hour).padStart(2, '0')}:00`
+
                 return (
                   <div
                     key={`hour-${hour}`}
                     onClick={() => handleTimelineHourClick(hour)}
-                    className="absolute left-0 right-0 border-t border-slate-100 hover:bg-slate-50/70 transition cursor-pointer flex items-start group"
+                    className="absolute left-0 right-0 border-t border-slate-100 flex items-start group hover:bg-violet-50/30 cursor-pointer transition"
                     style={{ top: `${top}px`, height: `${HOUR_HEIGHT}px` }}
                   >
-                    <span className="text-[11px] font-mono font-bold text-slate-400 -mt-2.5 w-12 shrink-0 group-hover:text-violet-600 transition">
-                      {String(hour).padStart(2, '0')}:00
-                    </span>
-                  </div>
-                )
-              })}
-
-              {/* Red marker for current time */}
-              {isViewingToday && currentTimeMinutes >= START_HOUR * 60 && currentTimeMinutes <= (END_HOUR + 1) * 60 && (
-                <div
-                  className="absolute left-10 right-0 border-t-2 border-rose-500 z-20 pointer-events-none flex items-center"
-                  style={{ top: `${((currentTimeMinutes - START_HOUR * 60) / 60) * HOUR_HEIGHT}px` }}
-                >
-                  <div className="w-2.5 h-2.5 rounded-full bg-rose-500 -ml-1.5" />
-                  <span className="text-[9px] font-bold font-mono text-white bg-rose-500 px-1 rounded ml-1">Now</span>
-                </div>
-              )}
-
-              {/* Render Deadline Strip Markers across the Timeline */}
-              {deadlineTasks.map(task => {
-                let dueHour = 17 // default standard 5 PM deadline if not specified
-                let dueMins = 0
-                let dueTime = '17:00'
-                if (task.due_date && task.due_date.includes('T')) {
-                  const timePart = task.due_date.split('T')[1]?.slice(0, 5)
-                  if (timePart && timePart !== '23:59') {
-                    const [h, m] = timePart.split(':').map(Number)
-                    dueHour = h
-                    dueMins = m
-                    dueTime = timePart
-                  }
-                }
-                const totalMinutes = dueHour * 60 + dueMins
-                const top = Math.max(0, ((totalMinutes - START_HOUR * 60) / 60) * HOUR_HEIGHT)
-                const isDone = task.status === 'completed'
-
-                return (
-                  <div
-                    key={`dl-marker-${task.id}`}
-                    className="absolute left-12 right-2 z-25 pointer-events-auto flex items-center transition"
-                    style={{ top: `${top}px` }}
-                  >
-                    <div className={`w-full flex items-center justify-between gap-2 px-2.5 py-1 rounded-xl border shadow-xs ${
-                      isDone
-                        ? 'bg-slate-50/90 border-slate-300 opacity-60'
-                        : 'bg-rose-50/95 border-rose-400 text-rose-950 ring-1 ring-rose-400/30'
-                    }`}>
-                      <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                        <span className="text-[10px] font-black text-rose-700 uppercase tracking-wider shrink-0 flex items-center gap-0.5">
-                          🚩 Due {dueTime}:
-                        </span>
-                        <span className={`text-xs font-bold truncate ${isDone ? 'line-through text-slate-400' : 'text-slate-900'}`}>
-                          {task.title}
-                        </span>
-                        {task.category && (
-                          <span
-                            className="text-[9px] font-bold px-1.5 py-0.2 rounded text-white shrink-0 hidden sm:inline"
-                            style={{ backgroundColor: task.category.color }}
-                          >
-                            {task.category.name}
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-1 shrink-0">
-                        {!isDone && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleStartTaskFocus(task)
-                            }}
-                            className="px-2 py-0.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-bold flex items-center gap-0.5 shadow-2xs active:scale-95 transition"
-                            title="Focus on Deadline"
-                          >
-                            <Play className="w-2.5 h-2.5 fill-current" />
-                            <span>Focus</span>
-                          </button>
-                        )}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            sounds.playTap()
-                            toggleTaskStatus(task.id)
-                            if (!isDone) sounds.playSuccess()
-                          }}
-                          className={`w-5 h-5 rounded-lg border flex items-center justify-center shrink-0 transition active:scale-90 ${
-                            isDone ? 'bg-emerald-500 border-emerald-600 text-white' : 'bg-white border-rose-300 hover:border-rose-500'
-                          }`}
-                          title={isDone ? 'Mark task pending' : 'Mark task completed'}
-                        >
-                          {isDone && <Check className="w-3 h-3 stroke-[3]" />}
-                        </button>
-                      </div>
+                    <div className="w-12 text-right pr-2 pt-0.5 text-[10px] font-mono font-bold text-slate-400 group-hover:text-violet-600 transition select-none">
+                      {hourStr}
                     </div>
                   </div>
                 )
               })}
 
-              {/* Render Planned Slots as Sky Blue Blocks with Drag & Drop + Resize */}
+              {/* Live Current Time Indicator */}
+              {isViewingToday && currentTimeMinutes >= START_HOUR * 60 && currentTimeMinutes <= END_HOUR * 60 + 59 && (
+                <div
+                  className="absolute left-0 right-0 z-25 pointer-events-none flex items-center"
+                  style={{ top: `${((currentTimeMinutes - START_HOUR * 60) / 60) * HOUR_HEIGHT}px` }}
+                >
+                  <div className="w-12 text-right pr-1">
+                    <span className="text-[9px] font-mono font-black text-rose-600 bg-rose-50 px-1 py-0.5 rounded border border-rose-200">
+                      {minutesToTimeStr(currentTimeMinutes)}
+                    </span>
+                  </div>
+                  <div className="w-2 h-2 rounded-full bg-rose-500 shadow-xs ring-2 ring-white shrink-0" />
+                  <div className="flex-1 border-t-2 border-rose-500 border-dashed" />
+                </div>
+              )}
+
+              {/* ── Render Habit Reminders directly on the Timeline ── */}
+              {habitReminders.map(habit => {
+                const reminderMins = timeToMinutes(habit.reminder_time || '08:00')
+                const top = Math.max(0, ((reminderMins - START_HOUR * 60) / 60) * HOUR_HEIGHT)
+                const isDone = !!habit.today_completed
+
+                return (
+                  <div
+                    key={`habit-rem-${habit.id}`}
+                    className={`absolute left-14 right-2 sm:right-3 rounded-xl px-2.5 py-1.5 border flex items-center justify-between gap-2 shadow-2xs transition z-20 backdrop-blur-xs ${
+                      isDone
+                        ? 'bg-emerald-50/95 border-emerald-300 text-emerald-950 opacity-80'
+                        : 'bg-fuchsia-50/95 border-fuchsia-300 text-fuchsia-950 hover:border-fuchsia-500'
+                    }`}
+                    style={{ top: `${top}px`, height: '36px' }}
+                  >
+                    <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                      <span className="text-[9px] font-mono font-black px-1.5 py-0.5 rounded bg-white border border-fuchsia-200 shrink-0 text-fuchsia-700">
+                        ⚡ {habit.reminder_time}
+                      </span>
+                      <span className={`text-xs font-bold truncate ${isDone ? 'line-through text-slate-400' : 'text-slate-900'}`}>
+                        {habit.title}
+                      </span>
+                      {habit.target_count && (
+                        <span className="text-[10px] text-slate-500 font-medium hidden sm:inline">
+                          ({habit.target_count} {habit.unit})
+                        </span>
+                      )}
+                    </div>
+
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        sounds.playTap()
+                        checkinHabit(habit.id, { logged_date: selectedDate, completed: !isDone })
+                        if (!isDone) sounds.playSuccess()
+                      }}
+                      className={`h-6 px-2 rounded-lg border text-[10px] font-bold flex items-center gap-1 shrink-0 transition active:scale-90 ${
+                        isDone
+                          ? 'bg-emerald-500 border-emerald-600 text-white shadow-2xs'
+                          : 'bg-white border-fuchsia-300 text-fuchsia-700 hover:bg-fuchsia-100'
+                      }`}
+                      title={isDone ? 'Đã điểm danh thói quen' : 'Điểm danh thói quen'}
+                    >
+                      {isDone ? <Check className="w-3 h-3 stroke-[3]" /> : 'Điểm danh'}
+                    </button>
+                  </div>
+                )
+              })}
+
+              {/* ── Render Deadline Tasks on the Timeline ── */}
+              {deadlineTasks.map(task => {
+                let dueTime = '23:59'
+                if (task.due_date && task.due_date.includes(' ')) {
+                  const timePart = task.due_date.split(' ')[1]?.slice(0, 5)
+                  if (timePart) dueTime = timePart
+                } else if (task.due_date && task.due_date.includes('T')) {
+                  const timePart = task.due_date.split('T')[1]?.slice(0, 5)
+                  if (timePart) dueTime = timePart
+                }
+                const dueMins = timeToMinutes(dueTime)
+                const top = Math.max(0, ((dueMins - START_HOUR * 60) / 60) * HOUR_HEIGHT)
+                const isDone = task.status === 'completed'
+
+                return (
+                  <div
+                    key={`deadline-line-${task.id}`}
+                    className={`absolute left-14 right-2 sm:right-3 rounded-xl px-2.5 py-1.5 border flex items-center justify-between gap-2 shadow-2xs transition z-20 ${
+                      isDone
+                        ? 'bg-slate-50/90 border-slate-300 opacity-60'
+                        : 'bg-rose-50/95 border-rose-300 text-rose-950 hover:border-rose-500'
+                    }`}
+                    style={{ top: `${top}px`, height: '36px' }}
+                  >
+                    <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                      <span className="text-[9px] font-mono font-black px-1.5 py-0.5 rounded bg-white border border-rose-200 text-rose-700 shrink-0">
+                        🚩 {dueTime !== '23:59' ? dueTime : 'EOD'}
+                      </span>
+                      <span className={`text-xs font-bold truncate ${isDone ? 'line-through text-slate-400' : 'text-slate-900'}`}>
+                        {task.title}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-1 shrink-0">
+                      {!isDone && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleStartTaskFocus(task)
+                          }}
+                          className="h-6 px-2 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-bold flex items-center gap-1 shadow-2xs active:scale-90 transition"
+                          title="Bắt đầu làm nhiệm vụ này"
+                        >
+                          <Play className="w-2 h-2 fill-current" />
+                          <span>Focus</span>
+                        </button>
+                      )}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          sounds.playTap()
+                          toggleTaskStatus(task.id)
+                          if (!isDone) sounds.playSuccess()
+                        }}
+                        className={`w-6 h-6 rounded-lg border flex items-center justify-center shrink-0 transition active:scale-90 ${
+                          isDone ? 'bg-emerald-500 border-emerald-600 text-white' : 'bg-white border-rose-300 hover:border-rose-500'
+                        }`}
+                        title={isDone ? 'Đánh dấu chưa hoàn thành' : 'Đánh dấu hoàn thành'}
+                      >
+                        {isDone && <Check className="w-3 h-3 stroke-[3]" />}
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
+
+              {/* ── Render Planned Slots (Full-Width Canvas with Drag & Resize) ── */}
               {slots.map(slot => {
                 const isBeingDragged = draggingSlot?.slotId === slot.id
 
@@ -1296,7 +1262,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                 const activeDur = Math.max(15, activeEnd - activeStart)
 
                 const top = Math.max(0, ((activeStart - START_HOUR * 60) / 60) * HOUR_HEIGHT)
-                const height = Math.max(34, (activeDur / 60) * HOUR_HEIGHT)
+                const height = Math.max(36, (activeDur / 60) * HOUR_HEIGHT)
 
                 const displayStartTime = isBeingDragged ? minutesToTimeStr(activeStart) : slot.start_time
                 const displayEndTime = isBeingDragged
@@ -1309,7 +1275,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                   <div
                     key={`slot-${slot.id}`}
                     onPointerDown={(e) => handleStartMove(e, slot)}
-                    className={`absolute left-14 right-2 sm:right-1/2 rounded-2xl p-2 border transition select-none touch-none cursor-grab active:cursor-grabbing flex flex-col justify-between overflow-hidden ${
+                    className={`absolute left-14 right-2 sm:right-3 rounded-2xl p-2.5 border transition select-none touch-none cursor-grab active:cursor-grabbing flex flex-col justify-between overflow-hidden ${
                       isBeingDragged
                         ? 'ring-2 ring-violet-500 shadow-2xl z-30 scale-[1.01] bg-sky-100/95 border-sky-400 text-sky-950'
                         : slot.is_done
@@ -1320,7 +1286,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                   >
                     {/* Dynamic Content layout depending on height */}
                     {isCompact ? (
-                      <div className="flex items-center justify-between gap-1.5 w-full h-full min-w-0 pr-0.5">
+                      <div className="flex items-center justify-between gap-2 w-full h-full min-w-0 pr-0.5">
                         <div
                           onClick={(e) => {
                             if (!isBeingDragged) {
@@ -1328,7 +1294,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                               handleOpenEditSlot(slot)
                             }
                           }}
-                          className="flex items-center gap-1.5 min-w-0 flex-1 cursor-pointer"
+                          className="flex items-center gap-2 min-w-0 flex-1 cursor-pointer"
                         >
                           <span className="text-[9px] font-mono font-black px-1.5 py-0.5 rounded bg-white/90 border border-sky-200 shrink-0 shadow-2xs">
                             {displayStartTime} - {displayEndTime}
@@ -1337,6 +1303,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                             {slot.title}
                           </span>
                         </div>
+
                         <div className="flex items-center gap-1 shrink-0">
                           {!slot.is_done && (
                             <button
@@ -1344,8 +1311,8 @@ export const TimeBlockingSchedule: React.FC = () => {
                                 e.stopPropagation()
                                 handleStartSlotFocus(slot)
                               }}
-                              className="w-5 h-5 rounded-lg bg-violet-600 hover:bg-violet-700 text-white flex items-center justify-center shrink-0 shadow-2xs active:scale-90 transition"
-                              title="Start Focus Timer"
+                              className="w-6 h-6 rounded-lg bg-violet-600 hover:bg-violet-700 text-white flex items-center justify-center shrink-0 shadow-2xs active:scale-90 transition"
+                              title="Bắt đầu bấm giờ"
                             >
                               <Play className="w-2.5 h-2.5 fill-current ml-0.5" />
                             </button>
@@ -1355,22 +1322,22 @@ export const TimeBlockingSchedule: React.FC = () => {
                               e.stopPropagation()
                               handleOpenEditSlot(slot)
                             }}
-                            className="w-5 h-5 rounded-lg bg-white/80 border border-sky-200 hover:bg-white text-slate-500 flex items-center justify-center shrink-0 shadow-2xs active:scale-90 transition"
-                            title="Edit Plan Slot"
+                            className="w-6 h-6 rounded-lg bg-white/80 border border-sky-200 hover:bg-white text-slate-600 flex items-center justify-center shrink-0 shadow-2xs active:scale-90 transition"
+                            title="Sửa kế hoạch"
                           >
-                            <Edit3 className="w-2.5 h-2.5" />
+                            <Edit3 className="w-3 h-3" />
                           </button>
                           <button
                             onClick={(e) => {
                               e.stopPropagation()
                               handleConvertSlotToActual(slot)
                             }}
-                            className={`w-5 h-5 rounded-lg border flex items-center justify-center shrink-0 transition active:scale-90 ${
+                            className={`w-6 h-6 rounded-lg border flex items-center justify-center shrink-0 transition active:scale-90 ${
                               slot.is_done ? 'bg-emerald-500 border-emerald-600 text-white' : 'bg-white border-sky-300 hover:border-sky-500'
                             }`}
-                            title={slot.is_done ? '✓ Đã chuyển thành Actual' : 'Chuyển thành Actual'}
+                            title={slot.is_done ? '✓ Đã hoàn thành' : 'Chuyển thành Actual'}
                           >
-                            {slot.is_done && <Check className="w-3 h-3 stroke-[3]" />}
+                            {slot.is_done && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                           </button>
                         </div>
                       </div>
@@ -1427,7 +1394,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                                   handleStartSlotFocus(slot)
                                 }}
                                 className="w-6 h-6 rounded-lg bg-violet-600 hover:bg-violet-700 text-white flex items-center justify-center shrink-0 shadow-2xs active:scale-90 transition"
-                                title="Start Focus Timer"
+                                title="Bắt đầu bấm giờ"
                               >
                                 <Play className="w-2.5 h-2.5 fill-current ml-0.5" />
                               </button>
@@ -1438,7 +1405,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                                 handleOpenEditSlot(slot)
                               }}
                               className="w-6 h-6 rounded-lg bg-white/90 border border-sky-200 hover:bg-white text-slate-600 flex items-center justify-center shrink-0 shadow-2xs active:scale-90 transition"
-                              title="Edit Plan Slot"
+                              title="Sửa kế hoạch"
                             >
                               <Edit3 className="w-3 h-3" />
                             </button>
@@ -1450,7 +1417,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                               className={`w-6 h-6 rounded-lg border flex items-center justify-center shrink-0 transition active:scale-90 ${
                                 slot.is_done ? 'bg-emerald-500 border-emerald-600 text-white' : 'bg-white border-sky-300 hover:border-sky-500'
                               }`}
-                              title={slot.is_done ? '✓ Đã chuyển thành Actual' : 'Chuyển thành Actual'}
+                              title={slot.is_done ? '✓ Đã hoàn thành' : 'Chuyển thành Actual'}
                             >
                               {slot.is_done && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                             </button>
@@ -1463,60 +1430,10 @@ export const TimeBlockingSchedule: React.FC = () => {
                     <div
                       onPointerDown={(e) => handleStartResize(e, slot)}
                       className="absolute bottom-0 left-0 right-0 h-3 cursor-ns-resize flex items-center justify-center hover:bg-sky-400/20 group/resize transition rounded-b-2xl z-20"
-                      title="Drag bottom handle to change duration"
+                      title="Kéo cạnh dưới để thay đổi thời lượng"
                     >
                       <div className="w-8 h-1 rounded-full bg-sky-300 group-hover/resize:bg-sky-600 transition" />
                     </div>
-                  </div>
-                )
-              })}
-
-              {/* Render Actual Focus Time Logs as Side-by-Side Purple Blocks */}
-              {logs.map(log => {
-                const startTimeStr = formatLocalTime(log.start_time)
-                const endTimeStr = formatLocalTime(log.end_time)
-                const startMins = timeToMinutes(startTimeStr)
-                const durMins = Math.max(15, Math.round(log.duration_seconds / 60))
-
-                const top = Math.max(0, ((startMins - START_HOUR * 60) / 60) * HOUR_HEIGHT)
-                const height = Math.max(34, (durMins / 60) * HOUR_HEIGHT)
-
-                return (
-                  <div
-                    key={`log-${log.id}`}
-                    onClick={() => handleOpenEditLog(log)}
-                    className="absolute left-1/2 right-2 rounded-2xl p-2 bg-violet-50/95 border border-violet-300 text-violet-950 shadow-xs z-10 hidden sm:flex items-start justify-between gap-1.5 overflow-hidden cursor-pointer hover:border-violet-500 hover:shadow-md transition"
-                    style={{ top: `${top}px`, height: `${height}px` }}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1">
-                        <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-white border border-violet-200">
-                          ⏱️ {startTimeStr} ({durMins}m)
-                        </span>
-                        {log.category_name && (
-                          <span
-                            className="text-[9px] font-bold px-1.5 py-0.2 rounded text-white truncate"
-                            style={{ backgroundColor: log.category_color || '#8B5CF6' }}
-                          >
-                            {log.category_name}
-                          </span>
-                        )}
-                      </div>
-                      <h4 className="text-xs font-bold mt-1 truncate text-slate-900">
-                        {log.task_title || log.habit_title || log.notes || 'Focus Session'}
-                      </h4>
-                    </div>
-
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleOpenEditLog(log)
-                      }}
-                      className="w-5 h-5 rounded-md bg-white border border-violet-200 text-violet-700 flex items-center justify-center shrink-0 shadow-2xs hover:bg-violet-100 transition active:scale-90"
-                      title="Edit Time Log"
-                    >
-                      <Edit3 className="w-2.5 h-2.5" />
-                    </button>
                   </div>
                 )
               })}
@@ -1524,37 +1441,6 @@ export const TimeBlockingSchedule: React.FC = () => {
           </div>
         </div>
       )}
-
-      {/* ── Fixed Bottom Action Bar for Calendar (Plan vs Actual) ── */}
-      <div className="fixed bottom-[calc(60px+var(--safe-bottom))] left-3 right-3 md:left-64 md:right-8 z-20 pointer-events-none">
-        <div className="max-w-md mx-auto pointer-events-auto bg-white/95 backdrop-blur-md p-2 rounded-2xl border border-slate-200 shadow-xl shadow-slate-300/40 flex items-center gap-2">
-          <button
-            onClick={() => {
-              sounds.playTap()
-              setSlotCategoryId(null)
-              setSlotTitle('')
-              setSlotNotes('')
-              setPlanModalOpen(true)
-            }}
-            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-black shadow-md shadow-violet-600/20 active:scale-95 transition"
-          >
-            <CalendarIcon className="w-4 h-4" />
-            <span>+ Plan Slot</span>
-          </button>
-          <button
-            onClick={() => {
-              sounds.playTap()
-              setLogCategoryId(null)
-              setLogNotes('')
-              setLogModalOpen(true)
-            }}
-            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-black shadow-md shadow-slate-900/20 active:scale-95 transition"
-          >
-            <Clock className="w-4 h-4" />
-            <span>+ Log Actual</span>
-          </button>
-        </div>
-      </div>
 
       {/* ── Modal 1: Add Plan Slot ────── */}
       {planModalOpen && (
@@ -1564,8 +1450,8 @@ export const TimeBlockingSchedule: React.FC = () => {
             <div className="sheet-handle" />
             <div className="flex items-center justify-between mb-3">
               <div>
-                <h2 className="text-sm font-black text-slate-900">Plan Time Block</h2>
-                <p className="text-[11px] text-slate-500 font-medium">Schedule planned focus hours for today</p>
+                <h2 className="text-sm font-black text-slate-900">Lên lịch Kế hoạch</h2>
+                <p className="text-[11px] text-slate-500 font-medium">Khung giờ tập trung cho ngày hôm nay</p>
               </div>
               <button onClick={() => setPlanModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-700">
                 <X className="w-5 h-5" />
@@ -1574,13 +1460,13 @@ export const TimeBlockingSchedule: React.FC = () => {
             <form onSubmit={handleCreatePlan} className="space-y-3">
               <div>
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  Activity Title *
+                  Nội dung kế hoạch *
                 </label>
                 <input
                   type="text"
                   value={slotTitle}
                   onChange={e => setSlotTitle(e.target.value)}
-                  placeholder="e.g. Feature Coding, English Study, Team Sync..."
+                  placeholder="Ví dụ: Deep Work Coding, Học tiếng Anh, Họp tuần..."
                   autoFocus
                   required
                   className="w-full px-3.5 py-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
@@ -1590,14 +1476,14 @@ export const TimeBlockingSchedule: React.FC = () => {
               {/* Category Hierarchy Picker */}
               <div>
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  Category
+                  Danh mục
                 </label>
                 <select
                   value={slotCategoryId || ''}
                   onChange={e => setSlotCategoryId(e.target.value ? Number(e.target.value) : null)}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 outline-none focus:border-violet-500 focus:bg-white transition"
                 >
-                  <option value="">-- Select Category --</option>
+                  <option value="">-- Chọn danh mục --</option>
                   {categories.map(c => (
                     <React.Fragment key={c.id}>
                       <option value={c.id}>
@@ -1616,7 +1502,7 @@ export const TimeBlockingSchedule: React.FC = () => {
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    Start Time
+                    Bắt đầu
                   </label>
                   <input
                     type="time"
@@ -1628,7 +1514,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    End Time
+                    Kết thúc
                   </label>
                   <input
                     type="time"
@@ -1642,13 +1528,13 @@ export const TimeBlockingSchedule: React.FC = () => {
 
               <div>
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  Notes (Optional)
+                  Ghi chú (Tùy chọn)
                 </label>
                 <input
                   type="text"
                   value={slotNotes}
                   onChange={e => setSlotNotes(e.target.value)}
-                  placeholder="Additional details or deliverables..."
+                  placeholder="Mục tiêu cụ thể hoặc tài liệu tham khảo..."
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
                 />
               </div>
@@ -1657,109 +1543,14 @@ export const TimeBlockingSchedule: React.FC = () => {
                 type="submit"
                 className="w-full py-3.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold active:scale-[0.98] transition shadow-md shadow-violet-600/20 mt-2"
               >
-                Save Plan Slot
+                Lưu Khối Kế Hoạch
               </button>
             </form>
           </div>
         </>
       )}
 
-      {/* ── Modal 2: Add Manual Time Log ── */}
-      {logModalOpen && (
-        <>
-          <div className="sheet-backdrop" onClick={() => setLogModalOpen(false)} />
-          <div className="sheet-content max-w-lg mx-auto">
-            <div className="sheet-handle" />
-            <div className="flex items-center justify-between mb-3">
-              <div>
-                <h2 className="text-sm font-black text-slate-900">Record Actual Time Log</h2>
-                <p className="text-[11px] text-slate-500 font-medium">Log actual time spent on work</p>
-              </div>
-              <button onClick={() => setLogModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-700">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <form onSubmit={handleCreateManualLog} className="space-y-3">
-              <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  What did you work on? *
-                </label>
-                <input
-                  type="text"
-                  value={logNotes}
-                  onChange={e => setLogNotes(e.target.value)}
-                  placeholder="e.g. Read 30 mins, Bug fixing, Client meeting..."
-                  autoFocus
-                  required
-                  className="w-full px-3.5 py-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
-                />
-              </div>
-
-              {/* Category Hierarchy Picker */}
-              <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  Category
-                </label>
-                <select
-                  value={logCategoryId || ''}
-                  onChange={e => setLogCategoryId(e.target.value ? Number(e.target.value) : null)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 outline-none focus:border-violet-500 focus:bg-white transition"
-                >
-                  <option value="">-- Select Category --</option>
-                  {categories.map(c => (
-                    <React.Fragment key={c.id}>
-                      <option value={c.id}>
-                        📁 {c.name} ({c.category_type === 'wasted' ? '🔴 Wasted' : c.category_type === 'neutral' ? '🔵 Neutral' : '🟢 Productive'})
-                      </option>
-                      {c.subcategories && c.subcategories.map(sub => (
-                        <option key={sub.id} value={sub.id}>
-                          &nbsp;&nbsp;&nbsp;&nbsp;↳ {sub.name}
-                        </option>
-                      ))}
-                    </React.Fragment>
-                  ))}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    Start Time
-                  </label>
-                  <input
-                    type="time"
-                    value={logStart}
-                    onChange={e => setLogStart(e.target.value)}
-                    required
-                    className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    End Time
-                  </label>
-                  <input
-                    type="time"
-                    value={logEnd}
-                    onChange={e => setLogEnd(e.target.value)}
-                    required
-                    className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
-                  />
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                className="w-full py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold active:scale-[0.98] transition shadow-md shadow-slate-900/20 mt-2"
-              >
-                Save Time Log
-              </button>
-            </form>
-          </div>
-        </>
-      )}
-
-      {/* ── Modal 3: Edit Plan Slot ────── */}
+      {/* ── Modal 2: Edit Plan Slot ────── */}
       {editPlanModalOpen && editingSlot && (
         <>
           <div className="sheet-backdrop" onClick={() => setEditPlanModalOpen(false)} />
@@ -1767,8 +1558,8 @@ export const TimeBlockingSchedule: React.FC = () => {
             <div className="sheet-handle" />
             <div className="flex items-center justify-between mb-3">
               <div>
-                <h2 className="text-sm font-black text-slate-900">Edit Plan Slot</h2>
-                <p className="text-[11px] text-slate-500 font-medium">Update or convert scheduled time block</p>
+                <h2 className="text-sm font-black text-slate-900">Chỉnh sửa Kế hoạch</h2>
+                <p className="text-[11px] text-slate-500 font-medium">Cập nhật hoặc chuyển đổi thành Actual Log</p>
               </div>
               <button onClick={() => setEditPlanModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-700">
                 <X className="w-5 h-5" />
@@ -1777,13 +1568,13 @@ export const TimeBlockingSchedule: React.FC = () => {
             <form onSubmit={handleSaveEditSlot} className="space-y-3">
               <div>
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  Activity Title *
+                  Nội dung kế hoạch *
                 </label>
                 <input
                   type="text"
                   value={editSlotTitle}
                   onChange={e => setEditSlotTitle(e.target.value)}
-                  placeholder="e.g. Feature Coding, English Study..."
+                  placeholder="Ví dụ: Deep Work Coding, Học tiếng Anh..."
                   autoFocus
                   required
                   className="w-full px-3.5 py-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
@@ -1793,14 +1584,14 @@ export const TimeBlockingSchedule: React.FC = () => {
               {/* Category Hierarchy Picker */}
               <div>
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  Category
+                  Danh mục
                 </label>
                 <select
                   value={editSlotCategoryId || ''}
                   onChange={e => setEditSlotCategoryId(e.target.value ? Number(e.target.value) : null)}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 outline-none focus:border-violet-500 focus:bg-white transition"
                 >
-                  <option value="">-- Select Category --</option>
+                  <option value="">-- Chọn danh mục --</option>
                   {categories.map(c => (
                     <React.Fragment key={c.id}>
                       <option value={c.id}>
@@ -1819,7 +1610,7 @@ export const TimeBlockingSchedule: React.FC = () => {
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    Start Time
+                    Bắt đầu
                   </label>
                   <input
                     type="time"
@@ -1831,7 +1622,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    End Time
+                    Kết thúc
                   </label>
                   <input
                     type="time"
@@ -1845,13 +1636,13 @@ export const TimeBlockingSchedule: React.FC = () => {
 
               <div>
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  Notes (Optional)
+                  Ghi chú (Tùy chọn)
                 </label>
                 <input
                   type="text"
                   value={editSlotNotes}
                   onChange={e => setEditSlotNotes(e.target.value)}
-                  placeholder="Additional details..."
+                  placeholder="Ghi chú chi tiết..."
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
                 />
               </div>
@@ -1868,7 +1659,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                     className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black flex items-center justify-center gap-2 active:scale-98 transition shadow-xs"
                   >
                     <CheckCircle2 className="w-4 h-4" />
-                    <span>✓ Convert to Actual Time Log</span>
+                    <span>✓ Chuyển thành Actual Time Log</span>
                   </button>
                 )}
 
@@ -1883,151 +1674,15 @@ export const TimeBlockingSchedule: React.FC = () => {
                     className="px-4 py-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 text-xs font-bold active:scale-95 transition flex items-center justify-center gap-1.5"
                   >
                     <Trash2 className="w-4 h-4" />
-                    <span>Delete</span>
+                    <span>Xóa</span>
                   </button>
                   <button
                     type="submit"
                     className="flex-1 py-3 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-black active:scale-[0.98] transition shadow-md shadow-violet-600/20"
                   >
-                    Save Changes
+                    Lưu Thay Đổi
                   </button>
                 </div>
-              </div>
-            </form>
-          </div>
-        </>
-      )}
-
-      {/* ── Modal 4: Edit Actual Time Log ── */}
-      {editLogModalOpen && editingLog && (
-        <>
-          <div className="sheet-backdrop" onClick={() => setEditLogModalOpen(false)} />
-          <div className="sheet-content max-w-lg mx-auto">
-            <div className="sheet-handle" />
-            <div className="flex items-center justify-between mb-3">
-              <div>
-                <h2 className="text-sm font-black text-slate-900">Edit Actual Time Log</h2>
-                <p className="text-[11px] text-slate-500 font-medium">Modify recorded focus session</p>
-              </div>
-              <button onClick={() => setEditLogModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-700">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <form onSubmit={handleSaveEditLog} className="space-y-3">
-              <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  What did you work on? *
-                </label>
-                <input
-                  type="text"
-                  value={editLogNotes}
-                  onChange={e => setEditLogNotes(e.target.value)}
-                  placeholder="e.g. Coding, Reading, Meeting..."
-                  autoFocus
-                  required
-                  className="w-full px-3.5 py-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
-                />
-              </div>
-
-              {/* Category Hierarchy Picker */}
-              <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  Category
-                </label>
-                <select
-                  value={editLogCategoryId || ''}
-                  onChange={e => setEditLogCategoryId(e.target.value ? Number(e.target.value) : null)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 outline-none focus:border-violet-500 focus:bg-white transition"
-                >
-                  <option value="">-- Select Category --</option>
-                  {categories.map(c => (
-                    <React.Fragment key={c.id}>
-                      <option value={c.id}>
-                        📁 {c.name} ({c.category_type === 'wasted' ? '🔴 Wasted' : c.category_type === 'neutral' ? '🔵 Neutral' : '🟢 Productive'})
-                      </option>
-                      {c.subcategories && c.subcategories.map(sub => (
-                        <option key={sub.id} value={sub.id}>
-                          &nbsp;&nbsp;&nbsp;&nbsp;↳ {sub.name}
-                        </option>
-                      ))}
-                    </React.Fragment>
-                  ))}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    Start Time
-                  </label>
-                  <input
-                    type="time"
-                    value={editLogStart}
-                    onChange={e => setEditLogStart(e.target.value)}
-                    required
-                    className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    End Time
-                  </label>
-                  <input
-                    type="time"
-                    value={editLogEnd}
-                    onChange={e => setEditLogEnd(e.target.value)}
-                    required
-                    className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
-                  />
-                </div>
-              </div>
-
-              {/* Timer Type selector */}
-              <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  Type
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { id: 'pomodoro', label: '🔥 Pomodoro' },
-                    { id: 'stopwatch', label: '⏱️ Stopwatch' },
-                    { id: 'manual', label: '📝 Manual' },
-                  ].map(t => (
-                    <button
-                      key={t.id}
-                      type="button"
-                      onClick={() => setEditLogType(t.id)}
-                      className={`py-2 rounded-xl text-xs font-bold border transition ${
-                        editLogType === t.id
-                          ? 'bg-violet-600 border-violet-600 text-white shadow-2xs'
-                          : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-                      }`}
-                    >
-                      {t.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    sounds.playTap()
-                    deleteLog(editingLog.id)
-                    setEditLogModalOpen(false)
-                  }}
-                  className="px-4 py-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 text-xs font-bold active:scale-95 transition flex items-center justify-center gap-1.5"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  <span>Delete</span>
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-black active:scale-[0.98] transition shadow-md shadow-slate-900/20"
-                >
-                  Save Changes
-                </button>
               </div>
             </form>
           </div>

@@ -36,9 +36,11 @@ class HabitLog(Base):
     habit_id = Column(Integer, ForeignKey("habits.id", ondelete="CASCADE"), index=True, nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
     logged_date = Column(Date, nullable=False) # YYYY-MM-DD
+    completed_time = Column(String(10), nullable=True) # e.g. "08:30" or "21:15"
     count = Column(Integer, default=1)
     completed = Column(Boolean, default=True)
     notes = Column(Text, nullable=True)
+    mood = Column(String(50), nullable=True) # e.g. "energized", "happy", "focused", "tired", "mindful"
 
     created_at = Column(DateTime, default=datetime.utcnow)
 

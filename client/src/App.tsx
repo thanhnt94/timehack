@@ -9,6 +9,7 @@ import { UserSettingsModal } from './components/UserSettingsModal'
 import { TodayPlanner } from './pages/TodayPlanner'
 import { TasksBoard } from './pages/TasksBoard'
 import { HabitMatrix } from './pages/HabitMatrix'
+import { HabitDetailPage } from './pages/HabitDetailPage'
 import { TimeBlockingSchedule } from './pages/TimeBlockingSchedule'
 import { PomodoroFocus } from './pages/PomodoroFocus'
 import { ProductivityAnalytics } from './pages/ProductivityAnalytics'
@@ -114,7 +115,8 @@ const AppShell: React.FC = () => {
           <Routes>
             <Route path="/" element={<div className="flex-1 overflow-y-auto px-4 py-4 md:px-8 md:py-6"><div className="max-w-lg md:max-w-5xl mx-auto"><TodayPlanner onOpenFocus={() => setFocusOpen(true)} /></div></div>} />
             <Route path="/tasks" element={<TasksBoard />} />
-            <Route path="/habits" element={<div className="flex-1 overflow-y-auto px-4 py-4 md:px-8 md:py-6"><div className="max-w-lg md:max-w-5xl mx-auto"><HabitMatrix /></div></div>} />
+            <Route path="/habits" element={<HabitMatrix />} />
+            <Route path="/habits/:id" element={<HabitDetailPage />} />
             <Route path="/calendar" element={<div className="flex-1 overflow-y-auto px-4 py-4 md:px-8 md:py-6"><div className="max-w-lg md:max-w-5xl mx-auto"><TimeBlockingSchedule /></div></div>} />
             <Route path="/schedule" element={<div className="flex-1 overflow-y-auto px-4 py-4 md:px-8 md:py-6"><div className="max-w-lg md:max-w-5xl mx-auto"><TimeBlockingSchedule /></div></div>} />
             <Route path="/analytics" element={<div className="flex-1 overflow-y-auto px-4 py-4 md:px-8 md:py-6"><div className="max-w-lg md:max-w-5xl mx-auto"><ProductivityAnalytics /></div></div>} />

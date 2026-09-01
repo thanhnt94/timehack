@@ -7,17 +7,33 @@ export interface Habit {
   description?: string
   category_id?: number
   category?: { id: number; name: string; color: string; icon?: string }
-  frequency_type: 'daily' | 'weekly_days' | 'interval'
+  frequency_type: 'daily' | 'weekly_days' | 'weekly_target' | 'monthly_target'
   weekly_days?: number[]
   target_count: number
   unit: string
   reminder_time?: string
   icon: string
   color: string
+  archived: boolean
   current_streak: number
   longest_streak: number
+  total_completions: number
   today_completed: boolean
   today_count: number
+  today_notes?: string
+  today_mood?: string
+  mini_history?: { date: string; completed: boolean }[]
+  created_at: string
+}
+
+export interface HabitLogEntry {
+  id: number
+  logged_date: string
+  completed_time?: string
+  count: number
+  completed: boolean
+  notes?: string
+  mood?: string
   created_at: string
 }
 
@@ -25,29 +41,46 @@ export interface HeatmapItem {
   date: string
   completed: boolean
   count: number
+  mood?: string
+  notes?: string
+  completed_time?: string
+}
+
+export interface HabitDetail extends Habit {
+  days_active: number
+  completion_rate: number
+  heatmap: HeatmapItem[]
+  logs: HabitLogEntry[]
 }
 
 interface HabitState {
   habits: Habit[]
+  activeDetail: HabitDetail | null
   isLoading: boolean
+  isDetailLoading: boolean
   heatmapData: Record<number, HeatmapItem[]>
 
-  fetchHabits: () => Promise<void>
-  createHabit: (data: Partial<Habit>) => Promise<void>
-  checkinHabit: (habitId: number, logged_date?: string, completed?: boolean) => Promise<void>
-  fetchHeatmap: (habitId: number, days?: number) => Promise<void>
-  deleteHabit: (habitId: number) => Promise<void>
+  fetchHabits: (includeArchived?: boolean) => Promise<void>
+  fetchHabitDetail: (habitId: number) => Promise<HabitDetail | null>
+  createHabit: (data: Partial<Habit>) => Promise<number | undefined>
+  updateHabit: (habitId: number, data: Partial<Habit>) => Promise<void>
+  toggleFreezeHabit: (habitId: number) => Promise<void>
+  checkinHabit: (habitId: number, payload?: { logged_date?: string; completed?: boolean; notes?: string; mood?: string; completed_time?: string }) => Promise<void>
+  upsertHabitLog: (habitId: number, logData: { logged_date: string; completed_time?: string; count?: number; completed?: boolean; notes?: string; mood?: string }) => Promise<void>
+  deleteHabit: (habitId: number, permanent?: boolean) => Promise<void>
 }
 
 export const useHabitStore = create<HabitState>((set, get) => ({
   habits: [],
+  activeDetail: null,
   isLoading: false,
+  isDetailLoading: false,
   heatmapData: {},
 
-  fetchHabits: async () => {
+  fetchHabits: async (includeArchived = true) => {
     try {
       set({ isLoading: true })
-      const res = await axios.get('/api/v1/habits')
+      const res = await axios.get(`/api/v1/habits?include_archived=${includeArchived}`)
       set({ habits: res.data, isLoading: false })
     } catch (e) {
       console.error('Failed to fetch habits', e)
@@ -55,38 +88,85 @@ export const useHabitStore = create<HabitState>((set, get) => ({
     }
   },
 
-  createHabit: async (data) => {
+  fetchHabitDetail: async (habitId: number) => {
     try {
-      await axios.post('/api/v1/habits', data)
-      await get().fetchHabits()
+      set({ isDetailLoading: true })
+      const res = await axios.get(`/api/v1/habits/${habitId}`)
+      set({ activeDetail: res.data, isDetailLoading: false })
+      return res.data
     } catch (e) {
-      console.error('Failed to create habit', e)
+      console.error('Failed to fetch habit detail', e)
+      set({ isDetailLoading: false })
+      return null
     }
   },
 
-  checkinHabit: async (habitId, logged_date, completed) => {
+  createHabit: async (data) => {
     try {
-      await axios.post(`/api/v1/habits/${habitId}/checkin`, { logged_date, completed })
-      await get().fetchHabits()
-      await get().fetchHeatmap(habitId)
+      const res = await axios.post('/api/v1/habits', data)
+      await get().fetchHabits(true)
+      return res.data.habit_id
+    } catch (e) {
+      console.error('Failed to create habit', e)
+      return undefined
+    }
+  },
+
+  updateHabit: async (habitId, data) => {
+    try {
+      await axios.patch(`/api/v1/habits/${habitId}`, data)
+      await get().fetchHabits(true)
+      if (get().activeDetail?.id === habitId) {
+        await get().fetchHabitDetail(habitId)
+      }
+    } catch (e) {
+      console.error('Failed to update habit', e)
+    }
+  },
+
+  toggleFreezeHabit: async (habitId) => {
+    try {
+      await axios.post(`/api/v1/habits/${habitId}/toggle-freeze`)
+      await get().fetchHabits(true)
+      if (get().activeDetail?.id === habitId) {
+        await get().fetchHabitDetail(habitId)
+      }
+    } catch (e) {
+      console.error('Failed to toggle freeze habit', e)
+    }
+  },
+
+  checkinHabit: async (habitId, payload = {}) => {
+    try {
+      await axios.post(`/api/v1/habits/${habitId}/checkin`, payload)
+      await get().fetchHabits(true)
+      if (get().activeDetail?.id === habitId) {
+        await get().fetchHabitDetail(habitId)
+      }
     } catch (e) {
       console.error('Failed to checkin habit', e)
     }
   },
 
-  fetchHeatmap: async (habitId, days = 30) => {
+  upsertHabitLog: async (habitId, logData) => {
     try {
-      const res = await axios.get(`/api/v1/habits/${habitId}/heatmap?days=${days}`)
-      set({ heatmapData: { ...get().heatmapData, [habitId]: res.data } })
+      await axios.post(`/api/v1/habits/${habitId}/logs`, logData)
+      await get().fetchHabits(true)
+      if (get().activeDetail?.id === habitId) {
+        await get().fetchHabitDetail(habitId)
+      }
     } catch (e) {
-      console.error('Failed to fetch heatmap', e)
+      console.error('Failed to upsert habit log', e)
     }
   },
 
-  deleteHabit: async (habitId) => {
+  deleteHabit: async (habitId, permanent = false) => {
     try {
-      await axios.delete(`/api/v1/habits/${habitId}`)
+      await axios.delete(`/api/v1/habits/${habitId}?permanent=${permanent}`)
       set({ habits: get().habits.filter(h => h.id !== habitId) })
+      if (get().activeDetail?.id === habitId) {
+        set({ activeDetail: null })
+      }
     } catch (e) {
       console.error('Failed to delete habit', e)
     }

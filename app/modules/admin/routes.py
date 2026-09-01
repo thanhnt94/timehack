@@ -38,6 +38,11 @@ class UpdateSSORequest(BaseModel):
     client_secret: str
     redirect_uri: str
 
+class UpdateLocalTelegramRequest(BaseModel):
+    telegram_bot_token: Optional[str] = None
+    telegram_bot_username: Optional[str] = None
+    telegram_bot_enabled: Optional[bool] = False
+
 class TestTelegramRequest(BaseModel):
     chat_id: str
     message: Optional[str] = "🔔 [TimeHack Admin] Kiểm tra kết nối Telegram Bot thành công!"
@@ -128,6 +133,80 @@ async def test_sso_connection(
             "message": f"Không thể kết nối đến CentralAuth: {str(e)}",
             "server_url": server_url,
             "reachable": False
+        }
+
+# --- Local Telegram Bot Configuration Endpoints ---
+@router.get("/telegram")
+async def get_admin_telegram_config(
+    admin: User = Depends(verify_admin_user),
+    db: AsyncSession = Depends(get_db)
+):
+    config = await SSOService.get_config(db)
+    return {
+        "is_sso_managed": bool(config.is_enabled),
+        "telegram_bot_token": config.telegram_bot_token or "",
+        "telegram_bot_username": config.telegram_bot_username or "",
+        "telegram_bot_enabled": bool(config.telegram_bot_enabled)
+    }
+
+@router.post("/telegram")
+async def update_admin_telegram_config(
+    payload: UpdateLocalTelegramRequest,
+    admin: User = Depends(verify_admin_user),
+    db: AsyncSession = Depends(get_db)
+):
+    config = await SSOService.get_config(db)
+    if payload.telegram_bot_token is not None:
+        config.telegram_bot_token = payload.telegram_bot_token.strip()
+    if payload.telegram_bot_username is not None:
+        config.telegram_bot_username = payload.telegram_bot_username.strip()
+    if payload.telegram_bot_enabled is not None:
+        config.telegram_bot_enabled = payload.telegram_bot_enabled
+
+    await db.commit()
+    await db.refresh(config)
+    return {
+        "status": "ok",
+        "telegram_bot_token": config.telegram_bot_token,
+        "telegram_bot_username": config.telegram_bot_username,
+        "telegram_bot_enabled": config.telegram_bot_enabled
+    }
+
+@router.post("/telegram/test-bot")
+async def test_telegram_bot_token(
+    payload: Dict[str, Any],
+    admin: User = Depends(verify_admin_user),
+    db: AsyncSession = Depends(get_db)
+):
+    token = payload.get("token")
+    if not token:
+        config = await SSOService.get_config(db)
+        token = config.telegram_bot_token
+
+    if not token:
+        raise HTTPException(status_code=400, detail="Chưa cung cấp Telegram Bot Token")
+
+    try:
+        async with httpx.AsyncClient(timeout=6.0) as client:
+            res = await client.get(f"https://api.telegram.org/bot{token.strip()}/getMe")
+            data = res.json()
+            if data.get("ok"):
+                bot_info = data.get("result", {})
+                return {
+                    "status": "ok",
+                    "message": f"Bot @{bot_info.get('username')} ({bot_info.get('first_name')}) hoạt động bình thường!",
+                    "bot_username": bot_info.get("username"),
+                    "bot_name": bot_info.get("first_name")
+                }
+            else:
+                return {
+                    "status": "error",
+                    "message": f"Lỗi Telegram API: {data.get('description', 'Token không hợp lệ')}"
+                }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Không thể kết nối Telegram API: {str(e)}"
         }
 
 @router.post("/telegram/test")

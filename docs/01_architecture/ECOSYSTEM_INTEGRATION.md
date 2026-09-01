@@ -68,7 +68,7 @@ TimeHack hỗ trợ 2 kênh gửi thông báo:
 ```
 
 ### 🔹 Kênh 2: Direct Bot Token Fallback
-* Nếu CentralAuth tạm thời không khả dụng, TimeHack tự động gửi trực tiếp qua `TELEGRAM_BOT_TOKEN` cấu hình trong `.env`.
+* Nếu CentralAuth tạm thời không khả dụng, TimeHack tự động gửi trực tiếp qua `TELEGRAM_BOT_TOKEN` cấu hình trong `.env` hoặc trong bảng `sso_settings`.
 
 ---
 
@@ -97,8 +97,21 @@ sequenceDiagram
     Web-->>User: Chuyển sang giao diện 🟢 "Đã kết nối Telegram"
 ```
 
-### 🔹 Ưu điểm vượt trội:
-1. **1-Chạm Kết Nối**: Người dùng chỉ cần ấn nút duy nhất để mở Telegram và ấn `Start`.
-2. **Đồng bộ xuyên suốt Hệ sinh thái**: Tài khoản liên kết 1 lần tại `@InMindBot` sẽ tự động nhận diện trên toàn bộ các ứng dụng con (Vocaburn, TimeHack, RemiNote).
-3. **Bảo mật**: Mã `connect_token` là duy nhất và tự động tạo mới sau mỗi lần Hủy liên kết (Unlink).
-4. **Tùy biến Thông báo**: Cho phép cấu hình giờ nhận báo cáo tổng kết ngày (`reminder_time`), bật/tắt nhắc nhở việc đến hạn (`notify_task`), chuỗi thói quen (`notify_habit`), và gửi tin nhắn kiểm tra trực tiếp (`POST /api/v1/notifications/telegram/test`).
+---
+
+## 6. Kiến trúc Công tắc Hai Chế độ (Dual-Mode: CentralAuth vs Standalone Fallback)
+
+Toàn bộ hệ sinh thái tuân thủ nguyên tắc **Dual-Mode Switch**:
+
+| Tiêu chí | 🟢 Chế độ Hệ sinh thái (SSO Bật) | ⚪ Chế độ Độc lập (SSO Tắt / Standalone) |
+| :--- | :--- | :--- |
+| **Xác thực Đăng nhập** | Định tuyến qua CentralAuth SSO Gateway (`/api/auth/jump/...`). | Đăng nhập nội bộ trực tiếp bằng Username & Password TimeHack. |
+| **Telegram Bot** | Quản lý tập trung qua **@InMindBot** và hàng đợi CentralAuth Queue. | Chạy **Telegram Bot nội bộ** riêng biệt (sử dụng Token từ @BotFather). |
+| **Trang Admin (`/admin`)** | Hiển thị Banner quản lý tập trung, vô hiệu hóa form Bot nội bộ tránh xung đột. | Cung cấp Tab nhập **Bot Token**, **Bot Username**, và nút Test API GetMe trực tiếp. |
+| **Khả năng Chống sập (High Availability)** | Tối ưu trải nghiệm một tài khoản dùng chung toàn hệ sinh thái. | Hoạt động độc lập 100% khi CentralAuth bảo trì hoặc mất kết nối mạng. |
+
+### 🔹 Cấu hình Quản trị viên tại `/admin`:
+1. **Tab CentralAuth SSO**: Công tắc bật/tắt SSO, Server URL, Client ID, Client Secret, Callback URI.
+2. **Tab Telegram (Dual-Mode)**:
+   - Khi SSO bật: Hiển thị trạng thái tập trung & khung test broadcast.
+   - Khi SSO tắt: Form nhập `telegram_bot_token`, `telegram_bot_username`, nút kiểm tra GetMe với Telegram, và lưu trực tiếp vào cơ sở dữ liệu.

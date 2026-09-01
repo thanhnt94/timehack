@@ -2,23 +2,54 @@ import httpx
 import logging
 from typing import Optional, Dict, Any
 from app.core.config import settings
+from app.core.database import AsyncSessionLocal
+from sqlalchemy import select
 
 logger = logging.getLogger(__name__)
 
 class TelegramService:
     @staticmethod
+    async def get_bot_token_and_mode() -> Dict[str, Any]:
+        """Loads SSO mode and local bot token from DB/Config."""
+        try:
+            from app.modules.sso_module.models import SSOConfig
+            async with AsyncSessionLocal() as db:
+                res = await db.execute(select(SSOConfig).limit(1))
+                sso = res.scalar_one_or_none()
+                if sso:
+                    return {
+                        "is_sso_enabled": sso.is_enabled,
+                        "server_url": sso.server_url or settings.CENTRAL_AUTH_URL,
+                        "local_token": sso.telegram_bot_token or settings.TELEGRAM_BOT_TOKEN,
+                        "local_username": sso.telegram_bot_username
+                    }
+        except Exception as e:
+            logger.warning(f"Error loading SSO/Telegram config from DB: {e}")
+
+        return {
+            "is_sso_enabled": bool(settings.CENTRAL_AUTH_URL),
+            "server_url": settings.CENTRAL_AUTH_URL,
+            "local_token": settings.TELEGRAM_BOT_TOKEN,
+            "local_username": "InMindBot"
+        }
+
+    @staticmethod
     async def send_message(chat_id: str, text: str, user_id: Optional[int] = None, parse_mode: str = "HTML") -> bool:
         """
-        Sends a Telegram notification via CentralAuth Queue Hub or directly via bot token.
+        Sends a Telegram notification.
+        If SSO is enabled: routes through CentralAuth Queue Hub.
+        If Standalone: sends direct via local Telegram Bot Token.
         """
         if not chat_id:
             logger.warning("Telegram notification skipped: No chat_id provided.")
             return False
 
-        # 1. Try CentralAuth Queue Hub
-        if settings.CENTRAL_AUTH_URL:
+        cfg = await TelegramService.get_bot_token_and_mode()
+
+        # 1. If SSO is enabled: Dispatch via CentralAuth Queue Hub
+        if cfg["is_sso_enabled"] and cfg["server_url"]:
             try:
-                queue_url = f"{settings.CENTRAL_AUTH_URL.rstrip('/')}/api/queue/submit"
+                queue_url = f"{cfg['server_url'].rstrip('/')}/api/queue/submit"
                 async with httpx.AsyncClient(timeout=5.0) as client:
                     res = await client.post(
                         queue_url,
@@ -27,7 +58,7 @@ class TelegramService:
                             "satellite_source": "timehack",
                             "payload": {
                                 "user_id": user_id,
-                                "chat_id": chat_id,
+                                "chat_id": str(chat_id),
                                 "message": text,
                                 "text": text,
                                 "parse_mode": parse_mode
@@ -39,17 +70,18 @@ class TelegramService:
                         logger.info(f"Telegram notification dispatched via CentralAuth Queue for chat_id={chat_id}")
                         return True
             except Exception as e:
-                logger.warning(f"CentralAuth Queue Telegram dispatch error: {e}, falling back to direct Bot API...")
+                logger.warning(f"CentralAuth Queue Telegram dispatch error: {e}, attempting direct Bot fallback...")
 
-        # 2. Fallback to direct Telegram Bot API
-        if settings.TELEGRAM_BOT_TOKEN:
+        # 2. Standalone Mode / Fallback: Direct Telegram Bot API
+        token = cfg.get("local_token")
+        if token:
             try:
-                bot_url = f"https://api.telegram.org/bot{settings.TELEGRAM_BOT_TOKEN}/sendMessage"
-                async with httpx.AsyncClient(timeout=5.0) as client:
+                bot_url = f"https://api.telegram.org/bot{token}/sendMessage"
+                async with httpx.AsyncClient(timeout=6.0) as client:
                     res = await client.post(
                         bot_url,
                         json={
-                            "chat_id": chat_id,
+                            "chat_id": str(chat_id),
                             "text": text,
                             "parse_mode": parse_mode
                         }
@@ -89,7 +121,7 @@ class TelegramService:
             f"🎯 <b>Thói quen:</b> {habit_title}\n"
             f"📊 <b>Mục tiêu:</b> {target_str}\n"
             f"{streak_badge}\n"
-            f"👉 <a href='{settings.APP_BASE_URL or 'https://time.inmind.site'}/habits/{habit_id}'>Mở TimeHack để check-in & ghi nhận cảm xúc</a>"
+            f"👉 <a href='{settings.APP_BASE_URL or 'https://time.inmind.site'}/habits/{habit_id}'>Mở TimeHack để check-in</a>"
         )
         return await TelegramService.send_message(chat_id=chat_id, text=text)
 
@@ -98,18 +130,18 @@ class TelegramService:
         chat_id: str,
         user_name: str,
         tasks_done: int,
-        tasks_total: int,
         habits_done: int,
-        habits_total: int,
         focus_minutes: int
     ) -> bool:
+        h = focus_minutes // 60
+        m = focus_minutes % 60
+        focus_str = f"{h}h {m}p" if h > 0 else f"{m}p"
+        
         text = (
-            f"<b>📊 [TimeHack] Tổng Kết Năng Suất Ngày Hôm Nay</b>\n"
-            f"Chào <b>{user_name}</b>, dưới đây là kết quả của bạn:\n\n"
-            f"✅ <b>Công việc hoàn thành:</b> {tasks_done}/{tasks_total}\n"
-            f"⚡ <b>Thói quen duy trì:</b> {habits_done}/{habits_total}\n"
-            f"⏱️ <b>Thời gian tập trung:</b> {focus_minutes} phút ({round(focus_minutes / 60, 1)}h)\n\n"
-            f"🔥 <i>Tiếp tục giữ vững phong độ vào ngày mai nhé!</i>\n"
-            f"👉 <a href='{settings.APP_BASE_URL or 'https://time.inmind.site'}'>Xem biểu đồ chi tiết</a>"
+            f"<b>📊 [TimeHack] Báo Cáo Tổng Kết Ngày - {user_name}</b>\n\n"
+            f"✅ <b>Nhiệm vụ hoàn thành:</b> {tasks_done} việc\n"
+            f"⚡ <b>Thói quen đã check-in:</b> {habits_done} mục\n"
+            f"⏱️ <b>Thời gian tập trung:</b> {focus_str}\n\n"
+            f"Chúc bạn buổi tối nghỉ ngơi vui vẻ và sẵn sàng bứt phá ngày mai! 🚀"
         )
         return await TelegramService.send_message(chat_id=chat_id, text=text)

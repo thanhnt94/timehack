@@ -45,9 +45,9 @@ interface TaskState {
   createTask: (data: Partial<Task>) => Promise<Task | undefined>
   updateTask: (id: number, data: Partial<Task>) => Promise<void>
   deleteTask: (id: number) => Promise<void>
-  toggleTaskStatus: (id: number) => Promise<void>
   createSubtask: (taskId: number, title: string) => Promise<void>
   toggleSubtask: (subtaskId: number, is_completed: boolean) => Promise<void>
+  updateSubtask: (subtaskId: number, data: { title?: string; is_completed?: boolean }) => Promise<void>
   deleteSubtask: (subtaskId: number) => Promise<void>
   createCategory: (name: string, color: string, icon?: string) => Promise<void>
   setCategoryFilter: (catId: number | null) => void
@@ -133,6 +133,15 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       await get().fetchTasks()
     } catch (e) {
       console.error('Failed to toggle subtask', e)
+    }
+  },
+
+  updateSubtask: async (subtaskId, data) => {
+    try {
+      await axios.patch(`/api/v1/tasks/subtasks/${subtaskId}`, data)
+      await get().fetchTasks()
+    } catch (e) {
+      console.error('Failed to update subtask', e)
     }
   },
 

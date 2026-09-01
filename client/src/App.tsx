@@ -49,17 +49,18 @@ const AppShell: React.FC = () => {
 
       {/* Main content column */}
       <div className="flex-1 flex flex-col min-h-0 md:ml-60">
-        {/* Unified Mobile Top Bar (Single Header) */}
-        <header className="md:hidden shrink-0 flex items-center justify-between px-4 h-13 bg-white border-b border-slate-200 z-20">
-          {/* Always Show TIMEHACK Brand Logo + Active Page */}
+        {/* Unified Mobile Top Bar (Sleek, High-Contrast & Compact) */}
+        <header className="md:hidden shrink-0 flex items-center justify-between px-3 h-11 bg-white/95 backdrop-blur-xl border-b border-slate-200/80 z-20 shadow-2xs">
+          {/* Brand Logo & Active Page */}
           <div className="flex items-center gap-2 min-w-0">
-            <div className="w-7 h-7 rounded-xl bg-violet-600 flex items-center justify-center shadow-xs shrink-0">
+            <div className="w-6.5 h-6.5 rounded-lg bg-gradient-to-br from-violet-600 via-indigo-600 to-purple-700 flex items-center justify-center shadow-xs shadow-violet-600/25 shrink-0">
               <Sparkles className="w-3.5 h-3.5 text-white" />
             </div>
-            <div className="flex items-center gap-1.5 font-black text-sm tracking-wider font-mono text-slate-900 truncate">
-              <span className="shrink-0">TIME<span className="text-violet-600">HACK</span></span>
-              <span className="text-slate-300 font-normal shrink-0">|</span>
-              <span className="text-xs font-bold text-slate-700 font-sans tracking-normal truncate">
+            
+            <div className="flex items-center gap-1.5 font-black text-xs sm:text-sm tracking-wider font-mono text-slate-900 truncate">
+              <span className="shrink-0">TIME<span className="text-violet-600 font-black">HACK</span></span>
+              <span className="text-slate-300 font-normal shrink-0">/</span>
+              <span className="px-1.5 py-0.5 rounded-md bg-slate-100 border border-slate-200/70 text-[11px] font-extrabold text-slate-800 font-sans tracking-tight truncate">
                 {isTimePage
                   ? 'Time'
                   : isActionsPage
@@ -74,18 +75,18 @@ const AppShell: React.FC = () => {
 
             {/* Quick Badges in Header */}
             {isTimePage && totalTrackedSec > 0 && (
-              <span className="text-[10px] font-black font-mono text-violet-700 bg-violet-50 px-2 py-0.5 rounded-md border border-violet-200 shrink-0 flex items-center gap-1">
+              <span className="text-[10px] font-black font-mono text-violet-700 bg-violet-50 px-1.5 py-0.5 rounded-md border border-violet-200/80 shrink-0 flex items-center gap-1">
                 <Clock className="w-2.5 h-2.5" />
                 <span>{formattedTracked}</span>
               </span>
             )}
             {isActionsPage && (
               <div className="flex items-center gap-1 shrink-0">
-                <span className="text-[9px] font-bold font-mono text-violet-700 bg-violet-50 px-1.5 py-0.2 rounded border border-violet-200 shrink-0 flex items-center gap-0.5">
+                <span className="text-[9px] font-bold font-mono text-violet-700 bg-violet-50 px-1.5 py-0.2 rounded border border-violet-200/80 shrink-0 flex items-center gap-0.5">
                   <CheckSquare className="w-2.5 h-2.5" />
                   <span>{doneTasks}/{(tasks || []).length}</span>
                 </span>
-                <span className="text-[9px] font-bold font-mono text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200 shrink-0 flex items-center gap-0.5">
+                <span className="text-[9px] font-bold font-mono text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200/80 shrink-0 flex items-center gap-0.5">
                   <Zap className="w-2.5 h-2.5" />
                   <span>{doneHabits}/{(habits || []).length}</span>
                 </span>
@@ -94,25 +95,25 @@ const AppShell: React.FC = () => {
           </div>
 
           {/* Right Header Actions: Analytics & User Profile Avatar */}
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 shrink-0">
             {/* Analytics Shortcut */}
             <Link
               to="/analytics"
               onClick={() => sounds.playTap()}
-              className={`p-2 rounded-xl border transition active:scale-95 ${
+              className={`p-1.5 rounded-lg border transition active:scale-95 ${
                 location.pathname === '/analytics'
                   ? 'bg-violet-50 text-violet-700 border-violet-200 shadow-xs'
-                  : 'bg-white border-slate-200 text-slate-600 hover:text-violet-700 hover:bg-slate-50'
+                  : 'bg-white border-slate-200 text-slate-500 hover:text-violet-700 hover:bg-slate-50'
               }`}
               title="Analytics"
             >
-              <BarChart3 className="w-4 h-4" />
+              <BarChart3 className="w-3.5 h-3.5" />
             </Link>
 
             {/* User Profile Avatar (1-Tap opens Settings Modal) */}
             <button
               onClick={() => { sounds.playTap(); setSettingsOpen(true) }}
-              className="relative flex items-center justify-center w-8 h-8 rounded-full bg-violet-600 text-white font-black text-xs shadow-xs hover:ring-2 hover:ring-violet-400 active:scale-90 transition-transform"
+              className="relative flex items-center justify-center w-7 h-7 rounded-full bg-gradient-to-tr from-violet-700 to-indigo-600 text-white font-black text-xs shadow-xs hover:ring-2 hover:ring-violet-400 active:scale-90 transition-transform"
               title="User Settings, Timezone & Telegram"
               aria-label="User Settings"
             >

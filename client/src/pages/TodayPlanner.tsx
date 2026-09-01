@@ -30,7 +30,6 @@ export const TodayPlanner: React.FC<Props> = ({ onOpenFocus }) => {
     pauseTimer,
     resumeTimer,
     stopTimer,
-    setCategory,
     isRunning,
     isPaused,
     mode,
@@ -38,7 +37,6 @@ export const TodayPlanner: React.FC<Props> = ({ onOpenFocus }) => {
     secondsRemaining,
     elapsedSeconds,
     activeTitle,
-    activeCategoryId,
     activeCategoryName,
     activeCategoryColor,
     activeCategoryType
@@ -250,13 +248,13 @@ export const TodayPlanner: React.FC<Props> = ({ onOpenFocus }) => {
                 <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
               </span>
               <span className="text-[11px] font-black tracking-wider uppercase text-emerald-400 font-mono">
-                Đang Track Thời Gian Thực
+                Live Tracking Active
               </span>
             </div>
 
             {/* Phase Tag */}
             <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-white/15 border border-white/20">
-              {currentPhase === 'work' ? '🔥 Focus Mode' : '☕ Giờ Nghỉ'}
+              {currentPhase === 'work' ? '🔥 Focus Session' : '☕ Break Time'}
             </span>
           </div>
 
@@ -269,10 +267,10 @@ export const TodayPlanner: React.FC<Props> = ({ onOpenFocus }) => {
                     className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md text-white shadow-2xs"
                     style={{ backgroundColor: activeCategoryColor || '#7C3AED' }}
                   >
-                    📁 {activeCategoryName} ({activeCategoryType === 'wasted' ? '🔴 Lãng phí' : activeCategoryType === 'neutral' ? '🔵 Sinh hoạt' : '🟢 Giá trị'})
+                    📁 {activeCategoryName} ({activeCategoryType === 'wasted' ? '🔴 Wasted' : activeCategoryType === 'neutral' ? '🔵 Neutral' : '🟢 Productive'})
                   </span>
                 ) : (
-                  <span className="text-[10px] text-violet-300">Chưa gắn category</span>
+                  <span className="text-[10px] text-violet-300">No category assigned</span>
                 )}
               </div>
             </div>
@@ -283,7 +281,7 @@ export const TodayPlanner: React.FC<Props> = ({ onOpenFocus }) => {
                 {mode === 'pomodoro' ? formatTime(secondsRemaining) : formatTime(elapsedSeconds)}
               </div>
               <div className="text-[9px] font-bold text-violet-300 uppercase font-mono">
-                {mode === 'pomodoro' ? 'Còn lại' : 'Đã trôi qua'}
+                {mode === 'pomodoro' ? 'Remaining' : 'Elapsed'}
               </div>
             </div>
           </div>
@@ -295,7 +293,7 @@ export const TodayPlanner: React.FC<Props> = ({ onOpenFocus }) => {
               className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-white text-violet-900 text-xs font-black hover:bg-violet-50 transition active:scale-95 shadow-xs"
             >
               <Maximize2 className="w-3.5 h-3.5" />
-              <span>Toàn Màn Hình</span>
+              <span>Full Screen</span>
             </button>
 
             <button
@@ -303,16 +301,16 @@ export const TodayPlanner: React.FC<Props> = ({ onOpenFocus }) => {
               className="px-3 py-2 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs font-bold transition active:scale-95 flex items-center gap-1"
             >
               {isPaused ? <Play className="w-3.5 h-3.5 fill-current" /> : <Pause className="w-3.5 h-3.5 fill-current" />}
-              <span>{isPaused ? 'Tiếp tục' : 'Tạm dừng'}</span>
+              <span>{isPaused ? 'Resume' : 'Pause'}</span>
             </button>
 
             <button
               onClick={async () => { sounds.playTap(); await stopTimer(); sounds.playSuccess() }}
               className="px-3 py-2 rounded-xl bg-rose-500/80 hover:bg-rose-600 text-white text-xs font-bold transition active:scale-95 flex items-center gap-1"
-              title="Dừng và lưu thời gian"
+              title="Stop and save time"
             >
               <Square className="w-3.5 h-3.5 fill-current" />
-              <span>Lưu</span>
+              <span>Save</span>
             </button>
           </div>
         </div>
@@ -322,10 +320,10 @@ export const TodayPlanner: React.FC<Props> = ({ onOpenFocus }) => {
           <div className="min-w-0 flex-1 space-y-2">
             <div className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-violet-200">
               <Sparkles className="w-3 h-3 text-amber-300" />
-              <span>Bắt Đầu Phiên Tập Trung</span>
+              <span>Start Focus Session</span>
             </div>
             <h3 className="text-sm font-black truncate">
-              Sẵn sàng tăng tốc hiệu suất công việc?
+              Ready to accelerate your productivity?
             </h3>
 
             {/* Quick Category & Duration Selectors */}
@@ -336,7 +334,7 @@ export const TodayPlanner: React.FC<Props> = ({ onOpenFocus }) => {
                 onChange={e => setSelectedLauncherCatId(e.target.value ? Number(e.target.value) : null)}
                 className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-white/20 text-white border border-white/20 outline-none focus:bg-white focus:text-slate-900 transition"
               >
-                <option value="" className="text-slate-900">📁 Chọn Category...</option>
+                <option value="" className="text-slate-900">📁 Select Category...</option>
                 {categories.map(c => (
                   <option key={c.id} value={c.id} className="text-slate-900">
                     {c.name}
@@ -367,14 +365,14 @@ export const TodayPlanner: React.FC<Props> = ({ onOpenFocus }) => {
           <button
             onClick={() => handleStartQuickFocus(selectedFocusMins)}
             className="w-12 h-12 rounded-2xl bg-white text-violet-700 hover:bg-violet-50 flex items-center justify-center font-bold shadow-md shrink-0 self-end sm:self-center active:scale-90 transition"
-            title={`Bắt đầu phiên ${selectedFocusMins} phút`}
+            title={`Start ${selectedFocusMins}m focus session`}
           >
             <Play className="w-6 h-6 fill-current ml-0.5" />
           </button>
         </div>
       )}
 
-      {/* ── 3. Quick Navigation Hub (Điều hướng trung tâm từ Home) ── */}
+      {/* ── 3. Quick Navigation Hub (Central Navigation from Home) ── */}
       <div className="grid grid-cols-3 gap-2">
         <Link
           to="/calendar"
@@ -384,8 +382,8 @@ export const TodayPlanner: React.FC<Props> = ({ onOpenFocus }) => {
           <div className="w-8 h-8 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center mb-2 group-hover:bg-sky-600 group-hover:text-white transition">
             <CalendarIcon className="w-4 h-4" />
           </div>
-          <div className="text-xs font-black text-slate-900 leading-tight">Lịch Plan & Actual</div>
-          <div className="text-[10px] text-slate-400 font-medium mt-0.5">Đối chiếu kế hoạch</div>
+          <div className="text-xs font-black text-slate-900 leading-tight">Plan vs Actual</div>
+          <div className="text-[10px] text-slate-400 font-medium mt-0.5">Audit daily blocks</div>
         </Link>
 
         <Link
@@ -396,8 +394,8 @@ export const TodayPlanner: React.FC<Props> = ({ onOpenFocus }) => {
           <div className="w-8 h-8 rounded-xl bg-violet-50 text-violet-600 flex items-center justify-center mb-2 group-hover:bg-violet-600 group-hover:text-white transition">
             <FolderTree className="w-4 h-4" />
           </div>
-          <div className="text-xs font-black text-slate-900 leading-tight">Danh Mục Phân Cấp</div>
-          <div className="text-[10px] text-slate-400 font-medium mt-0.5">{categories.length} nhóm phân loại</div>
+          <div className="text-xs font-black text-slate-900 leading-tight">Categories</div>
+          <div className="text-[10px] text-slate-400 font-medium mt-0.5">{categories.length} hierarchy groups</div>
         </Link>
 
         <Link
@@ -408,8 +406,8 @@ export const TodayPlanner: React.FC<Props> = ({ onOpenFocus }) => {
           <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-2 group-hover:bg-emerald-600 group-hover:text-white transition">
             <BarChart3 className="w-4 h-4" />
           </div>
-          <div className="text-xs font-black text-slate-900 leading-tight">Báo Cáo Năng Suất</div>
-          <div className="text-[10px] text-slate-400 font-medium mt-0.5">Phân bổ giá trị</div>
+          <div className="text-xs font-black text-slate-900 leading-tight">Analytics</div>
+          <div className="text-[10px] text-slate-400 font-medium mt-0.5">Value breakdown</div>
         </Link>
       </div>
 
@@ -426,7 +424,7 @@ export const TodayPlanner: React.FC<Props> = ({ onOpenFocus }) => {
               onClick={() => sounds.playTap()}
               className="text-[11px] font-bold text-violet-600 hover:text-violet-800 flex items-center gap-0.5"
             >
-              <span>Xem tất cả ({habits.length})</span>
+              <span>View All ({habits.length})</span>
               <ChevronRight className="w-3.5 h-3.5" />
             </Link>
           </div>
@@ -533,13 +531,13 @@ export const TodayPlanner: React.FC<Props> = ({ onOpenFocus }) => {
             {activeTasks.length === 0 ? (
               <div className="py-8 text-center text-slate-400">
                 <CheckCircle2 className="w-8 h-8 mx-auto mb-1.5 opacity-40 text-emerald-500" />
-                <p className="text-xs font-bold text-slate-700">Tất cả nhiệm vụ đã hoàn thành!</p>
-                <p className="text-[10px] text-slate-400 mt-0.5">Tuyệt vời, bạn đã duy trì sự tập trung xuất sắc hôm nay.</p>
+                <p className="text-xs font-bold text-slate-700">All tasks completed!</p>
+                <p className="text-[10px] text-slate-400 mt-0.5">Great job staying focused and productive today.</p>
                 <Link
                   to="/tasks"
                   className="inline-flex items-center gap-1 text-xs font-bold text-violet-600 hover:underline mt-2"
                 >
-                  <Plus className="w-3.5 h-3.5" /> Tạo thêm nhiệm vụ mới
+                  <Plus className="w-3.5 h-3.5" /> Create new task
                 </Link>
               </div>
             ) : (
@@ -581,9 +579,9 @@ export const TodayPlanner: React.FC<Props> = ({ onOpenFocus }) => {
                             task.eisenhower === 'schedule' ? 'bg-violet-50 text-violet-700 border border-violet-200' :
                             task.eisenhower === 'delegate' ? 'bg-amber-50 text-amber-800 border border-amber-200' : 'bg-slate-100 text-slate-600 border border-slate-200'
                           }`}>
-                            {task.eisenhower === 'do_first' ? '🔥 Gấp' :
-                             task.eisenhower === 'schedule' ? '⭐ Quan trọng' :
-                             task.eisenhower === 'delegate' ? '👥 Ủy quyền' : '📥 Lưu trữ'}
+                            {task.eisenhower === 'do_first' ? '🔥 Urgent' :
+                             task.eisenhower === 'schedule' ? '⭐ Important' :
+                             task.eisenhower === 'delegate' ? '👥 Delegate' : '📥 Backlog'}
                           </span>
                         )}
                         {subtasks.length > 0 && (
@@ -614,7 +612,7 @@ export const TodayPlanner: React.FC<Props> = ({ onOpenFocus }) => {
                 to="/tasks"
                 className="block text-center py-2 text-xs font-bold text-violet-600 hover:underline"
               >
-                Xem tất cả {activeTasks.length} nhiệm vụ →
+                View all {activeTasks.length} tasks →
               </Link>
             )}
           </div>
@@ -626,12 +624,12 @@ export const TodayPlanner: React.FC<Props> = ({ onOpenFocus }) => {
             {slots.length === 0 ? (
               <div className="py-8 text-center text-slate-400">
                 <CalendarIcon className="w-8 h-8 mx-auto mb-1.5 opacity-40 text-sky-500" />
-                <p className="text-xs font-bold text-slate-700">Chưa có kế hoạch giờ nào hôm nay</p>
+                <p className="text-xs font-bold text-slate-700">No time blocks scheduled today</p>
                 <Link
                   to="/calendar"
                   className="inline-flex items-center gap-1 text-xs font-bold text-violet-600 hover:underline mt-2"
                 >
-                  <Plus className="w-3.5 h-3.5" /> Lên kế hoạch (Plan time block)
+                  <Plus className="w-3.5 h-3.5" /> Plan a time block
                 </Link>
               </div>
             ) : (
@@ -679,7 +677,7 @@ export const TodayPlanner: React.FC<Props> = ({ onOpenFocus }) => {
                       <button
                         onClick={() => handlePlaySlot(slot)}
                         className="h-7 px-2.5 rounded-xl bg-violet-600 text-white hover:bg-violet-700 transition active:scale-90 shrink-0 flex items-center gap-1 text-[11px] font-bold shadow-2xs"
-                        title="Bắt đầu track thực tế cho kế hoạch này"
+                        title="Start tracking actual time for this block"
                       >
                         <Play className="w-2.5 h-2.5 fill-current" />
                         <span>Track</span>
@@ -695,7 +693,7 @@ export const TodayPlanner: React.FC<Props> = ({ onOpenFocus }) => {
                 to="/calendar"
                 className="block text-center py-2 text-xs font-bold text-violet-600 hover:underline"
               >
-                Mở lịch chi tiết Plan vs Actual →
+                Open Plan vs Actual Calendar →
               </Link>
             )}
           </div>
@@ -707,8 +705,8 @@ export const TodayPlanner: React.FC<Props> = ({ onOpenFocus }) => {
             {logs.length === 0 ? (
               <div className="py-8 text-center text-slate-400">
                 <Clock className="w-8 h-8 mx-auto mb-1.5 opacity-40 text-violet-500" />
-                <p className="text-xs font-bold text-slate-700">Chưa có phiên tập trung nào được ghi</p>
-                <p className="text-[10px] text-slate-400 mt-0.5">Bắt đầu một phiên Focus phía trên để ghi nhận thời gian thực tế nhé!</p>
+                <p className="text-xs font-bold text-slate-700">No focus sessions recorded yet</p>
+                <p className="text-[10px] text-slate-400 mt-0.5">Launch a focus session above to record your deep work!</p>
               </div>
             ) : (
               logs.map(log => {

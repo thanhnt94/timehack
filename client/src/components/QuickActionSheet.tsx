@@ -1,11 +1,12 @@
 import React, { useState } from 'react'
 import {
-  X, ArrowLeft, CheckSquare, Zap, Play, Calendar,
+  X, ArrowLeft, CheckSquare, Zap, Play, Calendar, Clock,
   Flame, Star, Users, Inbox
 } from 'lucide-react'
 import { useTaskStore } from '../store/useTaskStore'
 import { useHabitStore } from '../store/useHabitStore'
 import { useScheduleStore } from '../store/useScheduleStore'
+import { useTimeLogStore } from '../store/useTimeLogStore'
 import { useTimerStore } from '../store/useTimerStore'
 import { sounds } from '../utils/soundEffects'
 
@@ -15,7 +16,7 @@ interface Props {
   onStartFocus: () => void
 }
 
-type SubView = 'menu' | 'task' | 'habit' | 'schedule'
+type SubView = 'menu' | 'task' | 'habit' | 'schedule' | 'actual'
 
 const HABIT_COLORS = ['#7C3AED', '#0284C7', '#10B981', '#D97706', '#E11D48', '#6366F1']
 
@@ -75,6 +76,12 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
   const [scheduleEnd, setScheduleEnd] = useState('10:00')
   const [scheduleCategoryId, setScheduleCategoryId] = useState<number | null>(null)
   const { createSlot, selectedDate } = useScheduleStore()
+
+  const [logNotes, setLogNotes] = useState('')
+  const [logStart, setLogStart] = useState('09:00')
+  const [logEnd, setLogEnd] = useState('10:00')
+  const [logCategoryId, setLogCategoryId] = useState<number | null>(null)
+  const { createLog } = useTimeLogStore()
 
   const { startTimer } = useTimerStore()
 
@@ -149,6 +156,33 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
     handleClose()
   }
 
+  const handleCreateActualLog = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!logNotes.trim()) return
+    sounds.playTap()
+    const [sh, sm] = logStart.split(':').map(Number)
+    const [eh, em] = logEnd.split(':').map(Number)
+    let durMins = (eh * 60 + em) - (sh * 60 + sm)
+    if (durMins <= 0) durMins = 30
+
+    const todayIso = new Date().toISOString().split('T')[0]
+    const startIso = `${selectedDate || todayIso}T${logStart}:00`
+    const endIso = `${selectedDate || todayIso}T${logEnd}:00`
+
+    await createLog({
+      start_time: startIso,
+      end_time: endIso,
+      duration_seconds: durMins * 60,
+      timer_type: 'manual',
+      category_id: logCategoryId || undefined,
+      notes: logNotes.trim()
+    })
+    sounds.playSuccess()
+    setLogNotes('')
+    setLogCategoryId(null)
+    handleClose()
+  }
+
   const handleDirectFocus = () => {
     sounds.playTap()
     startTimer({ title: 'Quick Focus Session' })
@@ -180,12 +214,14 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
                 {subView === 'task' && 'Create New Task'}
                 {subView === 'habit' && 'Create New Habit'}
                 {subView === 'schedule' && 'Plan Time Block'}
+                {subView === 'actual' && 'Log Actual Time'}
               </h2>
               <p className="text-[11px] text-slate-500 font-medium">
-                {subView === 'menu' && 'Choose an item to create or focus'}
-                {subView === 'task' && 'Set deadline and priority category'}
+                {subView === 'menu' && 'Choose an action to create or focus'}
+                {subView === 'task' && 'Set deadline and priority level'}
                 {subView === 'habit' && 'Build a new daily streak'}
-                {subView === 'schedule' && 'Budget time for today'}
+                {subView === 'schedule' && 'Budget planned hours for today'}
+                {subView === 'actual' && 'Record actual focus time spent'}
               </p>
             </div>
           </div>
@@ -194,63 +230,84 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
           </button>
         </div>
 
-        {/* ── View 1: 2x2 Action Cards Menu ── */}
+        {/* ── View 1: 5 Action Cards Menu ── */}
         {subView === 'menu' && (
-          <div className="grid grid-cols-2 gap-2.5 pb-2">
-            {/* 1. Task */}
-            <button
-              onClick={() => { sounds.playTap(); setSubView('task') }}
-              className="bg-white rounded-2xl p-4 flex flex-col items-start gap-2 border border-slate-200 hover:border-violet-400 active:scale-95 transition text-left shadow-2xs"
-            >
-              <div className="w-10 h-10 rounded-xl bg-violet-50 text-violet-700 border border-violet-100 flex items-center justify-center">
-                <CheckSquare className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="text-xs font-bold text-slate-900">New Task</div>
-                <div className="text-[10px] text-slate-500 mt-0.5">Add to-do deliverable</div>
-              </div>
-            </button>
+          <div className="space-y-2 pb-2">
+            <div className="grid grid-cols-2 gap-2.5">
+              {/* 1. Task */}
+              <button
+                onClick={() => { sounds.playTap(); setSubView('task') }}
+                className="bg-white rounded-2xl p-3.5 flex flex-col items-start gap-2 border border-slate-200 hover:border-violet-400 active:scale-95 transition text-left shadow-2xs"
+              >
+                <div className="w-9 h-9 rounded-xl bg-violet-50 text-violet-700 border border-violet-100 flex items-center justify-center">
+                  <CheckSquare className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-slate-900">New Task</div>
+                  <div className="text-[10px] text-slate-500 mt-0.5">Add to-do deliverable</div>
+                </div>
+              </button>
 
-            {/* 2. Habit */}
-            <button
-              onClick={() => { sounds.playTap(); setSubView('habit') }}
-              className="bg-white rounded-2xl p-4 flex flex-col items-start gap-2 border border-slate-200 hover:border-emerald-400 active:scale-95 transition text-left shadow-2xs"
-            >
-              <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center">
-                <Zap className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="text-xs font-bold text-slate-900">New Habit</div>
-                <div className="text-[10px] text-slate-500 mt-0.5">Build daily streak</div>
-              </div>
-            </button>
+              {/* 2. Habit */}
+              <button
+                onClick={() => { sounds.playTap(); setSubView('habit') }}
+                className="bg-white rounded-2xl p-3.5 flex flex-col items-start gap-2 border border-slate-200 hover:border-emerald-400 active:scale-95 transition text-left shadow-2xs"
+              >
+                <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center">
+                  <Zap className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-slate-900">New Habit</div>
+                  <div className="text-[10px] text-slate-500 mt-0.5">Build daily streak</div>
+                </div>
+              </button>
 
-            {/* 3. Focus Now */}
+              {/* 3. Plan Slot */}
+              <button
+                onClick={() => { sounds.playTap(); setSubView('schedule') }}
+                className="bg-white rounded-2xl p-3.5 flex flex-col items-start gap-2 border border-slate-200 hover:border-sky-400 active:scale-95 transition text-left shadow-2xs"
+              >
+                <div className="w-9 h-9 rounded-xl bg-sky-50 text-sky-600 border border-sky-100 flex items-center justify-center">
+                  <Calendar className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-slate-900">Plan Slot</div>
+                  <div className="text-[10px] text-slate-500 mt-0.5">Block calendar time</div>
+                </div>
+              </button>
+
+              {/* 4. Log Actual */}
+              <button
+                onClick={() => { sounds.playTap(); setSubView('actual') }}
+                className="bg-white rounded-2xl p-3.5 flex flex-col items-start gap-2 border border-slate-200 hover:border-amber-400 active:scale-95 transition text-left shadow-2xs"
+              >
+                <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 border border-amber-100 flex items-center justify-center">
+                  <Clock className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-slate-900">Log Actual</div>
+                  <div className="text-[10px] text-slate-500 mt-0.5">Record spent time</div>
+                </div>
+              </button>
+            </div>
+
+            {/* 5. Focus Now - Prominent full card */}
             <button
               onClick={handleDirectFocus}
-              className="bg-white rounded-2xl p-4 flex flex-col items-start gap-2 border border-slate-200 hover:border-rose-400 active:scale-95 transition text-left shadow-2xs"
+              className="w-full bg-gradient-to-r from-violet-600 to-indigo-600 rounded-2xl p-3.5 flex items-center justify-between text-white active:scale-98 transition text-left shadow-md shadow-violet-600/20"
             >
-              <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 border border-rose-100 flex items-center justify-center">
-                <Play className="w-5 h-5 fill-current ml-0.5" />
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center">
+                  <Play className="w-4 h-4 fill-current ml-0.5" />
+                </div>
+                <div>
+                  <div className="text-xs font-black">Focus Now</div>
+                  <div className="text-[10px] text-violet-200 mt-0.5">Launch Pomodoro / Stopwatch timer</div>
+                </div>
               </div>
-              <div>
-                <div className="text-xs font-bold text-slate-900">Focus Now</div>
-                <div className="text-[10px] text-slate-500 mt-0.5">Start Pomodoro timer</div>
-              </div>
-            </button>
-
-            {/* 4. Plan Slot */}
-            <button
-              onClick={() => { sounds.playTap(); setSubView('schedule') }}
-              className="bg-white rounded-2xl p-4 flex flex-col items-start gap-2 border border-slate-200 hover:border-sky-400 active:scale-95 transition text-left shadow-2xs"
-            >
-              <div className="w-10 h-10 rounded-xl bg-sky-50 text-sky-600 border border-sky-100 flex items-center justify-center">
-                <Calendar className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="text-xs font-bold text-slate-900">Plan Slot</div>
-                <div className="text-[10px] text-slate-500 mt-0.5">Block calendar time</div>
-              </div>
+              <span className="text-xs font-bold bg-white text-violet-700 px-3 py-1.5 rounded-xl shadow-2xs">
+                Start →
+              </span>
             </button>
           </div>
         )}
@@ -519,6 +576,80 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
               className="w-full py-3.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-xs active:scale-[0.98] transition shadow-md shadow-violet-600/20 mt-2"
             >
               Save Time Slot
+            </button>
+          </form>
+        )}
+
+        {/* ── View 5: Form Actual Time Log ── */}
+        {subView === 'actual' && (
+          <form onSubmit={handleCreateActualLog} className="space-y-3.5">
+            <div>
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                What did you work on? *
+              </label>
+              <input
+                type="text"
+                value={logNotes}
+                onChange={e => setLogNotes(e.target.value)}
+                placeholder="e.g. Read 30 mins, Bug fixing, Client meeting..."
+                autoFocus
+                required
+                className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
+              />
+            </div>
+
+            {/* Category Selector */}
+            <div>
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                Category
+              </label>
+              <select
+                value={logCategoryId || ''}
+                onChange={e => setLogCategoryId(e.target.value ? Number(e.target.value) : null)}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 outline-none focus:border-violet-500 focus:bg-white transition"
+              >
+                <option value="">-- No category --</option>
+                {categories.map(c => (
+                  <React.Fragment key={c.id}>
+                    <option value={c.id}>📁 {c.name}</option>
+                    {c.subcategories && c.subcategories.map(sub => (
+                      <option key={sub.id} value={sub.id}>&nbsp;&nbsp;&nbsp;&nbsp;↳ {sub.name}</option>
+                    ))}
+                  </React.Fragment>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  Start Time
+                </label>
+                <input
+                  type="time"
+                  value={logStart}
+                  onChange={e => setLogStart(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  End Time
+                </label>
+                <input
+                  type="time"
+                  value={logEnd}
+                  onChange={e => setLogEnd(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              className="w-full py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs active:scale-[0.98] transition shadow-md shadow-slate-900/20 mt-2"
+            >
+              Save Time Log
             </button>
           </form>
         )}

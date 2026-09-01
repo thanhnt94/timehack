@@ -3,7 +3,7 @@ import {
   Calendar as CalendarIcon, Plus, Check, Clock, Trash2, X,
   Sparkles, ArrowRight, Play, CheckCircle2, Flame, BarChart2,
   TrendingUp, AlertCircle, ChevronLeft, ChevronRight, LayoutList,
-  Columns, Clock3, SplitSquareVertical, Layers, Filter
+  Columns, Clock3, SplitSquareVertical, Layers, Filter, Search, Tag
 } from 'lucide-react'
 import { useScheduleStore, type ScheduleSlot } from '../store/useScheduleStore'
 import { useTimeLogStore, type TimeLogItem } from '../store/useTimeLogStore'
@@ -30,7 +30,7 @@ interface CombinedBlockItem {
   isDone?: boolean
   timerType?: string
   category_id?: number
-  category?: { id: number; name: string; color: string }
+  category?: { id: number; name: string; color: string; category_type?: string }
   rawSlot?: ScheduleSlot
   rawLog?: TimeLogItem
 }
@@ -46,6 +46,10 @@ export const TimeBlockingSchedule: React.FC = () => {
 
   // 2. Filter Tab for Blocks View
   const [blockFilter, setBlockFilter] = useState<BlockFilter>('all')
+
+  // 3. Search & Category Filter State (Identical to Tasks page)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedCategoryType, setSelectedCategoryType] = useState<string>('all')
 
   // Create Plan Slot modal state
   const [planModalOpen, setPlanModalOpen] = useState(false)
@@ -95,7 +99,7 @@ export const TimeBlockingSchedule: React.FC = () => {
     }
   }, [viewMode, selectedDate])
 
-  // 7-day Date Strip: Strictly DAY OF WEEK (MON, TUE, WED...) - NO "TODAY" / "TOMORROW" text
+  // 7-day Date Strip: Strictly DAY OF WEEK (MON, TUE, WED...)
   const datePills = useMemo(() => {
     const dates = []
     const base = new Date()
@@ -194,12 +198,31 @@ export const TimeBlockingSchedule: React.FC = () => {
     return list.sort((a, b) => a.startTimeStr.localeCompare(b.startTimeStr))
   }, [slots, logs])
 
-  // Filtered blocks based on blockFilter
+  // Filtered blocks based on blockFilter, searchQuery and selectedCategoryType
   const filteredBlocks = useMemo(() => {
-    if (blockFilter === 'plan') return combinedBlocks.filter(b => b.type === 'slot')
-    if (blockFilter === 'timelog') return combinedBlocks.filter(b => b.type === 'log')
-    return combinedBlocks
-  }, [combinedBlocks, blockFilter])
+    return combinedBlocks.filter(b => {
+      // 1. Type Filter (All / Plan / TimeLog)
+      if (blockFilter === 'plan' && b.type !== 'slot') return false
+      if (blockFilter === 'timelog' && b.type !== 'log') return false
+
+      // 2. Category Type Filter
+      if (selectedCategoryType !== 'all') {
+        const catType = b.category?.category_type || 'productive'
+        if (catType !== selectedCategoryType) return false
+      }
+
+      // 3. Search Query Filter
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim()
+        const matchTitle = b.title.toLowerCase().includes(q)
+        const matchNotes = b.notes?.toLowerCase().includes(q)
+        const matchCat = b.category?.name.toLowerCase().includes(q)
+        if (!matchTitle && !matchNotes && !matchCat) return false
+      }
+
+      return true
+    })
+  }, [combinedBlocks, blockFilter, selectedCategoryType, searchQuery])
 
   // Total metrics
   const totalLogSeconds = useMemo(() => {
@@ -255,6 +278,7 @@ export const TimeBlockingSchedule: React.FC = () => {
 
   const handleCreateManualLog = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!logNotes.trim()) return
     sounds.playTap()
     const [sh, sm] = logStart.split(':').map(Number)
     const [eh, em] = logEnd.split(':').map(Number)
@@ -270,7 +294,7 @@ export const TimeBlockingSchedule: React.FC = () => {
       duration_seconds: durMins * 60,
       timer_type: logType,
       category_id: logCategoryId || undefined,
-      notes: logNotes.trim() || 'Work Session'
+      notes: logNotes.trim()
     })
     sounds.playSuccess()
     setLogNotes('')
@@ -306,7 +330,7 @@ export const TimeBlockingSchedule: React.FC = () => {
   const isViewingToday = selectedDate === new Date().toISOString().split('T')[0]
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 space-y-3 pb-4">
+    <div className="flex-1 flex flex-col min-h-0 space-y-3 pb-24">
       {/* ── 1. Clean Top Header: Date Navigator & Switch View Button ── */}
       <div className="flex items-center justify-between gap-2 pt-1">
         {/* Date Navigator */}
@@ -352,7 +376,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                 ? 'bg-white text-violet-700 shadow-2xs'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
-            title="Compact blocks only (No empty hours)"
+            title="Compact blocks view"
           >
             <LayoutList className="w-3.5 h-3.5" />
             <span>Blocks</span>
@@ -387,17 +411,12 @@ export const TimeBlockingSchedule: React.FC = () => {
                   : 'bg-white border-slate-200/90 text-slate-600 hover:bg-slate-50'
               }`}
             >
-              {/* Day of week (MON, TUE, WED...) */}
               <span className={`text-[9px] font-black uppercase tracking-wider ${isSelected ? 'text-violet-100' : 'text-slate-400'}`}>
                 {d.weekdayLabel}
               </span>
-
-              {/* Day Number */}
               <span className={`text-sm font-black font-mono mt-0.5 ${isSelected ? 'text-white' : 'text-slate-800'}`}>
                 {d.dayNum}
               </span>
-
-              {/* Subtle indicator dot for today */}
               {d.isToday && (
                 <span className={`w-1 h-1 rounded-full mt-0.5 ${isSelected ? 'bg-amber-300' : 'bg-violet-600'}`} />
               )}
@@ -435,6 +454,51 @@ export const TimeBlockingSchedule: React.FC = () => {
         </div>
       </div>
 
+      {/* ── 4. Search Bar & Category Filter Bar (Identical to Tasks Page) ── */}
+      <div className="space-y-2">
+        {/* Search Input */}
+        <div className="relative">
+          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Search blocks, notes, or categories..."
+            className="w-full pl-9 pr-9 py-2.5 rounded-2xl bg-white border border-slate-200 text-xs font-bold text-slate-900 placeholder:text-slate-400 outline-none focus:border-violet-500 shadow-2xs transition"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-700"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+
+        {/* Category Value Group Filter Chips */}
+        <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+          {[
+            { key: 'all', label: 'All Values' },
+            { key: 'productive', label: '🟢 Productive' },
+            { key: 'neutral', label: '🔵 Neutral' },
+            { key: 'wasted', label: '🔴 Wasted' },
+          ].map(grp => (
+            <button
+              key={grp.key}
+              onClick={() => { sounds.playTap(); setSelectedCategoryType(grp.key) }}
+              className={`shrink-0 px-3 py-1 rounded-xl text-[11px] font-bold transition active:scale-95 border ${
+                selectedCategoryType === grp.key
+                  ? 'bg-violet-600 border-violet-600 text-white shadow-2xs'
+                  : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              {grp.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* ══════════════════════════════════════════════════════════════════════ */}
       {/* ── VIEW MODE 1: COMPACT BLOCKS (NO EMPTY HOURS SHOWN) ─────────────── */}
       {/* ══════════════════════════════════════════════════════════════════════ */}
@@ -444,7 +508,7 @@ export const TimeBlockingSchedule: React.FC = () => {
           <div className="flex items-center justify-between gap-1.5">
             <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
               {[
-                { id: 'all', label: `All Blocks (${combinedBlocks.length})` },
+                { id: 'all', label: `All (${combinedBlocks.length})` },
                 { id: 'plan', label: `Plan (${slots.length})` },
                 { id: 'timelog', label: `Time Logs (${logs.length})` },
                 { id: 'compare', label: 'Variance' },
@@ -454,7 +518,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                   onClick={() => { sounds.playTap(); setBlockFilter(tab.id as BlockFilter) }}
                   className={`px-3 py-1.5 rounded-xl text-xs font-bold transition active:scale-95 whitespace-nowrap border ${
                     blockFilter === tab.id
-                      ? 'bg-violet-600 border-violet-600 text-white shadow-2xs'
+                      ? 'bg-slate-900 border-slate-900 text-white shadow-2xs'
                       : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                   }`}
                 >
@@ -462,26 +526,23 @@ export const TimeBlockingSchedule: React.FC = () => {
                 </button>
               ))}
             </div>
+          </div>
 
-            <div className="flex items-center gap-1 shrink-0">
+          {/* Search notice */}
+          {searchQuery && (
+            <div className="flex items-center justify-between px-3 py-1.5 rounded-xl bg-violet-50 border border-violet-200 text-xs font-bold text-violet-800">
+              <div className="flex items-center gap-1.5 truncate">
+                <Search className="w-3.5 h-3.5 text-violet-600 shrink-0" />
+                <span className="truncate">"{searchQuery}" ({filteredBlocks.length} results)</span>
+              </div>
               <button
-                onClick={() => { sounds.playTap(); setPlanModalOpen(true) }}
-                className="h-7 px-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-[11px] font-bold flex items-center gap-1 shadow-2xs active:scale-95 transition"
-                title="Add Plan Block"
+                onClick={() => setSearchQuery('')}
+                className="p-0.5 hover:text-violet-950 transition shrink-0"
               >
-                <Plus className="w-3.5 h-3.5 stroke-[3]" />
-                <span>Plan</span>
-              </button>
-              <button
-                onClick={() => { sounds.playTap(); setLogModalOpen(true) }}
-                className="h-7 px-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 text-[11px] font-bold flex items-center gap-1 active:scale-95 transition"
-                title="Log Time Entry"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Log</span>
+                <X className="w-3.5 h-3.5" />
               </button>
             </div>
-          </div>
+          )}
 
           {/* Variance Analysis (When Compare Tab Selected) */}
           {blockFilter === 'compare' && (
@@ -504,32 +565,19 @@ export const TimeBlockingSchedule: React.FC = () => {
             </div>
           )}
 
-          {/* Chronological Blocks List */}
+          {/* Blocks List */}
           {filteredBlocks.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 px-4 text-center bg-white rounded-2xl border border-slate-200/90 shadow-2xs">
-              <div className="w-14 h-14 rounded-2xl bg-violet-50 border border-violet-200 text-violet-600 flex items-center justify-center shadow-xs mb-3">
-                <Layers className="w-7 h-7" />
+            <div className="bg-white rounded-3xl p-8 border border-slate-200 text-center space-y-3 shadow-2xs">
+              <div className="w-12 h-12 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center mx-auto">
+                <CalendarIcon className="w-6 h-6" />
               </div>
-              <h3 className="text-sm font-black text-slate-900">No Time Blocks Scheduled</h3>
-              <p className="text-xs text-slate-500 mt-1 max-w-[260px] leading-relaxed">
-                Add planned focus blocks or record time entries to structure your day without empty hour clutter.
-              </p>
-
-              <div className="flex items-center gap-2 mt-5">
-                <button
-                  onClick={() => { sounds.playTap(); setPlanModalOpen(true) }}
-                  className="px-4 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold shadow-md shadow-violet-600/20 active:scale-95 transition flex items-center gap-1.5"
-                >
-                  <Plus className="w-3.5 h-3.5 stroke-[3]" />
-                  <span>Add Plan Block</span>
-                </button>
-                <button
-                  onClick={() => { sounds.playTap(); setLogModalOpen(true) }}
-                  className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 text-xs font-bold active:scale-95 transition flex items-center gap-1.5"
-                >
-                  <Clock className="w-3.5 h-3.5" />
-                  <span>Log Time</span>
-                </button>
+              <div>
+                <h3 className="text-sm font-black text-slate-900">
+                  {searchQuery ? 'No matching time blocks found' : 'No time blocks for this date'}
+                </h3>
+                <p className="text-xs text-slate-500 mt-1 max-w-[260px] mx-auto">
+                  {searchQuery ? 'Try searching with different keywords.' : 'Plan your time blocks or record actual focus time below.'}
+                </p>
               </div>
             </div>
           ) : (
@@ -568,7 +616,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                               {slot.start_time} - {slot.end_time} ({item.durationMinutes}m)
                             </span>
                             <span className="text-[9px] font-bold text-sky-700 bg-sky-100/60 px-1.5 py-0.2 rounded">
-                              📅 Plan Block
+                              📅 Plan
                             </span>
                             {slot.category && (
                               <span
@@ -592,7 +640,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                           {!isDone && (
                             <button
                               onClick={() => handleStartSlotFocus(slot)}
-                              className="h-6 px-2 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-[10px] font-bold flex items-center gap-1 shadow-2xs active:scale-95 transition"
+                              className="h-7 px-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-[11px] font-bold flex items-center gap-1 shadow-2xs active:scale-95 transition"
                               title="Start Focus Timer"
                             >
                               <Play className="w-2.5 h-2.5 fill-current" />
@@ -649,15 +697,13 @@ export const TimeBlockingSchedule: React.FC = () => {
                         )}
                       </div>
 
-                      <div className="text-right shrink-0 flex items-center gap-2">
-                        <button
-                          onClick={() => { sounds.playTap(); deleteLog(log.id) }}
-                          className="p-1 text-slate-300 hover:text-rose-600 transition active:scale-90"
-                          title="Delete Log"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => { sounds.playTap(); deleteLog(log.id) }}
+                        className="p-1.5 text-slate-300 hover:text-rose-600 transition active:scale-90"
+                        title="Delete Time Log"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   )
                 }
@@ -670,83 +716,68 @@ export const TimeBlockingSchedule: React.FC = () => {
       )}
 
       {/* ══════════════════════════════════════════════════════════════════════ */}
-      {/* ── VIEW MODE 2: HOURLY TIMELINE (24H RULER) ────────────────────────── */}
+      {/* ── VIEW MODE 2: HOURLY TIMELINE WITH RULER ─────────────────────────── */}
       {/* ══════════════════════════════════════════════════════════════════════ */}
       {viewMode === 'timeline' && (
-        <div className="flex-1 flex flex-col min-h-0 bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden animate-fade-in">
-          {/* Timeline Toolbar */}
-          <div className="p-2.5 bg-slate-50/80 border-b border-slate-200/80 flex items-center justify-between text-xs">
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-sky-800 bg-sky-100/80 px-2 py-0.5 rounded-md">
-                <span className="w-2 h-2 rounded-full bg-sky-500" /> Planned Slots
+        <div className="bg-white rounded-3xl border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col flex-1 min-h-[500px]">
+          {/* Header Legend */}
+          <div className="px-4 py-2 bg-slate-50 border-b border-slate-100 flex items-center justify-between text-xs font-bold text-slate-600">
+            <div className="flex items-center gap-3">
+              <span className="flex items-center gap-1.5 text-sky-700">
+                <span className="w-2.5 h-2.5 rounded-full bg-sky-500" />
+                <span>Planned Time Block</span>
               </span>
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-violet-800 bg-violet-100/80 px-2 py-0.5 rounded-md">
-                <span className="w-2 h-2 rounded-full bg-violet-500" /> Focus Logs
+              <span className="flex items-center gap-1.5 text-violet-700">
+                <span className="w-2.5 h-2.5 rounded-full bg-violet-500" />
+                <span>Actual Focus Log</span>
               </span>
             </div>
-
-            <button
-              onClick={() => { sounds.playTap(); setPlanModalOpen(true) }}
-              className="px-2.5 py-1 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-[11px] font-bold shadow-2xs active:scale-95 transition flex items-center gap-1"
-            >
-              <Plus className="w-3.5 h-3.5 stroke-[3]" />
-              <span>Add Block</span>
-            </button>
+            <span className="text-[10px] text-slate-400">Click any hour to plan</span>
           </div>
 
-          {/* Hourly Vertical Timeline Scroll Area */}
-          <div
-            ref={timelineScrollRef}
-            className="flex-1 overflow-y-auto min-h-[420px] max-h-[600px] p-3 relative select-none"
-          >
-            {/* 24-Hour Grid Lines */}
-            <div className="relative" style={{ height: (END_HOUR - START_HOUR + 1) * HOUR_HEIGHT }}>
+          {/* Timeline Scroll Area */}
+          <div ref={timelineScrollRef} className="flex-1 overflow-y-auto relative p-3 min-h-[400px]">
+            <div
+              className="relative"
+              style={{ height: `${(END_HOUR - START_HOUR + 1) * HOUR_HEIGHT}px` }}
+            >
+              {/* Hour Grid Lines */}
               {Array.from({ length: END_HOUR - START_HOUR + 1 }).map((_, idx) => {
                 const hour = START_HOUR + idx
-                const topPos = idx * HOUR_HEIGHT
-
+                const top = idx * HOUR_HEIGHT
                 return (
                   <div
-                    key={hour}
-                    className="absolute left-0 right-0 border-t border-slate-100 flex items-start group hover:bg-slate-50/50 transition cursor-pointer"
-                    style={{ top: topPos, height: HOUR_HEIGHT }}
+                    key={`hour-${hour}`}
                     onClick={() => handleTimelineHourClick(hour)}
+                    className="absolute left-0 right-0 border-t border-slate-100 hover:bg-slate-50/70 transition cursor-pointer flex items-start group"
+                    style={{ top: `${top}px`, height: `${HOUR_HEIGHT}px` }}
                   >
-                    {/* Time Label */}
-                    <div className="w-12 -mt-2 text-[10px] font-mono font-bold text-slate-400 select-none">
+                    <span className="text-[11px] font-mono font-bold text-slate-400 -mt-2.5 w-12 shrink-0 group-hover:text-violet-600 transition">
                       {String(hour).padStart(2, '0')}:00
-                    </div>
-                    {/* Dashed half-hour line */}
-                    <div className="flex-1 border-b border-dashed border-slate-50/80 h-1/2" />
+                    </span>
                   </div>
                 )
               })}
 
-              {/* Current Time Live Indicator (Red/Purple Line) */}
+              {/* Red marker for current time */}
               {isViewingToday && currentTimeMinutes >= START_HOUR * 60 && currentTimeMinutes <= (END_HOUR + 1) * 60 && (
                 <div
-                  className="absolute left-0 right-0 z-20 flex items-center pointer-events-none"
-                  style={{
-                    top: ((currentTimeMinutes - START_HOUR * 60) / 60) * HOUR_HEIGHT
-                  }}
+                  className="absolute left-10 right-0 border-t-2 border-rose-500 z-20 pointer-events-none flex items-center"
+                  style={{ top: `${((currentTimeMinutes - START_HOUR * 60) / 60) * HOUR_HEIGHT}px` }}
                 >
-                  <div className="w-12 text-[9px] font-mono font-black text-rose-600 bg-rose-50 px-1 py-0.2 rounded border border-rose-200 shrink-0">
-                    NOW
-                  </div>
-                  <div className="flex-1 h-0.5 bg-rose-500 shadow-xs relative">
-                    <span className="absolute -left-1 -top-1 w-2.5 h-2.5 rounded-full bg-rose-600 ring-2 ring-white" />
-                  </div>
+                  <div className="w-2.5 h-2.5 rounded-full bg-rose-500 -ml-1.5" />
+                  <span className="text-[9px] font-bold font-mono text-white bg-rose-500 px-1 rounded ml-1">Now</span>
                 </div>
               )}
 
-              {/* Render Planned Schedule Slots as Overlaid Time Blocks */}
+              {/* Render Planned Slots as Sky Blue Blocks */}
               {slots.map(slot => {
                 const startMins = timeToMinutes(slot.start_time)
                 const endMins = timeToMinutes(slot.end_time)
                 const durMins = Math.max(15, endMins - startMins)
 
                 const top = Math.max(0, ((startMins - START_HOUR * 60) / 60) * HOUR_HEIGHT)
-                const height = Math.max(28, (durMins / 60) * HOUR_HEIGHT)
+                const height = Math.max(26, (durMins / 60) * HOUR_HEIGHT)
 
                 return (
                   <div
@@ -875,7 +906,7 @@ export const TimeBlockingSchedule: React.FC = () => {
             className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-black shadow-md shadow-violet-600/20 active:scale-95 transition"
           >
             <CalendarIcon className="w-4 h-4" />
-            <span>+ Lên Plan</span>
+            <span>+ Plan Slot</span>
           </button>
           <button
             onClick={() => {
@@ -887,7 +918,7 @@ export const TimeBlockingSchedule: React.FC = () => {
             className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-black shadow-md shadow-slate-900/20 active:scale-95 transition"
           >
             <Clock className="w-4 h-4" />
-            <span>+ Ghi Actual</span>
+            <span>+ Log Actual</span>
           </button>
         </div>
       </div>
@@ -900,8 +931,8 @@ export const TimeBlockingSchedule: React.FC = () => {
             <div className="sheet-handle" />
             <div className="flex items-center justify-between mb-3">
               <div>
-                <h2 className="text-sm font-black text-slate-900">Lên Kế Hoạch (Plan Time Block)</h2>
-                <p className="text-[11px] text-slate-500 font-medium">Lên lịch dự kiến tập trung công việc/học tập</p>
+                <h2 className="text-sm font-black text-slate-900">Plan Time Block</h2>
+                <p className="text-[11px] text-slate-500 font-medium">Schedule planned focus hours for today</p>
               </div>
               <button onClick={() => setPlanModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-700">
                 <X className="w-5 h-5" />
@@ -910,13 +941,13 @@ export const TimeBlockingSchedule: React.FC = () => {
             <form onSubmit={handleCreatePlan} className="space-y-3">
               <div>
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  Tên hoạt động / Mục tiêu *
+                  Activity Title *
                 </label>
                 <input
                   type="text"
                   value={slotTitle}
                   onChange={e => setSlotTitle(e.target.value)}
-                  placeholder="ví dụ: Lập trình tính năng mới, Học từ vựng, Họp team..."
+                  placeholder="e.g. Feature Coding, English Study, Team Sync..."
                   autoFocus
                   required
                   className="w-full px-3.5 py-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
@@ -926,18 +957,18 @@ export const TimeBlockingSchedule: React.FC = () => {
               {/* Category Hierarchy Picker */}
               <div>
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  Danh mục phân loại (Category)
+                  Category
                 </label>
                 <select
                   value={slotCategoryId || ''}
                   onChange={e => setSlotCategoryId(e.target.value ? Number(e.target.value) : null)}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 outline-none focus:border-violet-500 focus:bg-white transition"
                 >
-                  <option value="">-- Chưa chọn danh mục --</option>
+                  <option value="">-- Select Category --</option>
                   {categories.map(c => (
                     <React.Fragment key={c.id}>
                       <option value={c.id}>
-                        📁 {c.name} ({c.category_type === 'wasted' ? '🔴 Lãng phí' : c.category_type === 'neutral' ? '🔵 Sinh hoạt' : '🟢 Giá trị'})
+                        📁 {c.name} ({c.category_type === 'wasted' ? '🔴 Wasted' : c.category_type === 'neutral' ? '🔵 Neutral' : '🟢 Productive'})
                       </option>
                       {c.subcategories && c.subcategories.map(sub => (
                         <option key={sub.id} value={sub.id}>
@@ -952,7 +983,7 @@ export const TimeBlockingSchedule: React.FC = () => {
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    Bắt đầu
+                    Start Time
                   </label>
                   <input
                     type="time"
@@ -964,7 +995,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    Kết thúc
+                    End Time
                   </label>
                   <input
                     type="time"
@@ -978,13 +1009,13 @@ export const TimeBlockingSchedule: React.FC = () => {
 
               <div>
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  Ghi chú (Tùy chọn)
+                  Notes (Optional)
                 </label>
                 <input
                   type="text"
                   value={slotNotes}
                   onChange={e => setSlotNotes(e.target.value)}
-                  placeholder="Ghi chú chi tiết..."
+                  placeholder="Additional details or deliverables..."
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
                 />
               </div>
@@ -993,7 +1024,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                 type="submit"
                 className="w-full py-3.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold active:scale-[0.98] transition shadow-md shadow-violet-600/20 mt-2"
               >
-                Lưu Kế Hoạch (Save Plan)
+                Save Plan Slot
               </button>
             </form>
           </div>
@@ -1008,8 +1039,8 @@ export const TimeBlockingSchedule: React.FC = () => {
             <div className="sheet-handle" />
             <div className="flex items-center justify-between mb-3">
               <div>
-                <h2 className="text-sm font-black text-slate-900">Ghi Nhật Ký Thực Tế (Actual Time)</h2>
-                <p className="text-[11px] text-slate-500 font-medium">Ghi lại thời gian bạn thực sự đã làm</p>
+                <h2 className="text-sm font-black text-slate-900">Record Actual Time Log</h2>
+                <p className="text-[11px] text-slate-500 font-medium">Log actual time spent on work</p>
               </div>
               <button onClick={() => setLogModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-700">
                 <X className="w-5 h-5" />
@@ -1018,13 +1049,13 @@ export const TimeBlockingSchedule: React.FC = () => {
             <form onSubmit={handleCreateManualLog} className="space-y-3">
               <div>
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  Bạn đã làm việc gì? *
+                  What did you work on? *
                 </label>
                 <input
                   type="text"
                   value={logNotes}
                   onChange={e => setLogNotes(e.target.value)}
-                  placeholder="ví dụ: Đọc sách 30 phút, Fix bug frontend, Lướt Facebook..."
+                  placeholder="e.g. Read 30 mins, Bug fixing, Client meeting..."
                   autoFocus
                   required
                   className="w-full px-3.5 py-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
@@ -1034,18 +1065,18 @@ export const TimeBlockingSchedule: React.FC = () => {
               {/* Category Hierarchy Picker */}
               <div>
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  Danh mục phân loại (Category)
+                  Category
                 </label>
                 <select
                   value={logCategoryId || ''}
                   onChange={e => setLogCategoryId(e.target.value ? Number(e.target.value) : null)}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 outline-none focus:border-violet-500 focus:bg-white transition"
                 >
-                  <option value="">-- Chưa chọn danh mục --</option>
+                  <option value="">-- Select Category --</option>
                   {categories.map(c => (
                     <React.Fragment key={c.id}>
                       <option value={c.id}>
-                        📁 {c.name} ({c.category_type === 'wasted' ? '🔴 Lãng phí' : c.category_type === 'neutral' ? '🔵 Sinh hoạt' : '🟢 Giá trị'})
+                        📁 {c.name} ({c.category_type === 'wasted' ? '🔴 Wasted' : c.category_type === 'neutral' ? '🔵 Neutral' : '🟢 Productive'})
                       </option>
                       {c.subcategories && c.subcategories.map(sub => (
                         <option key={sub.id} value={sub.id}>
@@ -1060,7 +1091,7 @@ export const TimeBlockingSchedule: React.FC = () => {
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    Từ giờ
+                    Start Time
                   </label>
                   <input
                     type="time"
@@ -1072,7 +1103,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    Đến giờ
+                    End Time
                   </label>
                   <input
                     type="time"
@@ -1086,9 +1117,9 @@ export const TimeBlockingSchedule: React.FC = () => {
 
               <button
                 type="submit"
-                className="w-full py-3.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold active:scale-[0.98] transition shadow-md shadow-violet-600/20 mt-2"
+                className="w-full py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold active:scale-[0.98] transition shadow-md shadow-slate-900/20 mt-2"
               >
-                Lưu Nhật Ký Thực Tế (Save Actual)
+                Save Time Log
               </button>
             </form>
           </div>

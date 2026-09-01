@@ -99,11 +99,12 @@ export const CategoryManagement: React.FC = () => {
     setFormIcon(parentId ? 'code' : 'folder')
     setFormParentId(parentId)
 
+    // Inherit category type from parent if creating subcategory
     if (parentId) {
-      const parent = parentCategories.find(p => p.id === parentId)
+      const parent = categories.find(c => c.id === parentId)
       if (parent) {
-        setFormCategoryType((parent.category_type as any) || 'productive')
-        setFormColor(parent.color)
+        setFormCategoryType(parent.category_type || 'productive')
+        setFormColor(parent.color || '#8B5CF6')
       }
     } else {
       setFormCategoryType('productive')
@@ -116,7 +117,7 @@ export const CategoryManagement: React.FC = () => {
     sounds.playTap()
     setEditingCategory(cat)
     setFormName(cat.name)
-    setFormColor(cat.color)
+    setFormColor(cat.color || '#8B5CF6')
     setFormIcon(cat.icon || 'folder')
     setFormParentId(cat.parent_id || null)
     setFormCategoryType(cat.category_type || 'productive')
@@ -125,17 +126,18 @@ export const CategoryManagement: React.FC = () => {
 
   const handleSaveCategory = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!formName.trim()) return
+    if (!formName.trim() || isSubmitting) return
 
     try {
       setIsSubmitting(true)
       sounds.playTap()
+
       if (editingCategory) {
         await updateCategory(editingCategory.id, {
           name: formName.trim(),
           color: formColor,
           icon: formIcon,
-          parent_id: formParentId,
+          parent_id: formParentId || undefined,
           category_type: formCategoryType
         })
       } else {
@@ -143,26 +145,26 @@ export const CategoryManagement: React.FC = () => {
           name: formName.trim(),
           color: formColor,
           icon: formIcon,
-          parent_id: formParentId,
+          parent_id: formParentId || undefined,
           category_type: formCategoryType
         })
       }
+
       sounds.playSuccess()
       setModalOpen(false)
-    } catch (e) {
-      console.error('Failed to save category', e)
+    } catch (err) {
+      console.error('Failed to save category', err)
     } finally {
       setIsSubmitting(false)
     }
   }
 
   const handleDeleteCategory = async (id: number, name: string) => {
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa danh mục "${name}"? Các sub-category liên quan sẽ bị xóa theo.`)) {
-      return
-    }
     sounds.playTap()
-    await deleteCategory(id)
-    sounds.playSuccess()
+    if (confirm(`Are you sure you want to delete category "${name}"?`)) {
+      await deleteCategory(id)
+      sounds.playSuccess()
+    }
   }
 
   const handleSeedPresets = async () => {
@@ -172,16 +174,16 @@ export const CategoryManagement: React.FC = () => {
       await seedPresetCategories()
       sounds.playSuccess()
       setPresetConfirmOpen(false)
-    } catch (e) {
-      console.error('Failed to seed presets', e)
+    } catch (err) {
+      console.error('Failed to seed categories', err)
     } finally {
       setIsSubmitting(false)
     }
   }
 
   const renderIcon = (iconName?: string, className = 'w-4 h-4') => {
-    const IconComponent = ICON_MAP[iconName || 'folder'] || Folder
-    return <IconComponent className={className} />
+    const IconComp = iconName ? ICON_MAP[iconName] || Folder : Folder
+    return <IconComp className={className} />
   }
 
   const getTypeBadge = (type?: string) => {
@@ -189,20 +191,20 @@ export const CategoryManagement: React.FC = () => {
       case 'wasted':
         return (
           <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-rose-50 text-rose-700 border border-rose-200">
-            🔴 Lãng phí / Xao nhãng
+            🔴 Wasted / Distraction
           </span>
         )
       case 'neutral':
         return (
           <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-sky-50 text-sky-700 border border-sky-200">
-            🔵 Sinh hoạt / Duy trì
+            🔵 Neutral / Maintenance
           </span>
         )
       case 'productive':
       default:
         return (
           <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
-            🟢 Tạo giá trị (Productive)
+            🟢 Productive / Value
           </span>
         )
     }
@@ -210,7 +212,7 @@ export const CategoryManagement: React.FC = () => {
 
   return (
     <div className="flex-1 overflow-y-auto px-4 py-4 md:px-8 md:py-6 bg-[#F8FAFC]">
-      <div className="max-w-4xl mx-auto space-y-5 pb-20">
+      <div className="max-w-4xl mx-auto space-y-5 pb-24">
         {/* ── Ergonomic Header ─────── */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
           <div>
@@ -221,10 +223,10 @@ export const CategoryManagement: React.FC = () => {
               </span>
             </div>
             <h1 className="text-2xl font-black text-slate-900 tracking-tight mt-0.5">
-              Quản Lý Danh Mục
+              Category Management
             </h1>
             <p className="text-xs text-slate-500 font-medium">
-              Phân loại thời gian & nhiệm vụ theo cấp bậc để theo dõi mức độ tạo giá trị hoặc lãng phí.
+              Categorize time blocks & tasks with value group auditing (Productive, Neutral, or Distraction).
             </p>
           </div>
 
@@ -233,10 +235,10 @@ export const CategoryManagement: React.FC = () => {
             <button
               onClick={() => { sounds.playTap(); setPresetConfirmOpen(true) }}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 shadow-xs active:scale-95 transition"
-              title="Khôi phục danh mục mẫu phong phú"
+              title="Load standard preset categories"
             >
               <RotateCcw className="w-3.5 h-3.5 text-violet-600" />
-              <span>Nạp danh mục mẫu</span>
+              <span>Load Presets</span>
             </button>
 
             <button
@@ -244,60 +246,60 @@ export const CategoryManagement: React.FC = () => {
               className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-violet-600 text-white hover:bg-violet-700 shadow-xs active:scale-95 transition"
             >
               <Plus className="w-4 h-4" />
-              <span>Thêm danh mục cha</span>
+              <span>New Category</span>
             </button>
           </div>
         </div>
 
-        {/* ── Time Allocation Metrics (Financial-Style Value Breakdown) ─────── */}
+        {/* ── Time Allocation Metrics ─────── */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="glass rounded-2xl p-4 border border-emerald-200/70 bg-emerald-50/30">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-emerald-800">🟢 Tạo giá trị (Productive)</span>
+              <span className="text-xs font-bold text-emerald-800">🟢 Productive</span>
               <span className="text-[10px] font-bold font-mono px-2 py-0.5 bg-emerald-100/70 text-emerald-800 rounded-md">
-                {categories.filter(c => (c.category_type || 'productive') === 'productive').length} mục
+                {categories.filter(c => (c.category_type || 'productive') === 'productive').length} items
               </span>
             </div>
             <div className="text-xl font-black text-slate-900 font-mono mt-2">
-              {Math.round(productiveMins)} <span className="text-xs font-normal text-slate-500">phút focus</span>
+              {Math.round(productiveMins)} <span className="text-xs font-normal text-slate-500">focus mins</span>
             </div>
-            <div className="text-[11px] text-slate-500 mt-0.5">Công việc, học tập, rèn luyện kỹ năng</div>
+            <div className="text-[11px] text-slate-500 mt-0.5">Deep work, coding, learning & fitness</div>
           </div>
 
           <div className="glass rounded-2xl p-4 border border-sky-200/70 bg-sky-50/30">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-sky-800">🔵 Duy trì & Sinh hoạt (Neutral)</span>
+              <span className="text-xs font-bold text-sky-800">🔵 Neutral / Rest</span>
               <span className="text-[10px] font-bold font-mono px-2 py-0.5 bg-sky-100/70 text-sky-800 rounded-md">
-                {categories.filter(c => c.category_type === 'neutral').length} mục
+                {categories.filter(c => c.category_type === 'neutral').length} items
               </span>
             </div>
             <div className="text-xl font-black text-slate-900 font-mono mt-2">
-              {Math.round(neutralMins)} <span className="text-xs font-normal text-slate-500">phút focus</span>
+              {Math.round(neutralMins)} <span className="text-xs font-normal text-slate-500">focus mins</span>
             </div>
-            <div className="text-[11px] text-slate-500 mt-0.5">Họp định kỳ, ăn uống, giải trí điều độ</div>
+            <div className="text-[11px] text-slate-500 mt-0.5">Routine syncs, meals & socializing</div>
           </div>
 
           <div className="glass rounded-2xl p-4 border border-rose-200/70 bg-rose-50/30">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-rose-800">🔴 Lãng phí (Wasted / Distraction)</span>
+              <span className="text-xs font-bold text-rose-800">🔴 Wasted / Distraction</span>
               <span className="text-[10px] font-bold font-mono px-2 py-0.5 bg-rose-100/70 text-rose-800 rounded-md">
-                {categories.filter(c => c.category_type === 'wasted').length} mục
+                {categories.filter(c => c.category_type === 'wasted').length} items
               </span>
             </div>
             <div className="text-xl font-black text-slate-900 font-mono mt-2">
-              {Math.round(wastedMins)} <span className="text-xs font-normal text-slate-500">phút log</span>
+              {Math.round(wastedMins)} <span className="text-xs font-normal text-slate-500">logged mins</span>
             </div>
-            <div className="text-[11px] text-slate-500 mt-0.5">Lướt mạng vô bổ, trì hoãn, phân tâm</div>
+            <div className="text-[11px] text-slate-500 mt-0.5">Doomscrolling, procrastination, delays</div>
           </div>
         </div>
 
         {/* ── Filter Tabs ─────── */}
         <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
           {[
-            { id: 'all', label: 'Tất cả danh mục' },
-            { id: 'productive', label: '🟢 Tạo giá trị (Productive)' },
-            { id: 'neutral', label: '🔵 Sinh hoạt (Neutral)' },
-            { id: 'wasted', label: '🔴 Lãng phí (Wasted)' }
+            { id: 'all', label: 'All Categories' },
+            { id: 'productive', label: '🟢 Productive' },
+            { id: 'neutral', label: '🔵 Neutral' },
+            { id: 'wasted', label: '🔴 Wasted' }
           ].map(tab => (
             <button
               key={tab.id}
@@ -319,16 +321,16 @@ export const CategoryManagement: React.FC = () => {
             <div className="w-12 h-12 rounded-2xl bg-violet-100 text-violet-600 flex items-center justify-center mx-auto">
               <FolderTree className="w-6 h-6" />
             </div>
-            <h3 className="text-base font-bold text-slate-800">Chưa có danh mục nào phù hợp</h3>
+            <h3 className="text-base font-bold text-slate-800">No categories found</h3>
             <p className="text-xs text-slate-500 max-w-sm mx-auto">
-              Bạn có thể tự tạo danh mục cha mới hoặc bấm nạp bộ danh mục mẫu tiêu chuẩn để bắt đầu ngay.
+              You can create a new parent category or load preset categories to get started instantly.
             </p>
             <button
               onClick={() => handleSeedPresets()}
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-violet-600 text-white hover:bg-violet-700 shadow-sm transition"
             >
               <Sparkles className="w-4 h-4" />
-              <span>Nạp ngay bộ danh mục mẫu</span>
+              <span>Load Preset Categories</span>
             </button>
           </div>
         ) : (
@@ -355,9 +357,9 @@ export const CategoryManagement: React.FC = () => {
                         {getTypeBadge(parent.category_type)}
                       </div>
                       <div className="flex items-center gap-3 text-[11px] text-slate-500 font-medium mt-0.5">
-                        <span>{parent.subcategories?.length || 0} danh mục con</span>
+                        <span>{parent.subcategories?.length || 0} sub-categories</span>
                         <span>•</span>
-                        <span>{parent.tasks_count || 0} nhiệm vụ</span>
+                        <span>{parent.tasks_count || 0} tasks</span>
                         <span>•</span>
                         <span className="font-mono">{Math.round(parent.focus_minutes || 0)}m focus</span>
                       </div>
@@ -369,22 +371,22 @@ export const CategoryManagement: React.FC = () => {
                     <button
                       onClick={() => handleOpenAddModal(parent.id)}
                       className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 transition"
-                      title="Thêm danh mục con vào đây"
+                      title="Add sub-category"
                     >
                       <Plus className="w-3.5 h-3.5" />
-                      <span>Thêm con</span>
+                      <span>Add Sub</span>
                     </button>
                     <button
                       onClick={() => handleOpenEditModal(parent)}
                       className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 border border-transparent transition"
-                      title="Chỉnh sửa danh mục cha"
+                      title="Edit Category"
                     >
                       <Edit2 className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => handleDeleteCategory(parent.id, parent.name)}
                       className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent transition"
-                      title="Xóa danh mục cha"
+                      title="Delete Category"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -424,14 +426,14 @@ export const CategoryManagement: React.FC = () => {
                           <button
                             onClick={() => handleOpenEditModal(sub)}
                             className="p-1 rounded-lg text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition"
-                            title="Sửa danh mục con"
+                            title="Edit Subcategory"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={() => handleDeleteCategory(sub.id, sub.name)}
                             className="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition"
-                            title="Xóa danh mục con"
+                            title="Delete Subcategory"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -441,7 +443,7 @@ export const CategoryManagement: React.FC = () => {
                   </div>
                 ) : (
                   <div className="px-5 py-3 bg-slate-50/40 text-[11px] text-slate-400 italic flex items-center gap-1.5">
-                    <span>Chưa có sub-category. Bạn có thể bấm "+ Thêm con" để tạo nhóm nhỏ hơn.</span>
+                    <span>No sub-categories yet. Click "+ Add Sub" to organize deeper.</span>
                   </div>
                 )}
               </div>
@@ -456,7 +458,7 @@ export const CategoryManagement: React.FC = () => {
           <div className="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-slate-200 space-y-4 max-h-[90dvh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="text-base font-black text-slate-900">
-                {editingCategory ? 'Chỉnh Sửa Danh Mục' : formParentId ? 'Thêm Danh Mục Con' : 'Thêm Danh Mục Cha'}
+                {editingCategory ? 'Edit Category' : formParentId ? 'Add Sub-Category' : 'Add Parent Category'}
               </h3>
               <button
                 onClick={() => setModalOpen(false)}
@@ -470,12 +472,12 @@ export const CategoryManagement: React.FC = () => {
               {/* Name */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Tên danh mục *
+                  Category Name *
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="ví dụ: Lập trình backend, Tiếng Anh giao tiếp..."
+                  placeholder="e.g. Backend Development, English Speaking..."
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 font-medium"
@@ -485,14 +487,14 @@ export const CategoryManagement: React.FC = () => {
               {/* Parent Category Selector */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Thuộc danh mục cha
+                  Parent Category
                 </label>
                 <select
                   value={formParentId || ''}
                   onChange={(e) => setFormParentId(e.target.value ? Number(e.target.value) : null)}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-violet-500"
                 >
-                  <option value="">-- Là Danh mục cha cấp 1 (Không có cha) --</option>
+                  <option value="">-- Level 1 Parent Category (No Parent) --</option>
                   {parentCategories
                     .filter(p => !editingCategory || p.id !== editingCategory.id)
                     .map(p => (
@@ -506,13 +508,13 @@ export const CategoryManagement: React.FC = () => {
               {/* Category Type (Productivity / Value Allocation) */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Nhóm giá trị thời gian *
+                  Value Allocation Group *
                 </label>
                 <div className="grid grid-cols-3 gap-2">
                   {[
-                    { id: 'productive', label: '🟢 Tạo giá trị', desc: 'Work/Study' },
-                    { id: 'neutral', label: '🔵 Sinh hoạt', desc: 'Rest/Social' },
-                    { id: 'wasted', label: '🔴 Lãng phí', desc: 'Distraction' }
+                    { id: 'productive', label: '🟢 Productive', desc: 'Work/Study' },
+                    { id: 'neutral', label: '🔵 Neutral', desc: 'Rest/Social' },
+                    { id: 'wasted', label: '🔴 Wasted', desc: 'Distraction' }
                   ].map(t => (
                     <button
                       type="button"
@@ -534,7 +536,7 @@ export const CategoryManagement: React.FC = () => {
               {/* Color Palette */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Màu đại diện
+                  Color Tag
                 </label>
                 <div className="flex items-center gap-2 flex-wrap">
                   {PRESET_COLORS.map(c => (
@@ -554,7 +556,7 @@ export const CategoryManagement: React.FC = () => {
               {/* Icon Picker */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Biểu tượng (Icon)
+                  Icon
                 </label>
                 <div className="grid grid-cols-6 sm:grid-cols-8 gap-1.5 p-2 bg-slate-50 rounded-2xl border border-slate-200 max-h-36 overflow-y-auto">
                   {Object.keys(ICON_MAP).map(iconKey => {
@@ -586,14 +588,14 @@ export const CategoryManagement: React.FC = () => {
                   onClick={() => setModalOpen(false)}
                   className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition"
                 >
-                  Hủy
+                  Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
                   className="px-5 py-2 rounded-xl text-xs font-bold bg-violet-600 text-white hover:bg-violet-700 shadow-sm transition disabled:opacity-50"
                 >
-                  {isSubmitting ? 'Đang lưu...' : editingCategory ? 'Cập nhật' : 'Tạo mới'}
+                  {isSubmitting ? 'Saving...' : editingCategory ? 'Update' : 'Create'}
                 </button>
               </div>
             </form>
@@ -609,9 +611,9 @@ export const CategoryManagement: React.FC = () => {
               <Sparkles className="w-6 h-6" />
             </div>
             <div className="text-center">
-              <h3 className="text-base font-black text-slate-900">Nạp bộ danh mục mẫu?</h3>
+              <h3 className="text-base font-black text-slate-900">Load Preset Categories?</h3>
               <p className="text-xs text-slate-500 mt-1">
-                Hệ thống sẽ thêm 6 nhóm danh mục tiêu chuẩn (Công việc, Học tập, Sức khỏe, Tài chính, Giải trí, Lãng phí) kèm các danh mục con phong phú.
+                This will seed 6 standard parent categories (Work, Study, Health, Finance, Leisure, Distraction) along with rich sub-categories.
               </p>
             </div>
             <div className="flex items-center gap-2 pt-2">
@@ -620,7 +622,7 @@ export const CategoryManagement: React.FC = () => {
                 onClick={() => setPresetConfirmOpen(false)}
                 className="flex-1 px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 transition"
               >
-                Hủy bỏ
+                Cancel
               </button>
               <button
                 type="button"
@@ -628,7 +630,7 @@ export const CategoryManagement: React.FC = () => {
                 onClick={handleSeedPresets}
                 className="flex-1 px-4 py-2.5 rounded-xl text-xs font-bold bg-violet-600 text-white hover:bg-violet-700 shadow-sm transition disabled:opacity-50"
               >
-                {isSubmitting ? 'Đang nạp...' : 'Đồng ý nạp'}
+                {isSubmitting ? 'Loading...' : 'Load Presets'}
               </button>
             </div>
           </div>

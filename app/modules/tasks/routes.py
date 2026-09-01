@@ -13,76 +13,76 @@ from app.models import Task, Subtask, Category, User, TimeLog
 
 router = APIRouter(prefix="/api/v1/tasks", tags=["Tasks"])
 
-# --- Preset Hierarchical Categories ---
+# --- Preset Hierarchical Categories (English) ---
 PRESET_CATEGORIES = [
     {
-        "name": "Công việc & Sự nghiệp",
+        "name": "Work & Career",
         "icon": "briefcase",
         "color": "#8B5CF6",
         "category_type": "productive",
         "is_default": True,
         "subcategories": [
-            {"name": "Lập trình & Kỹ thuật", "icon": "code", "color": "#7C3AED", "category_type": "productive"},
-            {"name": "Email & Trao đổi", "icon": "mail", "color": "#6D28D9", "category_type": "productive"},
-            {"name": "Họp hành & Gặp gỡ", "icon": "users", "color": "#5B21B6", "category_type": "productive"},
-            {"name": "Lập kế hoạch & Chiến lược", "icon": "target", "color": "#4C1D95", "category_type": "productive"}
+            {"name": "Coding & Development", "icon": "code", "color": "#7C3AED", "category_type": "productive"},
+            {"name": "Email & Comms", "icon": "mail", "color": "#6D28D9", "category_type": "productive"},
+            {"name": "Meetings & Calls", "icon": "users", "color": "#5B21B6", "category_type": "productive"},
+            {"name": "Planning & Strategy", "icon": "target", "color": "#4C1D95", "category_type": "productive"}
         ]
     },
     {
-        "name": "Học tập & Phát triển",
+        "name": "Study & Growth",
         "icon": "book-open",
         "color": "#3B82F6",
         "category_type": "productive",
         "is_default": True,
         "subcategories": [
-            {"name": "Tiếng Anh & Ngoại ngữ", "icon": "languages", "color": "#2563EB", "category_type": "productive"},
-            {"name": "Đọc sách & Nghiên cứu", "icon": "book", "color": "#1D4ED8", "category_type": "productive"},
-            {"name": "Khóa học & Kỹ năng mới", "icon": "graduation-cap", "color": "#1E40AF", "category_type": "productive"}
+            {"name": "English & Languages", "icon": "languages", "color": "#2563EB", "category_type": "productive"},
+            {"name": "Reading & Research", "icon": "book", "color": "#1D4ED8", "category_type": "productive"},
+            {"name": "Online Courses & Skills", "icon": "graduation-cap", "color": "#1E40AF", "category_type": "productive"}
         ]
     },
     {
-        "name": "Sức khỏe & Thể chất",
+        "name": "Health & Fitness",
         "icon": "activity",
         "color": "#10B981",
         "category_type": "productive",
         "is_default": True,
         "subcategories": [
-            {"name": "Tập Gym & Thể thao", "icon": "dumbbell", "color": "#059669", "category_type": "productive"},
-            {"name": "Thiền & Thư giãn tinh thần", "icon": "heart", "color": "#047857", "category_type": "productive"},
-            {"name": "Đi bộ & Ngoài trời", "icon": "sun", "color": "#065F46", "category_type": "productive"}
+            {"name": "Workout & Gym", "icon": "dumbbell", "color": "#059669", "category_type": "productive"},
+            {"name": "Meditation & Mindfulness", "icon": "heart", "color": "#047857", "category_type": "productive"},
+            {"name": "Walking & Outdoors", "icon": "sun", "color": "#065F46", "category_type": "productive"}
         ]
     },
     {
-        "name": "Tài chính & Đầu tư",
+        "name": "Finance & Wealth",
         "icon": "wallet",
         "color": "#F59E0B",
         "category_type": "productive",
         "is_default": True,
         "subcategories": [
-            {"name": "Quản lý thu chi & Ngân sách", "icon": "pie-chart", "color": "#D97706", "category_type": "productive"},
-            {"name": "Đầu tư & Nghiên cứu thị trường", "icon": "trending-up", "color": "#B45309", "category_type": "productive"}
+            {"name": "Budget & Expense Tracking", "icon": "pie-chart", "color": "#D97706", "category_type": "productive"},
+            {"name": "Investing & Market Analysis", "icon": "trending-up", "color": "#B45309", "category_type": "productive"}
         ]
     },
     {
-        "name": "Giải trí & Tái tạo",
+        "name": "Leisure & Rest",
         "icon": "coffee",
         "color": "#06B6D4",
         "category_type": "neutral",
         "is_default": True,
         "subcategories": [
-            {"name": "Xem phim & Game", "icon": "tv", "color": "#0891B2", "category_type": "neutral"},
-            {"name": "Gặp gỡ bạn bè & Xã giao", "icon": "smile", "color": "#0E7490", "category_type": "neutral"}
+            {"name": "Movies & Gaming", "icon": "tv", "color": "#0891B2", "category_type": "neutral"},
+            {"name": "Socializing & Friends", "icon": "smile", "color": "#0E7490", "category_type": "neutral"}
         ]
     },
     {
-        "name": "Lãng phí thời gian & Xao nhãng",
+        "name": "Distraction & Waste",
         "icon": "alert-triangle",
         "color": "#EF4444",
         "category_type": "wasted",
         "is_default": True,
         "subcategories": [
-            {"name": "Lướt mạng xã hội vô thức", "icon": "smartphone", "color": "#DC2626", "category_type": "wasted"},
-            {"name": "Trì hoãn công việc", "icon": "clock", "color": "#B91C1C", "category_type": "wasted"}
+            {"name": "Doomscrolling Social Media", "icon": "smartphone", "color": "#DC2626", "category_type": "wasted"},
+            {"name": "Procrastination & Idling", "icon": "clock", "color": "#B91C1C", "category_type": "wasted"}
         ]
     }
 ]

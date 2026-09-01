@@ -3,7 +3,6 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Link } f
 import { Sparkles, BarChart3, Clock, CheckSquare, Zap } from 'lucide-react'
 import { Sidebar } from './components/Sidebar'
 import { BottomNav } from './components/BottomNav'
-import { FloatingTimerBar } from './components/FloatingTimerBar'
 import { QuickActionSheet } from './components/QuickActionSheet'
 import { UserSettingsModal } from './components/UserSettingsModal'
 import { LiveTrackingHub } from './pages/LiveTrackingHub'
@@ -142,11 +141,6 @@ const AppShell: React.FC = () => {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
-
-        {/* Floating timer pill (above bottom nav) */}
-        {isRunning && !focusOpen && location.pathname !== '/tracking' && (
-          <FloatingTimerBar onTap={() => setFocusOpen(true)} />
-        )}
 
         {/* Mobile bottom nav */}
         <BottomNav onFabTap={() => setSheetOpen(true)} />

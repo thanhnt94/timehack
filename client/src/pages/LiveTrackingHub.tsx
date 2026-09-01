@@ -43,7 +43,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
   const [activeTab, setActiveTab] = useState<MainTab>('active')
   const [readySubTab, setReadySubTab] = useState<ReadySubTab>('all')
 
-  // Sổ Nhật Ký (Time Ledger) Date & View state
+  // Time Ledger Date & View state
   const [ledgerDate, setLedgerDate] = useState<string>(todayIso)
   const [ledgerGroupMode, setLedgerGroupMode] = useState<LedgerGroupMode>('time')
   const [ledgerSortOrder, setLedgerSortOrder] = useState<LedgerSortOrder>('desc')
@@ -106,7 +106,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
   const formatLocalTime = (isoString: string) => {
     try {
       const d = new Date(isoString)
-      return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false })
+      return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
     } catch {
       return ''
     }
@@ -117,7 +117,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
       if (!dateObj) return ''
       const d = dateObj instanceof Date ? dateObj : new Date(dateObj)
       if (isNaN(d.getTime())) return ''
-      return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
+      return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
     } catch {
       return ''
     }
@@ -126,9 +126,9 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
   const formatDurationDisplay = (totalSec: number) => {
     const hours = Math.floor(totalSec / 3600)
     const mins = Math.round((totalSec % 3600) / 60)
-    if (hours === 0 && mins === 0) return '< 1p'
-    if (hours === 0) return `${mins}p`
-    return `${hours}h ${mins > 0 ? `${mins}p` : ''}`
+    if (hours === 0 && mins === 0) return '< 1m'
+    if (hours === 0) return `${mins}m`
+    return `${hours}h ${mins > 0 ? `${mins}m` : ''}`
   }
 
   // Date navigation helpers
@@ -145,19 +145,19 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
       const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000)
       const tomorrowYmd = tomorrow.toISOString().split('T')[0]
 
-      const dayNames = ['Chủ Nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7']
+      const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
       const dayName = dayNames[d.getDay()]
 
       if (dateStr === todayYmd) {
-        return `Hôm nay, ${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`
+        return `Today, ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
       }
       if (dateStr === yesterdayYmd) {
-        return `Hôm qua, ${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`
+        return `Yesterday, ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
       }
       if (dateStr === tomorrowYmd) {
-        return `Ngày mai, ${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`
+        return `Tomorrow, ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
       }
-      return `${dayName}, ${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`
+      return `${dayName}, ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
     } catch {
       return dateStr
     }
@@ -195,7 +195,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
     return formatDurationDisplay(totalLoggedSeconds)
   }, [totalLoggedSeconds])
 
-  // MISA Ledger Breakdown
+  // Ledger Breakdown
   const ledgerBreakdown = useMemo(() => {
     let productiveSec = 0
     let neutralSec = 0
@@ -246,7 +246,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
         const cat = (categories || []).find(c => c.id === catId)
         const groupObj = {
           categoryId: catId,
-          categoryName: cat?.name || log.category_name || 'Không có danh mục',
+          categoryName: cat?.name || log.category_name || 'Uncategorized',
           categoryColor: cat?.color || log.category_color || '#94A3B8',
           categoryType: cat?.category_type || 'neutral',
           totalDurationSeconds: 0,
@@ -268,7 +268,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
   // Start Track: Explicitly NULL category if none selected
   const handleStartTrack = async (customTitle?: string, catId?: number | null) => {
     sounds.playTap()
-    const chosenTitle = customTitle || quickTitle.trim() || 'Hoạt động thực tế'
+    const chosenTitle = customTitle || quickTitle.trim() || 'Actual Activity'
     const chosenCatId = catId !== undefined ? catId : quickCategoryId
     const matchedCat = chosenCatId ? (categories || []).find(c => c.id === chosenCatId) : null
 
@@ -362,7 +362,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
     }
 
     await updateActiveTrack(editingActiveTrack.id, {
-      title: editActiveTitle.trim() || 'Hoạt động thực tế',
+      title: editActiveTitle.trim() || 'Focus Session',
       categoryId: chosenCat?.id || null,
       categoryName: chosenCat?.name || null,
       categoryColor: chosenCat?.color || null,
@@ -378,19 +378,18 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
   const handleOpenEditModal = (log: TimeLogItem) => {
     sounds.playTap()
     setEditingLog(log)
-    setEditTitle(log.task_title || log.habit_title || log.notes || 'Phiên tập trung')
+    setEditTitle(log.notes || log.task_title || log.habit_title || 'Focus Session')
     setEditCategoryId(log.category_id || null)
-
+    
     try {
-      const s = new Date(log.start_time)
-      const e = new Date(log.end_time)
-      setEditStartTime(`${String(s.getHours()).padStart(2, '0')}:${String(s.getMinutes()).padStart(2, '0')}`)
-      setEditEndTime(`${String(e.getHours()).padStart(2, '0')}:${String(e.getMinutes()).padStart(2, '0')}`)
+      const st = new Date(log.start_time)
+      const et = new Date(log.end_time)
+      setEditStartTime(`${String(st.getHours()).padStart(2, '0')}:${String(st.getMinutes()).padStart(2, '0')}`)
+      setEditEndTime(`${String(et.getHours()).padStart(2, '0')}:${String(et.getMinutes()).padStart(2, '0')}`)
     } catch {
       setEditStartTime('09:00')
       setEditEndTime('09:30')
     }
-
     setEditDurationMins(Math.round((log.duration_seconds || 0) / 60))
   }
 
@@ -480,7 +479,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
   // Helper render for single log card
   const renderLogCard = (log: TimeLogItem) => {
     const durDisplay = formatDurationDisplay(log.duration_seconds || 0)
-    const logTitle = log.task_title || log.habit_title || log.notes || 'Phiên tập trung'
+    const logTitle = log.task_title || log.habit_title || log.notes || 'Focus Session'
     const catColor = log.category_color || '#8B5CF6'
 
     return (
@@ -506,7 +505,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
             </span>
             <span>•</span>
             <span className="text-slate-500">
-              {log.timer_type === 'stopwatch' ? '⏱️ Bấm giờ' : log.timer_type === 'pomodoro' ? '🔥 Pomodoro' : '📝 Thủ công'}
+              {log.timer_type === 'stopwatch' ? '⏱️ Stopwatch' : log.timer_type === 'pomodoro' ? '🔥 Pomodoro' : '📝 Manual'}
             </span>
             {log.category_name && ledgerGroupMode === 'time' && (
               <>
@@ -524,7 +523,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
             +{durDisplay}
           </div>
           <span className="text-[9px] font-bold text-slate-400 block uppercase">
-            Đã nạp
+            Logged
           </span>
         </div>
       </div>
@@ -533,10 +532,10 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#F8FAFC] text-slate-900">
-      {/* ── 1. SCROLLABLE MIDDLE CONTENT AREA (NO REDUNDANT SECOND HEADER) ── */}
+      {/* ── 1. SCROLLABLE MIDDLE CONTENT AREA ── */}
       <main className="flex-1 overflow-y-auto px-3.5 pt-3 pb-4 sm:px-6 sm:pt-4 max-w-3xl w-full mx-auto">
 
-        {/* ── TAB 1: ĐANG TRACK (ACTIVE TRACKS) ── */}
+        {/* ── TAB 1: ACTIVE TRACKS ── */}
         {activeTab === 'active' && (
           <div className="space-y-3 anim-fade-in">
             {activeTracks.length === 0 ? (
@@ -545,9 +544,9 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                   <Play className="w-6 h-6 fill-current" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-black text-slate-900">Chưa có việc nào đang track</h3>
+                  <h3 className="text-sm font-black text-slate-900">No active tracking session</h3>
                   <p className="text-xs text-slate-500 font-medium max-w-xs mx-auto mt-1">
-                    Gõ việc vào thanh bên dưới và bấm <b>[Track]</b> hoặc chuyển sang tab <b>"Chờ Track"</b> để bắt đầu ngay!
+                    Type an activity below and click <b>[Track]</b> or switch to <b>"Ready"</b> tab to start right away!
                   </p>
                 </div>
               </div>
@@ -560,7 +559,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                       <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
                     </span>
                     <span className="text-xs font-black uppercase tracking-wider text-emerald-700 font-mono">
-                      Đang Bấm Giờ ({activeTracks.length})
+                      Active Timers ({activeTracks.length})
                     </span>
                   </div>
                 </div>
@@ -595,7 +594,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                           )}
                         </div>
                         <div className="text-[10px] text-slate-400 font-mono mt-0.5">
-                          Bắt đầu: {formatTrackStartTime(track.startTime)}
+                          Started: {formatTrackStartTime(track.startTime)}
                         </div>
                       </div>
 
@@ -613,7 +612,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                             track.isPaused ? resumeTrack(track.id) : pauseTrack(track.id)
                           }}
                           className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition active:scale-95"
-                          title={track.isPaused ? 'Tiếp tục' : 'Tạm dừng'}
+                          title={track.isPaused ? 'Resume' : 'Pause'}
                         >
                           {track.isPaused ? (
                             <Play className="w-3.5 h-3.5 fill-current text-emerald-600" />
@@ -626,7 +625,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                         <button
                           onClick={() => handleFinishTrack(track.id)}
                           className="p-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition active:scale-95"
-                          title="Kết thúc và lưu vào Sổ Nhật ký"
+                          title="Finish & Log to Ledger"
                         >
                           <Square className="w-3.5 h-3.5 fill-current" />
                         </button>
@@ -635,7 +634,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                         <button
                           onClick={() => handleOpenEditActiveTrack(track)}
                           className="p-2 rounded-xl text-slate-400 hover:text-violet-600 hover:bg-violet-50 transition"
-                          title="Sửa thông tin"
+                          title="Edit Session"
                         >
                           <Edit3 className="w-3.5 h-3.5" />
                         </button>
@@ -644,7 +643,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                         <button
                           onClick={() => { sounds.playTap(); cancelTrack(track.id) }}
                           className="p-2 rounded-xl text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition"
-                          title="Hủy bỏ"
+                          title="Cancel Session"
                         >
                           <X className="w-3.5 h-3.5" />
                         </button>
@@ -657,7 +656,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
           </div>
         )}
 
-        {/* ── TAB 2: CHỜ TRACK (READY TASKS, HABITS, PLANS) ── */}
+        {/* ── TAB 2: READY TASKS, HABITS, PLANS ── */}
         {activeTab === 'ready' && (
           <div className="space-y-3 anim-fade-in">
             {/* Filter Chips */}
@@ -668,7 +667,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                   readySubTab === 'all' ? 'bg-violet-600 text-white shadow-xs' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
                 }`}
               >
-                Tất cả ({(activeTasks || []).length + (habits || []).length + (activePlanSlots || []).length})
+                All ({(activeTasks || []).length + (habits || []).length + (activePlanSlots || []).length})
               </button>
               <button
                 onClick={() => setReadySubTab('tasks')}
@@ -676,7 +675,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                   readySubTab === 'tasks' ? 'bg-violet-600 text-white shadow-xs' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
                 }`}
               >
-                Nhiệm vụ ({(activeTasks || []).length})
+                Tasks ({(activeTasks || []).length})
               </button>
               <button
                 onClick={() => setReadySubTab('habits')}
@@ -684,7 +683,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                   readySubTab === 'habits' ? 'bg-violet-600 text-white shadow-xs' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
                 }`}
               >
-                Thói quen ({(habits || []).length})
+                Habits ({(habits || []).length})
               </button>
               <button
                 onClick={() => setReadySubTab('plans')}
@@ -692,7 +691,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                   readySubTab === 'plans' ? 'bg-violet-600 text-white shadow-xs' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
                 }`}
               >
-                Kế hoạch ({(activePlanSlots || []).length})
+                Plans ({(activePlanSlots || []).length})
               </button>
             </div>
 
@@ -701,7 +700,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
               <div className="space-y-1.5">
                 <div className="text-[11px] font-black uppercase tracking-wider text-slate-400 px-1 flex items-center gap-1">
                   <ListTodo className="w-3.5 h-3.5 text-blue-600" />
-                  <span>Nhiệm vụ chưa xong</span>
+                  <span>Pending Tasks</span>
                 </div>
                 {activeTasks.map(task => (
                   <div
@@ -721,7 +720,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                         )}
                         {task.due_date && (
                           <span className="text-[10px] text-slate-400 font-mono">
-                            Hạn: {task.due_date.slice(11, 16) || task.due_date.slice(0, 10)}
+                            Due: {task.due_date.slice(11, 16) || task.due_date.slice(0, 10)}
                           </span>
                         )}
                       </div>
@@ -744,7 +743,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
               <div className="space-y-1.5 pt-2">
                 <div className="text-[11px] font-black uppercase tracking-wider text-slate-400 px-1 flex items-center gap-1">
                   <Flame className="w-3.5 h-3.5 text-amber-500" />
-                  <span>Thói quen hôm nay</span>
+                  <span>Today's Habits</span>
                 </div>
                 {habits.map(habit => (
                   <div
@@ -761,8 +760,8 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                         )}
                       </div>
                       <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-slate-400 font-mono">
-                        {habit.reminder_time && <span>Nhắc lúc: {habit.reminder_time}</span>}
-                        <span>• Mục tiêu: {habit.target_count} {habit.unit}</span>
+                        {habit.reminder_time && <span>Reminder: {habit.reminder_time}</span>}
+                        <span>• Goal: {habit.target_count} {habit.unit}</span>
                       </div>
                     </div>
 
@@ -783,7 +782,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
               <div className="space-y-1.5 pt-2">
                 <div className="text-[11px] font-black uppercase tracking-wider text-slate-400 px-1 flex items-center gap-1">
                   <CalendarIcon className="w-3.5 h-3.5 text-sky-600" />
-                  <span>Kế hoạch lịch trình</span>
+                  <span>Scheduled Plans</span>
                 </div>
                 {activePlanSlots.map(slot => (
                   <div
@@ -811,7 +810,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
           </div>
         )}
 
-        {/* ── TAB 3: SỔ NHẬT KÝ (MISA TIME LEDGER) ── */}
+        {/* ── TAB 3: TIME LEDGER (HISTORY) ── */}
         {activeTab === 'history' && (
           <div className="space-y-3 anim-fade-in">
 
@@ -820,7 +819,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
               <button
                 onClick={() => shiftLedgerDate(-1)}
                 className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition active:scale-90"
-                title="Ngày trước đó"
+                title="Previous Day"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
@@ -832,7 +831,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                   value={ledgerDate}
                   onChange={e => setLedgerDateDirectly(e.target.value)}
                   className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
-                  title="Bấm để chọn ngày cụ thể"
+                  title="Click to pick a specific date"
                 />
                 <CalendarIcon className="w-4 h-4 text-violet-600 group-hover:scale-110 transition-transform" />
                 <span className="text-xs sm:text-sm font-black text-slate-900 group-hover:text-violet-700 transition">
@@ -842,9 +841,9 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                   <button
                     onClick={(e) => { e.stopPropagation(); setLedgerDateDirectly(todayIso) }}
                     className="relative z-20 text-[10px] font-bold text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 px-2 py-0.5 rounded-lg active:scale-95 transition ml-1"
-                    title="Về hôm nay"
+                    title="Return to Today"
                   >
-                    Về Hôm nay
+                    Today
                   </button>
                 )}
               </div>
@@ -852,18 +851,18 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
               <button
                 onClick={() => shiftLedgerDate(1)}
                 className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition active:scale-90"
-                title="Ngày tiếp theo"
+                title="Next Day"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
             </div>
 
-            {/* Daily summary Card */}
+            {/* Daily Summary Card */}
             <div className="bg-gradient-to-br from-violet-900 via-indigo-900 to-slate-900 rounded-3xl p-4 text-white shadow-xl shadow-indigo-950/20 space-y-2.5 border border-indigo-700/40">
               <div className="flex items-center justify-between border-b border-white/10 pb-2">
                 <div>
                   <span className="text-[10px] font-bold uppercase tracking-wider text-violet-300 block font-mono">
-                    Sổ Thu Chi Thời Gian • {ledgerDate === todayIso ? 'Hôm Nay' : ledgerDate}
+                    Time Ledger • {ledgerDate === todayIso ? 'Today' : ledgerDate}
                   </span>
                   <div className="text-2xl font-black font-mono tracking-tight text-white mt-0.5">
                     {totalLoggedFormatted}
@@ -871,15 +870,15 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="text-right">
-                    <span className="text-[10px] font-bold text-slate-400 block font-mono">Tổng số</span>
+                    <span className="text-[10px] font-bold text-slate-400 block font-mono">Total</span>
                     <span className="text-sm font-black text-emerald-400 font-mono">
-                      {logs.length} bản ghi
+                      {logs.length} logs
                     </span>
                   </div>
                   <button
                     onClick={() => { sounds.playTap(); setShowManualModal(true) }}
                     className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/20 transition active:scale-95"
-                    title="Ghi sổ thủ công"
+                    title="Add Manual Log"
                   >
                     <Plus className="w-4 h-4" />
                   </button>
@@ -889,7 +888,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
               <div className="grid grid-cols-3 gap-2">
                 <div className="bg-white/10 rounded-2xl p-2 border border-white/10 text-center">
                   <span className="text-[9px] font-bold uppercase tracking-wider text-emerald-300 block">
-                    🟢 Tạo giá trị
+                    🟢 Productive
                   </span>
                   <span className="text-xs font-black font-mono text-white mt-0.5 block">
                     {ledgerBreakdown.productive}
@@ -898,7 +897,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
 
                 <div className="bg-white/10 rounded-2xl p-2 border border-white/10 text-center">
                   <span className="text-[9px] font-bold uppercase tracking-wider text-sky-300 block">
-                    🔵 Trung tính
+                    🔵 Neutral
                   </span>
                   <span className="text-xs font-black font-mono text-white mt-0.5 block">
                     {ledgerBreakdown.neutral}
@@ -907,7 +906,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
 
                 <div className="bg-white/10 rounded-2xl p-2 border border-white/10 text-center">
                   <span className="text-[9px] font-bold uppercase tracking-wider text-rose-300 block">
-                    🔴 Lãng phí
+                    🔴 Wasted
                   </span>
                   <span className="text-xs font-black font-mono text-white mt-0.5 block">
                     {ledgerBreakdown.wasted}
@@ -929,7 +928,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                   }`}
                 >
                   <Clock className="w-3.5 h-3.5" />
-                  <span>Theo thời gian</span>
+                  <span>By Time</span>
                 </button>
                 <button
                   onClick={() => { sounds.playTap(); setLedgerGroupMode('category') }}
@@ -940,7 +939,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                   }`}
                 >
                   <Folder className="w-3.5 h-3.5 text-amber-500" />
-                  <span>Theo danh mục</span>
+                  <span>By Category</span>
                 </button>
               </div>
 
@@ -952,10 +951,10 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                     setLedgerSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')
                   }}
                   className="px-2.5 py-1 rounded-xl bg-white border border-slate-200 text-slate-600 hover:text-slate-900 text-[11px] font-bold flex items-center gap-1 shadow-2xs active:scale-95 transition"
-                  title="Đổi thứ tự hiển thị"
+                  title="Toggle Sort Order"
                 >
                   <ArrowUpDown className="w-3 h-3 text-violet-600" />
-                  <span>{ledgerSortOrder === 'desc' ? 'Mới nhất ↓' : 'Cũ nhất ↑'}</span>
+                  <span>{ledgerSortOrder === 'desc' ? 'Newest ↓' : 'Oldest ↑'}</span>
                 </button>
               )}
             </div>
@@ -965,14 +964,14 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
               <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-2xs text-center text-slate-400 space-y-2">
                 <Clock className="w-8 h-8 mx-auto opacity-30 text-violet-600" />
                 <p className="text-xs font-bold text-slate-600">
-                  Chưa có bản ghi thời gian nào cho ngày {ledgerDate}
+                  No time logs recorded for {ledgerDate}
                 </p>
                 <button
                   onClick={() => { sounds.playTap(); setShowManualModal(true) }}
                   className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-violet-50 text-violet-700 text-xs font-bold hover:bg-violet-100 transition active:scale-95 mt-1 border border-violet-200"
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  <span>Ghi thêm thời gian</span>
+                  <span>Add Time Log</span>
                 </button>
               </div>
             ) : ledgerGroupMode === 'time' ? (
@@ -987,7 +986,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
               <div className="space-y-3">
                 {categoryGroupedLogs.map(group => {
                   const durStr = formatDurationDisplay(group.totalDurationSeconds)
-                  const typeLabel = group.categoryType === 'wasted' ? '🔴 Lãng phí' : group.categoryType === 'neutral' ? '🔵 Trung tính' : '🟢 Tạo giá trị'
+                  const typeLabel = group.categoryType === 'wasted' ? '🔴 Wasted' : group.categoryType === 'neutral' ? '🔵 Neutral' : '🟢 Productive'
                   
                   return (
                     <div
@@ -1014,7 +1013,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                             +{durStr}
                           </div>
                           <span className="text-[9px] font-bold text-slate-400 block font-mono">
-                            {group.logs.length} bản ghi
+                            {group.logs.length} logs
                           </span>
                         </div>
                       </div>
@@ -1041,9 +1040,9 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
               <select
                 value={quickCategoryId || ''}
                 onChange={e => setQuickCategoryId(e.target.value ? Number(e.target.value) : null)}
-                className="px-2 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 outline-none focus:bg-white focus:border-violet-500 transition shrink-0 max-w-[110px]"
+                className="px-2 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 outline-none focus:bg-white focus:border-violet-500 transition shrink-0 max-w-[120px]"
               >
-                <option value="">📁 Không mục</option>
+                <option value="">📁 No Category</option>
                 {(categories || []).map(c => (
                   <option key={c.id} value={c.id}>
                     {c.name}
@@ -1055,7 +1054,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                 type="text"
                 value={quickTitle}
                 onChange={e => setQuickTitle(e.target.value)}
-                placeholder="Nhập việc (Ví dụ: Đi làm, Họp...)"
+                placeholder="Enter activity (e.g. Coding, Meeting, Workout...)"
                 className="flex-1 px-3 py-2 rounded-xl bg-slate-100 border border-slate-200 text-xs font-bold text-slate-900 placeholder:text-slate-400 outline-none focus:bg-white focus:border-violet-500 transition shadow-inner min-w-0"
                 onKeyDown={e => {
                   if (e.key === 'Enter') handleStartTrack()
@@ -1088,7 +1087,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                 )}
                 <span className={`relative inline-flex rounded-full h-2 w-2 ${(activeTracks || []).length > 0 ? 'bg-emerald-500' : 'bg-slate-400'}`}></span>
               </span>
-              <span>Đang Track</span>
+              <span>Active</span>
               {(activeTracks || []).length > 0 && (
                 <span className="text-[10px] font-mono font-bold bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded-full">
                   {activeTracks.length}
@@ -1105,7 +1104,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
               }`}
             >
               <Target className="w-3.5 h-3.5 text-violet-600" />
-              <span>Chờ Track</span>
+              <span>Ready</span>
               <span className="text-[10px] font-mono font-bold bg-violet-100 text-violet-800 px-1.5 py-0.2 rounded-full">
                 {(activeTasks || []).length + (habits || []).length}
               </span>
@@ -1120,7 +1119,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
               }`}
             >
               <Wallet className="w-3.5 h-3.5 text-indigo-600" />
-              <span>Sổ Nhật Ký</span>
+              <span>Ledger</span>
               {(logs || []).length > 0 && (
                 <span className="text-[10px] font-mono font-bold bg-slate-200 text-slate-700 px-1.5 py-0.2 rounded-full">
                   {logs.length}
@@ -1131,14 +1130,14 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
         </div>
       </div>
 
-      {/* ── 3. MODAL: SỬA THÔNG TIN VIỆC ĐANG BẤM GIỜ (EDIT RUNNING TRACK) ── */}
+      {/* ── 3. MODAL: EDIT ACTIVE TRACK ── */}
       {editingActiveTrack && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs anim-fade-in">
           <div className="bg-white border border-slate-200 rounded-3xl p-5 w-full max-w-md shadow-2xl space-y-4 text-slate-900">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
                 <Edit3 className="w-4 h-4 text-emerald-600" />
-                <h3 className="text-sm font-black text-slate-900">Sửa thông tin việc đang bấm giờ</h3>
+                <h3 className="text-sm font-black text-slate-900">Edit Active Session</h3>
               </div>
               <button
                 onClick={() => setEditingActiveTrack(null)}
@@ -1151,7 +1150,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
             <form onSubmit={handleSaveActiveTrack} className="space-y-3">
               <div>
                 <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                  Nội dung hoạt động *
+                  Activity Title *
                 </label>
                 <input
                   type="text"
@@ -1164,14 +1163,14 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
 
               <div>
                 <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                  Danh mục
+                  Category
                 </label>
                 <select
                   value={editActiveCategoryId || ''}
                   onChange={e => setEditActiveCategoryId(e.target.value ? Number(e.target.value) : null)}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 outline-none focus:bg-white focus:border-violet-500"
                 >
-                  <option value="">-- Không có danh mục --</option>
+                  <option value="">-- No Category --</option>
                   {(categories || []).map(c => (
                     <option key={c.id} value={c.id}>
                       {c.name} ({c.category_type})
@@ -1182,7 +1181,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
 
               <div>
                 <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                  Giờ bắt đầu
+                  Start Time
                 </label>
                 <input
                   type="time"
@@ -1198,13 +1197,13 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                   onClick={() => setEditingActiveTrack(null)}
                   className="px-3 py-2 rounded-xl bg-slate-100 text-slate-600 text-xs font-bold hover:bg-slate-200"
                 >
-                  Hủy
+                  Cancel
                 </button>
                 <button
                   type="submit"
                   className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black transition active:scale-95 shadow-md shadow-emerald-600/30"
                 >
-                  Lưu cập nhật
+                  Save Changes
                 </button>
               </div>
             </form>
@@ -1212,14 +1211,14 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
         </div>
       )}
 
-      {/* ── 4. MODAL: SỬA LOG ĐÃ HOÀN THÀNH ── */}
+      {/* ── 4. MODAL: EDIT COMPLETED LOG ── */}
       {editingLog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs anim-fade-in">
           <div className="bg-white border border-slate-200 rounded-3xl p-5 w-full max-w-md shadow-2xl space-y-4 text-slate-900">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
                 <Edit3 className="w-4 h-4 text-violet-600" />
-                <h3 className="text-sm font-black text-slate-900">Chỉnh sửa phiên Tracking</h3>
+                <h3 className="text-sm font-black text-slate-900">Edit Time Log</h3>
               </div>
               <button
                 onClick={() => setEditingLog(null)}
@@ -1232,7 +1231,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
             <form onSubmit={handleSaveEditLog} className="space-y-3">
               <div>
                 <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                  Nội dung hoạt động *
+                  Activity Title *
                 </label>
                 <input
                   type="text"
@@ -1245,14 +1244,14 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
 
               <div>
                 <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                  Danh mục
+                  Category
                 </label>
                 <select
                   value={editCategoryId || ''}
                   onChange={e => setEditCategoryId(e.target.value ? Number(e.target.value) : null)}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 outline-none focus:bg-white focus:border-violet-500"
                 >
-                  <option value="">-- Không có danh mục --</option>
+                  <option value="">-- No Category --</option>
                   {(categories || []).map(c => (
                     <option key={c.id} value={c.id}>
                       {c.name} ({c.category_type})
@@ -1264,7 +1263,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                    Bắt đầu
+                    Start
                   </label>
                   <input
                     type="time"
@@ -1276,7 +1275,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                    Kết thúc
+                    End
                   </label>
                   <input
                     type="time"
@@ -1295,7 +1294,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                   className="px-3 py-2 rounded-xl bg-rose-50 text-rose-600 hover:bg-rose-100 text-xs font-bold transition flex items-center gap-1 border border-rose-200"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
-                  <span>Xóa log</span>
+                  <span>Delete Log</span>
                 </button>
 
                 <div className="flex items-center gap-2">
@@ -1304,14 +1303,14 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                     onClick={() => setEditingLog(null)}
                     className="px-3 py-2 rounded-xl bg-slate-100 text-slate-600 text-xs font-bold hover:bg-slate-200"
                   >
-                    Hủy
+                    Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={isSavingEdit}
                     className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-black transition active:scale-95 shadow-md shadow-violet-600/30"
                   >
-                    {isSavingEdit ? 'Đang lưu...' : 'Lưu thay đổi'}
+                    {isSavingEdit ? 'Saving...' : 'Save Changes'}
                   </button>
                 </div>
               </div>
@@ -1327,7 +1326,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
                 <Plus className="w-4 h-4 text-violet-600" />
-                <h3 className="text-sm font-black text-slate-900">Ghi nhận thời gian đã làm</h3>
+                <h3 className="text-sm font-black text-slate-900">Log Past Activity</h3>
               </div>
               <button
                 onClick={() => setShowManualModal(false)}
@@ -1340,28 +1339,28 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
             <form onSubmit={handleSaveManualLog} className="space-y-3">
               <div>
                 <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                  Nội dung hoạt động *
+                  Activity Title *
                 </label>
                 <input
                   type="text"
                   required
                   value={manualTitle}
                   onChange={e => setManualTitle(e.target.value)}
-                  placeholder="Ví dụ: Đã đi làm, Đã họp Sprint, Đã tập gym..."
+                  placeholder="e.g. Sprint Meeting, Deep Work, Gym..."
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:bg-white focus:border-violet-500"
                 />
               </div>
 
               <div>
                 <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                  Danh mục
+                  Category
                 </label>
                 <select
                   value={manualCategoryId || ''}
                   onChange={e => setManualCategoryId(e.target.value ? Number(e.target.value) : null)}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 outline-none focus:bg-white focus:border-violet-500"
                 >
-                  <option value="">-- Không có danh mục --</option>
+                  <option value="">-- No Category --</option>
                   {(categories || []).map(c => (
                     <option key={c.id} value={c.id}>
                       {c.name} ({c.category_type})
@@ -1373,7 +1372,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                    Bắt đầu
+                    Start
                   </label>
                   <input
                     type="time"
@@ -1385,7 +1384,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                    Kết thúc
+                    End
                   </label>
                   <input
                     type="time"
@@ -1399,13 +1398,13 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
 
               <div>
                 <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                  Ghi chú thêm (Tùy chọn)
+                  Notes (Optional)
                 </label>
                 <input
                   type="text"
                   value={manualNotes}
                   onChange={e => setManualNotes(e.target.value)}
-                  placeholder="Ghi chú chi tiết kết quả..."
+                  placeholder="Additional context or outcome..."
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-900 outline-none focus:bg-white focus:border-violet-500"
                 />
               </div>
@@ -1416,14 +1415,14 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                   onClick={() => setShowManualModal(false)}
                   className="px-3 py-2 rounded-xl bg-slate-100 text-slate-600 text-xs font-bold hover:bg-slate-200"
                 >
-                  Hủy
+                  Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmittingManual}
                   className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-black transition active:scale-95 shadow-md shadow-violet-600/30"
                 >
-                  {isSubmittingManual ? 'Đang lưu...' : 'Lưu log'}
+                  {isSubmittingManual ? 'Saving...' : 'Save Log'}
                 </button>
               </div>
             </form>
@@ -1433,3 +1432,4 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
     </div>
   )
 }
+export default LiveTrackingHub

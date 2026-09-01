@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import {
   Clock, Play, Pause, Square, Plus, Trash2, Calendar as CalendarIcon,
-  Flame, Target, Edit3, X, ListTodo, Wallet
+  Flame, Target, Edit3, X, ListTodo, Wallet, Tag
 } from 'lucide-react'
 import { useTimerStore, type ActiveTrack } from '../store/useTimerStore'
 import { useTimeLogStore, type TimeLogItem } from '../store/useTimeLogStore'
@@ -21,6 +21,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
   const {
     activeTracks,
     startNewTrack,
+    updateActiveTrack,
     pauseTrack,
     resumeTrack,
     stopTrack,
@@ -40,8 +41,15 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
 
   // Simple Track Input State (Only in 'active' tab)
   const [quickTitle, setQuickTitle] = useState('')
+  const [quickCategoryId, setQuickCategoryId] = useState<number | null>(null)
 
-  // Edit Log Modal State
+  // Edit Running Track Modal State
+  const [editingActiveTrack, setEditingActiveTrack] = useState<ActiveTrack | null>(null)
+  const [editActiveTitle, setEditActiveTitle] = useState('')
+  const [editActiveCategoryId, setEditActiveCategoryId] = useState<number | null>(null)
+  const [editActiveStartTime, setEditActiveStartTime] = useState('')
+
+  // Edit Completed Log Modal State
   const [editingLog, setEditingLog] = useState<TimeLogItem | null>(null)
   const [editTitle, setEditTitle] = useState('')
   const [editCategoryId, setEditCategoryId] = useState<number | null>(null)
@@ -158,11 +166,12 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
     return categories[0]
   }
 
-  // Super Simple Start Track
-  const handleSimpleStartTrack = async (customTitle?: string) => {
+  // Start Track with explicit or selected Category
+  const handleStartTrack = async (customTitle?: string, catId?: number) => {
     sounds.playTap()
     const chosenTitle = customTitle || quickTitle.trim() || 'Hoạt động thực tế'
-    const matchedCat = detectCategory(chosenTitle)
+    const chosenCatId = catId !== undefined ? catId : quickCategoryId
+    const matchedCat = chosenCatId ? categories.find(c => c.id === chosenCatId) : detectCategory(chosenTitle)
 
     await startNewTrack({
       title: chosenTitle,
@@ -222,6 +231,50 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
     fetchLogs(todayIso)
   }
 
+  // ── Open Edit Running Track Modal ──
+  const handleOpenEditActiveTrack = (track: ActiveTrack) => {
+    sounds.playTap()
+    setEditingActiveTrack(track)
+    setEditActiveTitle(track.title)
+    setEditActiveCategoryId(track.categoryId || null)
+    try {
+      const d = new Date(track.startTime)
+      setEditActiveStartTime(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`)
+    } catch {
+      setEditActiveStartTime('09:00')
+    }
+  }
+
+  const handleSaveActiveTrack = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingActiveTrack) return
+
+    sounds.playTap()
+    const chosenCat = categories.find(c => c.id === editActiveCategoryId)
+    
+    // Parse adjusted start time
+    let adjustedStartDate = editingActiveTrack.startTime
+    if (editActiveStartTime) {
+      const [hh, mm] = editActiveStartTime.split(':').map(Number)
+      const d = new Date()
+      d.setHours(hh, mm, 0, 0)
+      adjustedStartDate = d
+    }
+
+    updateActiveTrack(editingActiveTrack.id, {
+      title: editActiveTitle.trim() || 'Hoạt động thực tế',
+      categoryId: chosenCat?.id || null,
+      categoryName: chosenCat?.name || null,
+      categoryColor: chosenCat?.color || null,
+      categoryType: chosenCat?.category_type || 'productive',
+      startTime: adjustedStartDate
+    })
+
+    sounds.playSuccess()
+    setEditingActiveTrack(null)
+  }
+
+  // ── Open Edit Completed Log Modal ──
   const handleOpenEditModal = (log: TimeLogItem) => {
     sounds.playTap()
     setEditingLog(log)
@@ -395,7 +448,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                     </span>
                   </div>
                   <span className="text-[10px] text-slate-400 font-medium">
-                    Bấm [Kết thúc] để ghi vào Sổ Nhật ký
+                    Chạm thẻ hoặc bấm [✎] để sửa thông tin
                   </span>
                 </div>
 
@@ -410,9 +463,14 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                         style={{ backgroundColor: track.categoryColor || '#10B981' }}
                       />
 
-                      <div className="min-w-0 flex-1">
+                      {/* Tap to edit info */}
+                      <div
+                        onClick={() => handleOpenEditActiveTrack(track)}
+                        className="min-w-0 flex-1 cursor-pointer group"
+                        title="Chạm để sửa tên & danh mục việc đang track"
+                      >
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <h3 className="text-xs sm:text-sm font-black text-slate-900 truncate">
+                          <h3 className="text-xs sm:text-sm font-black text-slate-900 truncate group-hover:text-violet-700 transition">
                             {track.title}
                           </h3>
                           {track.categoryName && (
@@ -423,6 +481,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                               {track.categoryName}
                             </span>
                           )}
+                          <Edit3 className="w-3 h-3 text-slate-300 group-hover:text-violet-600 transition" />
                         </div>
                         <div className="text-[10px] text-slate-400 font-mono mt-0.5">
                           Bắt đầu: {formatTrackStartTime(track.startTime)}
@@ -759,26 +818,40 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
         )}
       </main>
 
-      {/* ── 3. NATURAL BOTTOM DOCKED CONTROLS (NO FIXED OVERLAP, SIT DIRECTLY ABOVE BOTTOM NAV) ── */}
+      {/* ── 3. NATURAL BOTTOM DOCKED CONTROLS ── */}
       <div className="shrink-0 bg-white border-t border-slate-200 px-3 py-2 sm:px-6 z-10 shadow-md">
         <div className="max-w-3xl mx-auto space-y-2">
-          {/* Super Simple 1-Line Track Bar (Shown ONLY in 'active' tab) */}
+          {/* Track Bar with Category Selector (Shown ONLY in 'active' tab) */}
           {activeTab === 'active' && (
-            <div className="flex items-center gap-2 anim-fade-in">
+            <div className="flex items-center gap-1.5 anim-fade-in">
+              {/* Compact Category Selector */}
+              <select
+                value={quickCategoryId || ''}
+                onChange={e => setQuickCategoryId(e.target.value ? Number(e.target.value) : null)}
+                className="px-2 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 outline-none focus:bg-white focus:border-violet-500 transition shrink-0 max-w-[110px]"
+              >
+                <option value="">📁 Danh mục</option>
+                {categories.map(c => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+
               <input
                 type="text"
                 value={quickTitle}
                 onChange={e => setQuickTitle(e.target.value)}
-                placeholder="Nhập việc cần track (Ví dụ: Đi làm, Họp, Code API...)"
-                className="flex-1 px-3.5 py-2 rounded-xl bg-slate-100 border border-slate-200 text-xs font-bold text-slate-900 placeholder:text-slate-400 outline-none focus:bg-white focus:border-violet-500 transition shadow-inner"
+                placeholder="Nhập việc (Ví dụ: Đi làm, Họp...)"
+                className="flex-1 px-3 py-2 rounded-xl bg-slate-100 border border-slate-200 text-xs font-bold text-slate-900 placeholder:text-slate-400 outline-none focus:bg-white focus:border-violet-500 transition shadow-inner min-w-0"
                 onKeyDown={e => {
-                  if (e.key === 'Enter') handleSimpleStartTrack()
+                  if (e.key === 'Enter') handleStartTrack()
                 }}
               />
 
               <button
-                onClick={() => handleSimpleStartTrack()}
-                className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-black flex items-center justify-center gap-1.5 shadow-md shadow-violet-600/30 active:scale-95 transition shrink-0"
+                onClick={() => handleStartTrack()}
+                className="px-3.5 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-black flex items-center justify-center gap-1 shadow-md shadow-violet-600/30 active:scale-95 transition shrink-0"
               >
                 <Play className="w-3.5 h-3.5 fill-current" />
                 <span>Track</span>
@@ -845,7 +918,88 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
         </div>
       </div>
 
-      {/* ── 4. EDIT LOG MODAL ── */}
+      {/* ── 4. MODAL: SỬA THÔNG TIN VIỆC ĐANG BẤM GIỜ (EDIT RUNNING TRACK) ── */}
+      {editingActiveTrack && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs anim-fade-in">
+          <div className="bg-white border border-slate-200 rounded-3xl p-5 w-full max-w-md shadow-2xl space-y-4 text-slate-900">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <Edit3 className="w-4 h-4 text-emerald-600" />
+                <h3 className="text-sm font-black text-slate-900">Sửa thông tin việc đang bấm giờ</h3>
+              </div>
+              <button
+                onClick={() => setEditingActiveTrack(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-700"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveActiveTrack} className="space-y-3">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                  Nội dung hoạt động *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editActiveTitle}
+                  onChange={e => setEditActiveTitle(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:bg-white focus:border-violet-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                  Danh mục
+                </label>
+                <select
+                  value={editActiveCategoryId || ''}
+                  onChange={e => setEditActiveCategoryId(e.target.value ? Number(e.target.value) : null)}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 outline-none focus:bg-white focus:border-violet-500"
+                >
+                  <option value="">-- Không có danh mục --</option>
+                  {categories.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} ({c.category_type})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                  Giờ bắt đầu
+                </label>
+                <input
+                  type="time"
+                  value={editActiveStartTime}
+                  onChange={e => setEditActiveStartTime(e.target.value)}
+                  className="w-full px-2.5 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-900 outline-none focus:bg-white focus:border-violet-500"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setEditingActiveTrack(null)}
+                  className="px-3 py-2 rounded-xl bg-slate-100 text-slate-600 text-xs font-bold hover:bg-slate-200"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black transition active:scale-95 shadow-md shadow-emerald-600/30"
+                >
+                  Lưu cập nhật
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── 5. MODAL: SỬA LOG ĐÃ HOÀN THÀNH ── */}
       {editingLog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs anim-fade-in">
           <div className="bg-white border border-slate-200 rounded-3xl p-5 w-full max-w-md shadow-2xl space-y-4 text-slate-900">
@@ -953,7 +1107,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
         </div>
       )}
 
-      {/* ── 5. MANUAL QUICK LOG MODAL ── */}
+      {/* ── 6. MANUAL QUICK LOG MODAL ── */}
       {showManualModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs anim-fade-in">
           <div className="bg-white border border-slate-200 rounded-3xl p-5 w-full max-w-md shadow-2xl space-y-4 text-slate-900">

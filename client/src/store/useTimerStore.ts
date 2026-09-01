@@ -65,6 +65,14 @@ interface TimerState {
     mode?: TimerMode;
     durationMinutes?: number;
   }) => Promise<string>
+  updateActiveTrack: (trackId: string, data: {
+    title?: string
+    categoryId?: number | null
+    categoryName?: string | null
+    categoryColor?: string | null
+    categoryType?: string | null
+    startTime?: Date
+  }) => void
   pauseTrack: (trackId: string) => void
   resumeTrack: (trackId: string) => void
   stopTrack: (trackId: string) => Promise<void>
@@ -205,6 +213,36 @@ export const useTimerStore = create<TimerState>((set, get) => ({
     }
 
     return trackId
+  },
+
+  updateActiveTrack: (trackId, data) => {
+    const updated = get().activeTracks.map(t => {
+      if (t.id === trackId) {
+        let newElapsed = t.elapsedSeconds
+        if (data.startTime) {
+          const now = new Date()
+          const diffSec = Math.max(0, Math.floor((now.getTime() - data.startTime.getTime()) / 1000))
+          newElapsed = diffSec
+        }
+        return {
+          ...t,
+          title: data.title !== undefined ? data.title : t.title,
+          categoryId: data.categoryId !== undefined ? data.categoryId : t.categoryId,
+          categoryName: data.categoryName !== undefined ? data.categoryName : t.categoryName,
+          categoryColor: data.categoryColor !== undefined ? data.categoryColor : t.categoryColor,
+          categoryType: data.categoryType !== undefined ? data.categoryType : t.categoryType,
+          startTime: data.startTime !== undefined ? data.startTime : t.startTime,
+          elapsedSeconds: newElapsed
+        }
+      }
+      return t
+    })
+    set({
+      activeTracks: updated,
+      activeTitle: updated[0]?.title || '',
+      activeCategoryName: updated[0]?.categoryName || null,
+      activeCategoryColor: updated[0]?.categoryColor || null
+    })
   },
 
   pauseTrack: (trackId: string) => {

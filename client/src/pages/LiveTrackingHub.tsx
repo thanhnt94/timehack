@@ -104,9 +104,11 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
     }
   }
 
-  const formatTrackStartTime = (dateObj: Date) => {
+  const formatTrackStartTime = (dateObj: any) => {
     try {
-      const d = new Date(dateObj)
+      if (!dateObj) return ''
+      const d = dateObj instanceof Date ? dateObj : new Date(dateObj)
+      if (isNaN(d.getTime())) return ''
       return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
     } catch {
       return ''

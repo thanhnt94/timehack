@@ -100,10 +100,10 @@ export const useHabitStore = create<HabitState>((set, get) => ({
     try {
       set({ isLoading: true })
       const res = await axios.get(`/api/v1/habits?include_archived=${includeArchived}`)
-      set({ habits: res.data, isLoading: false })
+      set({ habits: Array.isArray(res.data) ? res.data : [], isLoading: false })
     } catch (e) {
       console.error('Failed to fetch habits', e)
-      set({ isLoading: false })
+      set({ habits: [], isLoading: false })
     }
   },
 

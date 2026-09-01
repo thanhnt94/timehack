@@ -43,10 +43,10 @@ export const useScheduleStore = create<ScheduleState>((set, get) => ({
       set({ isLoading: true })
       const targetDate = dateStr || get().selectedDate
       const res = await axios.get(`/api/v1/schedule?date_str=${targetDate}`)
-      set({ slots: res.data, isLoading: false })
+      set({ slots: Array.isArray(res.data) ? res.data : [], isLoading: false })
     } catch (e) {
       console.error('Failed to fetch schedule slots', e)
-      set({ isLoading: false })
+      set({ slots: [], isLoading: false })
     }
   },
 

@@ -79,19 +79,20 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     try {
       set({ isLoading: true })
       const res = await axios.get('/api/v1/tasks')
-      set({ tasks: res.data, isLoading: false })
+      set({ tasks: Array.isArray(res.data) ? res.data : [], isLoading: false })
     } catch (e) {
       console.error('Failed to fetch tasks', e)
-      set({ isLoading: false })
+      set({ tasks: [], isLoading: false })
     }
   },
 
   fetchCategories: async () => {
     try {
       const res = await axios.get('/api/v1/tasks/categories')
-      set({ categories: res.data })
+      set({ categories: Array.isArray(res.data) ? res.data : [] })
     } catch (e) {
       console.error('Failed to fetch categories', e)
+      set({ categories: [] })
     }
   },
 

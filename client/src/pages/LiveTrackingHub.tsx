@@ -500,7 +500,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                   readySubTab === 'all' ? 'bg-violet-600 text-white shadow-xs' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
                 }`}
               >
-                Tất cả ({activeTasks.length + habits.length + activePlanSlots.length})
+                Tất cả ({(activeTasks || []).length + (habits || []).length + (activePlanSlots || []).length})
               </button>
               <button
                 onClick={() => setReadySubTab('tasks')}
@@ -508,7 +508,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                   readySubTab === 'tasks' ? 'bg-violet-600 text-white shadow-xs' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
                 }`}
               >
-                Nhiệm vụ ({activeTasks.length})
+                Nhiệm vụ ({(activeTasks || []).length})
               </button>
               <button
                 onClick={() => setReadySubTab('habits')}
@@ -516,7 +516,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                   readySubTab === 'habits' ? 'bg-violet-600 text-white shadow-xs' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
                 }`}
               >
-                Thói quen ({habits.length})
+                Thói quen ({(habits || []).length})
               </button>
               <button
                 onClick={() => setReadySubTab('plans')}
@@ -524,7 +524,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                   readySubTab === 'plans' ? 'bg-violet-600 text-white shadow-xs' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
                 }`}
               >
-                Kế hoạch ({activePlanSlots.length})
+                Kế hoạch ({(activePlanSlots || []).length})
               </button>
             </div>
 
@@ -847,7 +847,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
               <Target className="w-3.5 h-3.5 text-violet-600" />
               <span>Chờ Track</span>
               <span className="text-[10px] font-mono font-bold bg-violet-100 text-violet-800 px-1.5 py-0.2 rounded-full">
-                {activeTasks.length + habits.length}
+                {(activeTasks || []).length + (habits || []).length}
               </span>
             </button>
 

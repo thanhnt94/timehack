@@ -1,12 +1,11 @@
 import React, { useEffect, useState } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Link } from 'react-router-dom'
-import { Sparkles, BarChart3, Clock, Plus } from 'lucide-react'
+import { Sparkles, BarChart3, Clock } from 'lucide-react'
 import { Sidebar } from './components/Sidebar'
 import { BottomNav } from './components/BottomNav'
 import { FloatingTimerBar } from './components/FloatingTimerBar'
 import { QuickActionSheet } from './components/QuickActionSheet'
 import { UserSettingsModal } from './components/UserSettingsModal'
-import { TodayPlanner } from './pages/TodayPlanner'
 import { LiveTrackingHub } from './pages/LiveTrackingHub'
 import { TasksBoard } from './pages/TasksBoard'
 import { HabitMatrix } from './pages/HabitMatrix'
@@ -87,12 +86,12 @@ const AppShell: React.FC = () => {
             )}
             {location.pathname === '/tasks' && (
               <span className="text-[10px] font-black font-mono text-violet-700 bg-violet-50 px-1.5 py-0.2 rounded border border-violet-200 shrink-0">
-                {doneTasks}/{tasks.length}
+                {doneTasks}/{(tasks || []).length}
               </span>
             )}
             {location.pathname === '/habits' && (
               <span className="text-[10px] font-black font-mono text-violet-700 bg-violet-50 px-1.5 py-0.2 rounded border border-violet-200 shrink-0">
-                {doneHabits}/{habits.length}
+                {doneHabits}/{(habits || []).length}
               </span>
             )}
           </div>
@@ -156,7 +155,7 @@ const AppShell: React.FC = () => {
       <QuickActionSheet
         isOpen={sheetOpen}
         onClose={() => setSheetOpen(false)}
-        onOpenFocus={() => setFocusOpen(true)}
+        onStartFocus={() => setFocusOpen(true)}
       />
 
       {/* Pomodoro Focus Modal */}
@@ -174,19 +173,18 @@ const AppShell: React.FC = () => {
 }
 
 export const App: React.FC = () => {
-  const { token, fetchUser, setTokenFromUrl } = useAuthStore()
+  const { user, isLoading, fetchUser } = useAuthStore()
   const { fetchTasks, fetchCategories } = useTaskStore()
   const { fetchHabits } = useHabitStore()
   const { fetchLogs } = useTimeLogStore()
   const { fetchActiveTracks } = useTimerStore()
 
   useEffect(() => {
-    // 1. Process URL Token (CentralAuth SSO return)
-    const hasTokenInUrl = setTokenFromUrl()
-    const activeToken = hasTokenInUrl || token
+    fetchUser()
+  }, [])
 
-    if (activeToken) {
-      fetchUser()
+  useEffect(() => {
+    if (user) {
       fetchTasks()
       fetchCategories()
       fetchHabits()
@@ -194,9 +192,19 @@ export const App: React.FC = () => {
       const todayIso = new Date().toISOString().split('T')[0]
       fetchLogs(todayIso)
     }
-  }, [token])
+  }, [user])
 
-  if (!token) {
+  if (isLoading) {
+    return (
+      <div className="h-[100dvh] flex items-center justify-center bg-[#F8FAFC]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-3 border-violet-600 border-t-transparent rounded-full animate-spin" />
+        </div>
+      </div>
+    )
+  }
+
+  if (!user) {
     return <LandingPage />
   }
 

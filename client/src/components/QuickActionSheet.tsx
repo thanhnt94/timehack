@@ -13,7 +13,7 @@ import { sounds } from '../utils/soundEffects'
 interface Props {
   isOpen: boolean
   onClose: () => void
-  onStartFocus: () => void
+  onStartFocus?: () => void
 }
 
 type SubView = 'menu' | 'task' | 'habit' | 'schedule' | 'actual'
@@ -202,7 +202,7 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
     sounds.playTap()
     startTimer({ title: 'Quick Focus Session' })
     handleClose()
-    onStartFocus()
+    onStartFocus?.()
   }
 
   return (

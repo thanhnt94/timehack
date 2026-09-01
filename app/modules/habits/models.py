@@ -12,14 +12,16 @@ class Habit(Base):
     
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
-    frequency_type = Column(String(20), default="daily") # daily, weekly_days, interval
+    frequency_type = Column(String(20), default="daily") # daily, weekly_days, weekly_target, monthly_target
     weekly_days = Column(JSON, nullable=True) # e.g. [0,1,2,3,4,5,6] (Mon-Sun)
+    time_of_day = Column(String(20), default="anytime") # morning, afternoon, evening, anytime
     target_count = Column(Integer, default=1)
-    unit = Column(String(50), default="lần")
+    unit = Column(String(50), default="times")
     reminder_time = Column(String(10), nullable=True) # e.g. "08:00"
     icon = Column(String(50), default="zap")
-    color = Column(String(50), default="#10B981") # Emerald
+    color = Column(String(50), default="#10B981")
     archived = Column(Boolean, default=False)
+    streak_freeze_count = Column(Integer, default=2) # available freeze shields
 
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -39,8 +41,10 @@ class HabitLog(Base):
     completed_time = Column(String(10), nullable=True) # e.g. "08:30" or "21:15"
     count = Column(Integer, default=1)
     completed = Column(Boolean, default=True)
+    is_frozen_day = Column(Boolean, default=False) # Streak Freeze shield applied
+    time_spent = Column(Integer, default=0) # Minutes spent in Pomodoro Focus
     notes = Column(Text, nullable=True)
-    mood = Column(String(50), nullable=True) # e.g. "energized", "happy", "focused", "tired", "mindful"
+    mood = Column(String(50), nullable=True) # energized, happy, focused, tired, mindful
 
     created_at = Column(DateTime, default=datetime.utcnow)
 

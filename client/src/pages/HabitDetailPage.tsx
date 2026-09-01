@@ -3,9 +3,11 @@ import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Flame, Trophy, CheckCircle2, Percent, Calendar,
   Clock, Smile, Edit3, Trash2, Snowflake, Play, Plus, X,
-  Sparkles, Check, ChevronRight, MessageSquare, AlertCircle
+  Sparkles, Check, ChevronRight, MessageSquare, AlertCircle,
+  Shield, Sun, Sunrise, Sunset, Award
 } from 'lucide-react'
 import { useHabitStore, type HabitDetail, type HabitLogEntry } from '../store/useHabitStore'
+import { useTimerStore } from '../store/useTimerStore'
 import { sounds } from '../utils/soundEffects'
 
 const MOODS = [
@@ -19,7 +21,7 @@ const MOODS = [
 
 const HABIT_COLORS = ['#7C3AED', '#0284C7', '#10B981', '#D97706', '#E11D48', '#6366F1', '#EC4899', '#059669']
 
-const ICONS = ['⚡', '🔥', '📚', '💧', '🏃', '🧘', '💪', '💊', '🎯', '✍️', '🍏', '💤']
+const ICONS = ['⚡', '💧', '🏃', '📚', '🧘', '💪', '🎯', '💊', '✍️', '🍏', '💤', '🔥']
 
 export const HabitDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>()
@@ -32,16 +34,19 @@ export const HabitDetailPage: React.FC = () => {
     fetchHabitDetail,
     updateHabit,
     toggleFreezeHabit,
-    checkinHabit,
+    freezeDay,
     upsertHabitLog,
     deleteHabit
   } = useHabitStore()
+
+  const { startTimer } = useTimerStore()
 
   // Edit Habit Sheet State
   const [editSheetOpen, setEditSheetOpen] = useState(false)
   const [editTitle, setEditTitle] = useState('')
   const [editDescription, setEditDescription] = useState('')
   const [editFreq, setEditFreq] = useState<'daily' | 'weekly_days' | 'weekly_target' | 'monthly_target'>('daily')
+  const [editTimeOfDay, setEditTimeOfDay] = useState<'morning' | 'afternoon' | 'evening' | 'anytime'>('anytime')
   const [editTargetCount, setEditTargetCount] = useState(1)
   const [editUnit, setEditUnit] = useState('times')
   const [editColor, setEditColor] = useState(HABIT_COLORS[0])
@@ -53,7 +58,9 @@ export const HabitDetailPage: React.FC = () => {
   const [logDate, setLogDate] = useState('')
   const [logCompletedTime, setLogCompletedTime] = useState('')
   const [logCompleted, setLogCompleted] = useState(true)
+  const [logFrozenDay, setLogFrozenDay] = useState(false)
   const [logCount, setLogCount] = useState(1)
+  const [logTimeSpent, setLogTimeSpent] = useState(0)
   const [logMood, setLogMood] = useState('energized')
   const [logNotes, setLogNotes] = useState('')
 
@@ -69,6 +76,7 @@ export const HabitDetailPage: React.FC = () => {
       setEditTitle(activeDetail.title)
       setEditDescription(activeDetail.description || '')
       setEditFreq(activeDetail.frequency_type || 'daily')
+      setEditTimeOfDay(activeDetail.time_of_day || 'anytime')
       setEditTargetCount(activeDetail.target_count || 1)
       setEditUnit(activeDetail.unit || 'times')
       setEditColor(activeDetail.color || HABIT_COLORS[0])
@@ -94,6 +102,7 @@ export const HabitDetailPage: React.FC = () => {
       title: editTitle.trim(),
       description: editDescription.trim() || undefined,
       frequency_type: editFreq,
+      time_of_day: editTimeOfDay,
       target_count: editTargetCount,
       unit: editUnit.trim() || 'times',
       color: editColor,
@@ -112,7 +121,9 @@ export const HabitDetailPage: React.FC = () => {
     setLogDate(targetD)
     setLogCompletedTime(existingLog?.completed_time || new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }))
     setLogCompleted(existingLog ? existingLog.completed : true)
-    setLogCount(existingLog?.count || 1)
+    setLogFrozenDay(existingLog ? existingLog.is_frozen_day : false)
+    setLogCount(existingLog?.count || (activeDetail.unit === 'mins' ? activeDetail.target_count : 1))
+    setLogTimeSpent(existingLog?.time_spent || 0)
     setLogMood(existingLog?.mood || 'energized')
     setLogNotes(existingLog?.notes || '')
     setLogModalOpen(true)
@@ -125,7 +136,9 @@ export const HabitDetailPage: React.FC = () => {
       logged_date: logDate,
       completed_time: logCompletedTime,
       completed: logCompleted,
-      count: logCount,
+      is_frozen_day: logFrozenDay,
+      time_spent: Number(logTimeSpent) || 0,
+      count: Number(logCount) || 1,
       mood: logMood,
       notes: logNotes.trim() || undefined
     })
@@ -133,9 +146,26 @@ export const HabitDetailPage: React.FC = () => {
     setLogModalOpen(false)
   }
 
+  const handleStartFocus = () => {
+    sounds.playTap()
+    const duration = activeDetail.unit === 'mins' ? activeDetail.target_count : 25
+    startTimer({
+      habitId: activeDetail.id,
+      title: `Habit: ${activeDetail.title}`,
+      durationMinutes: duration
+    })
+    navigate('/')
+  }
+
   const handleToggleFreeze = async () => {
     sounds.playTap()
     await toggleFreezeHabit(habitId)
+    sounds.playSuccess()
+  }
+
+  const handleApplyShieldToday = async () => {
+    sounds.playTap()
+    await freezeDay(habitId)
     sounds.playSuccess()
   }
 
@@ -149,6 +179,21 @@ export const HabitDetailPage: React.FC = () => {
   const getMoodMeta = (moodKey?: string) => {
     return MOODS.find(m => m.id === moodKey) || MOODS[0]
   }
+
+  const getRankBadge = (rank?: string) => {
+    switch (rank) {
+      case 'S':
+        return { label: '👑 Rank S · Mastered', color: 'bg-amber-100 text-amber-900 border-amber-300 ring-2 ring-amber-400 font-black' }
+      case 'A':
+        return { label: '💎 Rank A · Consistent', color: 'bg-violet-100 text-violet-800 border-violet-300 ring-2 ring-violet-400 font-bold' }
+      case 'B':
+        return { label: '⚡ Rank B · Building', color: 'bg-emerald-100 text-emerald-800 border-emerald-300 ring-2 ring-emerald-400 font-bold' }
+      default:
+        return { label: '🌱 Rank C · Starting', color: 'bg-slate-100 text-slate-600 border-slate-200' }
+    }
+  }
+
+  const rankMeta = getRankBadge(activeDetail.mastery_rank)
 
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
@@ -177,7 +222,7 @@ export const HabitDetailPage: React.FC = () => {
                   {activeDetail.title}
                 </h1>
                 <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                  <span>{activeDetail.frequency_type}</span>
+                  <span>{activeDetail.time_of_day !== 'anytime' ? activeDetail.time_of_day : 'anytime'}</span>
                   <span>•</span>
                   <span>{activeDetail.target_count} {activeDetail.unit}</span>
                   {activeDetail.archived && (
@@ -190,8 +235,18 @@ export const HabitDetailPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Action Buttons */}
+          {/* Top Actions: Pomodoro Focus, Shield & Settings */}
           <div className="flex items-center gap-1 shrink-0">
+            {/* 1-Tap Pomodoro Focus */}
+            <button
+              onClick={handleStartFocus}
+              className="px-2.5 py-1.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold flex items-center gap-1 shadow-xs shadow-violet-600/20 active:scale-95 transition"
+              title="Start Pomodoro Focus Session"
+            >
+              <Play className="w-3 h-3 fill-current" />
+              <span>Focus</span>
+            </button>
+
             <button
               onClick={handleToggleFreeze}
               className={`p-2 rounded-xl border text-xs font-bold transition active:scale-95 ${
@@ -227,7 +282,39 @@ export const HabitDetailPage: React.FC = () => {
       <div className="flex-1 overflow-y-auto px-4 py-4 min-h-0">
         <div className="max-w-lg md:max-w-5xl mx-auto space-y-4 pb-6">
 
-          {/* 1. Hero KPI Grid */}
+          {/* 1. Mastery Rank & Habit Strength Hero Banner */}
+          <div className="bg-gradient-to-r from-violet-900 to-indigo-900 rounded-3xl p-4 text-white shadow-md flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-2xl shadow-inner shrink-0">
+                {activeDetail.mastery_rank === 'S' ? '👑' : activeDetail.mastery_rank === 'A' ? '💎' : activeDetail.mastery_rank === 'B' ? '⚡' : '🌱'}
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider ${rankMeta.color}`}>
+                    {rankMeta.label}
+                  </span>
+                  <span className="text-xs text-violet-200 font-mono font-bold">
+                    {activeDetail.strength_percent}% Strength
+                  </span>
+                </div>
+                <h2 className="text-sm sm:text-base font-black mt-1">
+                  30-Day Habit Resilience Score
+                </h2>
+              </div>
+            </div>
+
+            {/* Quick Streak Shield Button */}
+            <button
+              onClick={handleApplyShieldToday}
+              className="px-3 py-2 rounded-xl bg-white/15 hover:bg-white/25 border border-white/30 text-white text-xs font-bold flex items-center gap-1.5 active:scale-95 transition shrink-0"
+              title="Protect streak with freeze shield"
+            >
+              <Shield className="w-3.5 h-3.5 text-blue-300" />
+              <span>Shield ({activeDetail.streak_freeze_count || 0})</span>
+            </button>
+          </div>
+
+          {/* 2. Hero KPI Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
             {/* Current Streak */}
             <div className="bg-white rounded-2xl p-3.5 border border-slate-200/90 shadow-2xs flex flex-col justify-between">
@@ -265,20 +352,20 @@ export const HabitDetailPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Completion Rate */}
+            {/* Focus Minutes */}
             <div className="bg-white rounded-2xl p-3.5 border border-slate-200/90 shadow-2xs flex flex-col justify-between">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Success Rate</span>
-                <Percent className="w-4 h-4 text-violet-500" />
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Focus Time</span>
+                <Clock className="w-4 h-4 text-violet-500" />
               </div>
               <div className="mt-2">
-                <span className="text-2xl font-black text-slate-900 font-mono">{activeDetail.completion_rate}%</span>
-                <span className="text-xs text-slate-400 ml-1 font-bold">score</span>
+                <span className="text-2xl font-black text-slate-900 font-mono">{activeDetail.total_time_spent || 0}</span>
+                <span className="text-xs text-slate-400 ml-1 font-bold">mins</span>
               </div>
             </div>
           </div>
 
-          {/* 2. 30-Day Heatmap Matrix */}
+          {/* 3. 30-Day Heatmap Matrix */}
           <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-2xs space-y-3">
             <div className="flex items-center justify-between">
               <div>
@@ -308,15 +395,19 @@ export const HabitDetailPage: React.FC = () => {
                     className={`h-11 rounded-xl flex flex-col items-center justify-center text-[9px] font-bold transition active:scale-90 border relative ${
                       item.completed
                         ? 'bg-emerald-500 border-emerald-600 text-white shadow-2xs'
+                        : item.is_frozen_day
+                        ? 'bg-blue-500 border-blue-600 text-white shadow-2xs'
                         : isToday
                         ? 'bg-violet-50 border-violet-400 text-violet-700 ring-2 ring-violet-300'
                         : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'
                     }`}
-                    title={`${item.date}: ${item.completed ? 'Completed' : 'Not completed'}`}
+                    title={`${item.date}: ${item.completed ? 'Completed' : item.is_frozen_day ? 'Shield Protected' : 'Not completed'}`}
                   >
                     <span className="leading-none">{dayStr}</span>
                     {item.completed ? (
                       <span className="text-[11px] mt-0.5">{item.mood ? getMoodMeta(item.mood).icon : '✓'}</span>
+                    ) : item.is_frozen_day ? (
+                      <span className="text-[11px] mt-0.5">🛡️</span>
                     ) : (
                       <span className="text-[8px] opacity-40 mt-0.5">-</span>
                     )}
@@ -326,12 +417,12 @@ export const HabitDetailPage: React.FC = () => {
             </div>
           </div>
 
-          {/* 3. Daily Log & Emotion History List */}
+          {/* 4. Daily Log & Emotion History List */}
           <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-2xs space-y-3">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">Completion & Mood Logs</h3>
-                <p className="text-[10px] text-slate-400 font-medium">History of check-in timestamps and notes</p>
+                <p className="text-[10px] text-slate-400 font-medium">History of check-in timestamps, focus minutes, and notes</p>
               </div>
               <span className="text-xs font-mono font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-lg">
                 {activeDetail.logs.length} entries
@@ -361,9 +452,19 @@ export const HabitDetailPage: React.FC = () => {
                       <div className="flex items-start gap-2.5 min-w-0">
                         {/* Check Status */}
                         <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${
-                          log.completed ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-400'
+                          log.completed
+                            ? 'bg-emerald-500 text-white'
+                            : log.is_frozen_day
+                            ? 'bg-blue-500 text-white'
+                            : 'bg-slate-200 text-slate-400'
                         }`}>
-                          <Check className="w-3.5 h-3.5 stroke-[3]" />
+                          {log.completed ? (
+                            <Check className="w-3.5 h-3.5 stroke-[3]" />
+                          ) : log.is_frozen_day ? (
+                            <Shield className="w-3.5 h-3.5" />
+                          ) : (
+                            <Minus className="w-3.5 h-3.5" />
+                          )}
                         </div>
 
                         {/* Info & Notes */}
@@ -374,6 +475,16 @@ export const HabitDetailPage: React.FC = () => {
                               <span className="inline-flex items-center gap-0.5 text-[10px] text-slate-500 font-mono bg-white px-1.5 py-0.2 rounded border border-slate-200">
                                 <Clock className="w-2.5 h-2.5 text-slate-400" />
                                 <span>{log.completed_time}</span>
+                              </span>
+                            )}
+                            {log.time_spent > 0 && (
+                              <span className="inline-flex items-center gap-0.5 text-[10px] text-violet-700 font-mono bg-violet-50 px-1.5 py-0.2 rounded border border-violet-200 font-bold">
+                                <span>⏱️ {log.time_spent}m</span>
+                              </span>
+                            )}
+                            {log.is_frozen_day && (
+                              <span className="inline-flex items-center gap-0.5 text-[10px] text-blue-700 bg-blue-50 px-1.5 py-0.2 rounded border border-blue-200 font-bold">
+                                <span>🛡️ Shield</span>
                               </span>
                             )}
                             {log.mood && (
@@ -417,7 +528,7 @@ export const HabitDetailPage: React.FC = () => {
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="text-sm font-black text-slate-900">Habit Check-in & Reflection</h2>
-                <p className="text-[11px] text-slate-500 font-medium">Record timestamp, mood, and daily notes</p>
+                <p className="text-[11px] text-slate-500 font-medium">Record timestamp, focus minutes, and daily notes</p>
               </div>
               <button onClick={() => setLogModalOpen(false)} className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700">
                 <X className="w-5 h-5" />
@@ -425,7 +536,7 @@ export const HabitDetailPage: React.FC = () => {
             </div>
 
             <form onSubmit={handleSaveLog} className="space-y-3.5">
-              {/* Date & Completion Time (Allows editing if checked in late!) */}
+              {/* Date & Completion Time */}
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
@@ -453,15 +564,15 @@ export const HabitDetailPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Status Toggle & Count */}
+              {/* Status Toggle & Shield */}
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    Completion Status
+                    Status
                   </label>
                   <button
                     type="button"
-                    onClick={() => setLogCompleted(!logCompleted)}
+                    onClick={() => { setLogCompleted(!logCompleted); if (!logCompleted) setLogFrozenDay(false) }}
                     className={`w-full py-2.5 px-3 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 ${
                       logCompleted
                         ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
@@ -469,25 +580,58 @@ export const HabitDetailPage: React.FC = () => {
                     }`}
                   >
                     <Check className="w-3.5 h-3.5 stroke-[3]" />
-                    <span>{logCompleted ? 'Completed' : 'Missed / Skipped'}</span>
+                    <span>{logCompleted ? 'Completed' : 'Missed'}</span>
                   </button>
                 </div>
 
                 <div>
                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    Repetitions / Units
+                    Streak Shield
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => { setLogFrozenDay(!logFrozenDay); if (!logFrozenDay) setLogCompleted(false) }}
+                    className={`w-full py-2.5 px-3 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                      logFrozenDay
+                        ? 'bg-blue-50 border-blue-300 text-blue-800'
+                        : 'bg-white border-slate-200 text-slate-500'
+                    }`}
+                  >
+                    <Shield className="w-3.5 h-3.5" />
+                    <span>{logFrozenDay ? 'Shield Active 🛡️' : 'No Shield'}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Quantity / Units & Time Spent */}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                    Quantity ({activeDetail.unit})
                   </label>
                   <input
                     type="number"
-                    min="1"
+                    min="0"
                     value={logCount}
-                    onChange={e => setLogCount(Number(e.target.value) || 1)}
+                    onChange={e => setLogCount(Number(e.target.value) || 0)}
                     className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                    Focus Time (Minutes)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={logTimeSpent}
+                    onChange={e => setLogTimeSpent(Number(e.target.value) || 0)}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
                   />
                 </div>
               </div>
 
-              {/* Mood / Emotion Selector */}
+              {/* Mood Selector */}
               <div>
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
                   How did it feel today? (Mood / Emotion)
@@ -514,7 +658,7 @@ export const HabitDetailPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Notes / Reflection */}
+              {/* Notes */}
               <div>
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
                   Daily Reflection / Notes
@@ -523,7 +667,7 @@ export const HabitDetailPage: React.FC = () => {
                   rows={2}
                   value={logNotes}
                   onChange={e => setLogNotes(e.target.value)}
-                  placeholder="e.g. Felt super energized after morning run, did 5k easily..."
+                  placeholder="e.g. Completed 30m reading with deep focus..."
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
                 />
               </div>
@@ -548,7 +692,7 @@ export const HabitDetailPage: React.FC = () => {
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="text-sm font-black text-slate-900">Edit Habit Properties</h2>
-                <p className="text-[11px] text-slate-500 font-medium">Update frequency, target, and appearance</p>
+                <p className="text-[11px] text-slate-500 font-medium">Update frequency, routines, and appearance</p>
               </div>
               <button onClick={() => setEditSheetOpen(false)} className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700">
                 <X className="w-5 h-5" />
@@ -582,7 +726,35 @@ export const HabitDetailPage: React.FC = () => {
                 />
               </div>
 
-              {/* Frequency Type */}
+              {/* Time of Day Routine */}
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
+                  Time of Day Routine
+                </label>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {[
+                    { id: 'morning', label: '🌅 Morning' },
+                    { id: 'afternoon', label: '☀️ Afternoon' },
+                    { id: 'evening', label: '🌙 Evening' },
+                    { id: 'anytime', label: '⚡ Anytime' }
+                  ].map(t => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => setEditTimeOfDay(t.id as any)}
+                      className={`py-2 px-1 text-center rounded-xl border text-[11px] font-bold transition ${
+                        editTimeOfDay === t.id
+                          ? 'bg-violet-50 border-violet-400 text-violet-800 ring-2 ring-violet-500'
+                          : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Frequency & Target */}
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">

@@ -76,6 +76,24 @@ class TelegramService:
         return await TelegramService.send_message(chat_id=chat_id, text=text)
 
     @staticmethod
+    async def send_habit_reminder(
+        chat_id: str,
+        habit_id: int,
+        habit_title: str,
+        target_str: str = "1 lần",
+        streak: int = 0
+    ) -> bool:
+        streak_badge = f"🔥 <b>Chuỗi hiện tại:</b> {streak} ngày\n" if streak > 0 else ""
+        text = (
+            f"<b>⚡ [TimeHack] Nhắc Nhở Thói Quen Hàng Ngày</b>\n\n"
+            f"🎯 <b>Thói quen:</b> {habit_title}\n"
+            f"📊 <b>Mục tiêu:</b> {target_str}\n"
+            f"{streak_badge}\n"
+            f"👉 <a href='{settings.APP_BASE_URL or 'https://time.inmind.site'}/habits/{habit_id}'>Mở TimeHack để check-in & ghi nhận cảm xúc</a>"
+        )
+        return await TelegramService.send_message(chat_id=chat_id, text=text)
+
+    @staticmethod
     async def send_daily_wrap_up(
         chat_id: str,
         user_name: str,

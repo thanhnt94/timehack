@@ -9,20 +9,27 @@ export interface Habit {
   category?: { id: number; name: string; color: string; icon?: string }
   frequency_type: 'daily' | 'weekly_days' | 'weekly_target' | 'monthly_target'
   weekly_days?: number[]
+  time_of_day: 'morning' | 'afternoon' | 'evening' | 'anytime'
   target_count: number
   unit: string
   reminder_time?: string
   icon: string
   color: string
   archived: boolean
+  streak_freeze_count: number
   current_streak: number
   longest_streak: number
+  strength_percent: number
+  mastery_rank: 'S' | 'A' | 'B' | 'C'
+  rank_title: string
   total_completions: number
   today_completed: boolean
+  today_frozen: boolean
   today_count: number
+  today_time_spent: number
   today_notes?: string
   today_mood?: string
-  mini_history?: { date: string; completed: boolean }[]
+  mini_history?: { date: string; completed: boolean; is_frozen_day?: boolean }[]
   created_at: string
 }
 
@@ -32,6 +39,8 @@ export interface HabitLogEntry {
   completed_time?: string
   count: number
   completed: boolean
+  is_frozen_day: boolean
+  time_spent: number
   notes?: string
   mood?: string
   created_at: string
@@ -40,6 +49,8 @@ export interface HabitLogEntry {
 export interface HeatmapItem {
   date: string
   completed: boolean
+  is_frozen_day?: boolean
+  time_spent?: number
   count: number
   mood?: string
   notes?: string
@@ -47,8 +58,7 @@ export interface HeatmapItem {
 }
 
 export interface HabitDetail extends Habit {
-  days_active: number
-  completion_rate: number
+  total_time_spent: number
   heatmap: HeatmapItem[]
   logs: HabitLogEntry[]
 }
@@ -65,8 +75,10 @@ interface HabitState {
   createHabit: (data: Partial<Habit>) => Promise<number | undefined>
   updateHabit: (habitId: number, data: Partial<Habit>) => Promise<void>
   toggleFreezeHabit: (habitId: number) => Promise<void>
-  checkinHabit: (habitId: number, payload?: { logged_date?: string; completed?: boolean; notes?: string; mood?: string; completed_time?: string }) => Promise<void>
-  upsertHabitLog: (habitId: number, logData: { logged_date: string; completed_time?: string; count?: number; completed?: boolean; notes?: string; mood?: string }) => Promise<void>
+  freezeDay: (habitId: number, logged_date?: string) => Promise<void>
+  logHabitFocus: (habitId: number, durationMinutes: number) => Promise<void>
+  checkinHabit: (habitId: number, payload?: { logged_date?: string; completed?: boolean; is_frozen_day?: boolean; count?: number; notes?: string; mood?: string; completed_time?: string }) => Promise<void>
+  upsertHabitLog: (habitId: number, logData: { logged_date: string; completed_time?: string; count?: number; completed?: boolean; is_frozen_day?: boolean; time_spent?: number; notes?: string; mood?: string }) => Promise<void>
   deleteHabit: (habitId: number, permanent?: boolean) => Promise<void>
 }
 
@@ -133,6 +145,30 @@ export const useHabitStore = create<HabitState>((set, get) => ({
       }
     } catch (e) {
       console.error('Failed to toggle freeze habit', e)
+    }
+  },
+
+  freezeDay: async (habitId, logged_date) => {
+    try {
+      await axios.post(`/api/v1/habits/${habitId}/freeze-day`, { logged_date })
+      await get().fetchHabits(true)
+      if (get().activeDetail?.id === habitId) {
+        await get().fetchHabitDetail(habitId)
+      }
+    } catch (e) {
+      console.error('Failed to freeze habit day', e)
+    }
+  },
+
+  logHabitFocus: async (habitId, durationMinutes) => {
+    try {
+      await axios.post(`/api/v1/habits/${habitId}/log-focus`, { duration_minutes: durationMinutes })
+      await get().fetchHabits(true)
+      if (get().activeDetail?.id === habitId) {
+        await get().fetchHabitDetail(habitId)
+      }
+    } catch (e) {
+      console.error('Failed to log habit focus', e)
     }
   },
 

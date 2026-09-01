@@ -3,9 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import {
   Flame, Check, Plus, X, Zap, Sparkles, Layers, Search,
   Snowflake, ChevronRight, Calendar, Clock, Edit3, Trash2,
-  Minus, CheckCircle2, RotateCcw
+  Minus, CheckCircle2, RotateCcw, Play, Sun, Sunrise, Sunset,
+  Shield, Award, Trophy
 } from 'lucide-react'
 import { useHabitStore, type Habit } from '../store/useHabitStore'
+import { useTimerStore } from '../store/useTimerStore'
 import { TaskPagination } from '../components/TaskPagination'
 import { sounds } from '../utils/soundEffects'
 
@@ -15,10 +17,11 @@ const ICONS = ['⚡', '💧', '🏃', '📚', '🧘', '💪', '🎯', '💊', '�
 
 const FILTER_TABS = [
   { key: 'all', label: 'All Habits', icon: Layers, activeClass: 'bg-violet-600 border-violet-600 text-white shadow-2xs', inactiveClass: 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50' },
+  { key: 'morning', label: '🌅 Morning', icon: Sunrise, activeClass: 'bg-amber-600 border-amber-600 text-white shadow-2xs', inactiveClass: 'bg-amber-50/80 border-amber-200 text-amber-800 hover:bg-amber-100' },
+  { key: 'afternoon', label: '☀️ Afternoon', icon: Sun, activeClass: 'bg-orange-600 border-orange-600 text-white shadow-2xs', inactiveClass: 'bg-orange-50/80 border-orange-200 text-orange-800 hover:bg-orange-100' },
+  { key: 'evening', label: '🌙 Evening', icon: Sunset, activeClass: 'bg-indigo-600 border-indigo-600 text-white shadow-2xs', inactiveClass: 'bg-indigo-50/80 border-indigo-200 text-indigo-800 hover:bg-indigo-100' },
   { key: 'active', label: 'Active', icon: Zap, activeClass: 'bg-emerald-600 border-emerald-600 text-white shadow-2xs', inactiveClass: 'bg-emerald-50/80 border-emerald-200 text-emerald-700 hover:bg-emerald-100' },
   { key: 'frozen', label: 'Frozen', icon: Snowflake, activeClass: 'bg-blue-600 border-blue-600 text-white shadow-2xs', inactiveClass: 'bg-blue-50/80 border-blue-200 text-blue-700 hover:bg-blue-100' },
-  { key: 'daily', label: 'Daily', icon: Calendar, activeClass: 'bg-slate-900 border-slate-900 text-white shadow-2xs', inactiveClass: 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50' },
-  { key: 'weekly', label: 'Weekly', icon: Clock, activeClass: 'bg-slate-900 border-slate-900 text-white shadow-2xs', inactiveClass: 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50' },
 ] as const
 
 const PAGE_SIZE = 6
@@ -29,9 +32,10 @@ export const HabitMatrix: React.FC = () => {
     fetchHabits,
     createHabit,
     checkinHabit,
-    upsertHabitLog
+    freezeDay
   } = useHabitStore()
 
+  const { startTimer } = useTimerStore()
   const navigate = useNavigate()
 
   // Filter & Search & Pagination State
@@ -46,7 +50,7 @@ export const HabitMatrix: React.FC = () => {
   const [presetType, setPresetType] = useState<'once' | 'count' | 'timer'>('once')
   const [newTargetCount, setNewTargetCount] = useState(1)
   const [newUnit, setNewUnit] = useState('times')
-  const [newFreq, setNewFreq] = useState<'daily' | 'weekly_days' | 'weekly_target' | 'monthly_target'>('daily')
+  const [newTimeOfDay, setNewTimeOfDay] = useState<'morning' | 'afternoon' | 'evening' | 'anytime'>('anytime')
   const [newColor, setNewColor] = useState(HABIT_COLORS[0])
   const [newIcon, setNewIcon] = useState('⚡')
 
@@ -63,24 +67,47 @@ export const HabitMatrix: React.FC = () => {
     setCurrentPage(1)
   }, [filter, searchQuery])
 
-  // Filtered habits
+  // Current hour for Time-Aware smart sorting
+  const currentHour = new Date().getHours()
+  const currentRoutine = currentHour >= 5 && currentHour < 12
+    ? 'morning'
+    : currentHour >= 12 && currentHour < 18
+    ? 'afternoon'
+    : 'evening'
+
+  // Filtered and smart-sorted habits
   const filteredHabits = useMemo(() => {
-    return habits.filter(h => {
-      if (filter === 'active' && h.archived) return false
-      if (filter === 'frozen' && !h.archived) return false
-      if (filter === 'daily' && h.frequency_type !== 'daily') return false
-      if (filter === 'weekly' && h.frequency_type !== 'weekly_days' && h.frequency_type !== 'weekly_target') return false
+    return habits
+      .filter(h => {
+        if (filter === 'active' && h.archived) return false
+        if (filter === 'frozen' && !h.archived) return false
+        if (filter === 'morning' && h.time_of_day !== 'morning') return false
+        if (filter === 'afternoon' && h.time_of_day !== 'afternoon') return false
+        if (filter === 'evening' && h.time_of_day !== 'evening') return false
 
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim()
-        const matchTitle = h.title.toLowerCase().includes(q)
-        const matchDesc = h.description?.toLowerCase().includes(q)
-        if (!matchTitle && !matchDesc) return false
-      }
+        if (searchQuery.trim()) {
+          const q = searchQuery.toLowerCase().trim()
+          const matchTitle = h.title.toLowerCase().includes(q)
+          const matchDesc = h.description?.toLowerCase().includes(q)
+          if (!matchTitle && !matchDesc) return false
+        }
 
-      return true
-    })
-  }, [habits, filter, searchQuery])
+        return true
+      })
+      .sort((a, b) => {
+        // Smart Time-Aware Routine Sorting: Prioritize current time of day
+        if (filter === 'all') {
+          const getPriority = (h: Habit) => {
+            if (h.archived) return 4
+            if (h.time_of_day === currentRoutine) return 0
+            if (h.time_of_day === 'anytime') return 1
+            return 2
+          }
+          return getPriority(a) - getPriority(b)
+        }
+        return 0
+      })
+  }, [habits, filter, searchQuery, currentRoutine])
 
   // Pagination calculations
   const totalPages = Math.max(1, Math.ceil(filteredHabits.length / PAGE_SIZE))
@@ -110,7 +137,7 @@ export const HabitMatrix: React.FC = () => {
     sounds.playTap()
     const newId = await createHabit({
       title: newTitle.trim(),
-      frequency_type: newFreq,
+      time_of_day: newTimeOfDay,
       target_count: Math.max(1, Number(newTargetCount) || 1),
       unit: newUnit.trim() || 'times',
       color: newColor,
@@ -129,6 +156,25 @@ export const HabitMatrix: React.FC = () => {
     sounds.playTap()
     checkinHabit(h.id)
     if (!h.today_completed) sounds.playSuccess()
+  }
+
+  const handleStartFocus = (e: React.MouseEvent, h: Habit) => {
+    e.stopPropagation()
+    sounds.playTap()
+    const duration = h.unit === 'mins' ? h.target_count : 25
+    startTimer({
+      habitId: h.id,
+      title: `Habit: ${h.title}`,
+      durationMinutes: duration
+    })
+    navigate('/')
+  }
+
+  const handleFreezeShield = async (e: React.MouseEvent, h: Habit) => {
+    e.stopPropagation()
+    sounds.playTap()
+    await freezeDay(h.id)
+    sounds.playSuccess()
   }
 
   const handleStepIncrement = (e: React.MouseEvent, h: Habit, step: number) => {
@@ -168,6 +214,19 @@ export const HabitMatrix: React.FC = () => {
   const handleCardClick = (habitId: number) => {
     sounds.playTap()
     navigate(`/habits/${habitId}`)
+  }
+
+  const getRankBadge = (rank?: string) => {
+    switch (rank) {
+      case 'S':
+        return { label: 'Rank S', color: 'bg-amber-100 text-amber-900 border-amber-300 font-black ring-1 ring-amber-400' }
+      case 'A':
+        return { label: 'Rank A', color: 'bg-violet-100 text-violet-800 border-violet-300 font-bold' }
+      case 'B':
+        return { label: 'Rank B', color: 'bg-emerald-100 text-emerald-800 border-emerald-300 font-bold' }
+      default:
+        return { label: 'Rank C', color: 'bg-slate-100 text-slate-600 border-slate-200' }
+    }
   }
 
   return (
@@ -223,7 +282,7 @@ export const HabitMatrix: React.FC = () => {
                 {searchQuery ? 'No matching habits found' : filter === 'frozen' ? 'No frozen habits' : 'No habits tracked'}
               </h3>
               <p className="text-xs text-slate-500 mt-1 max-w-[260px] leading-relaxed">
-                {searchQuery ? 'Try searching with different keywords.' : 'Build daily discipline with partial progress, streaks, and reflections.'}
+                {searchQuery ? 'Try searching with different keywords.' : 'Build daily discipline with Focus Pomodoro, Streaks, and Routines.'}
               </p>
 
               <button
@@ -238,11 +297,14 @@ export const HabitMatrix: React.FC = () => {
             paginatedHabits.map(h => {
               const done = !!h.today_completed
               const isFrozen = !!h.archived
+              const isShieldFrozenToday = !!h.today_frozen
               const targetCount = h.target_count || 1
               const todayCount = h.today_count || 0
+              const isDuration = h.unit === 'mins'
               const isMultiTarget = targetCount > 1
               const progressPercent = Math.min(100, Math.round((todayCount / targetCount) * 100))
               const miniHistory = h.mini_history || []
+              const rankMeta = getRankBadge(h.mastery_rank)
 
               return (
                 <div
@@ -251,6 +313,8 @@ export const HabitMatrix: React.FC = () => {
                   className={`bg-white rounded-2xl border transition shadow-2xs overflow-hidden cursor-pointer group hover:border-violet-300 ${
                     isFrozen
                       ? 'opacity-65 bg-slate-50/80 border-slate-200'
+                      : isShieldFrozenToday
+                      ? 'bg-blue-50/40 border-blue-200'
                       : done
                       ? 'border-emerald-200/90 bg-emerald-50/20'
                       : 'border-slate-200'
@@ -266,6 +330,8 @@ export const HabitMatrix: React.FC = () => {
                         className={`w-12 h-12 rounded-2xl flex flex-col items-center justify-center shrink-0 transition active:scale-90 shadow-2xs relative ${
                           done
                             ? 'bg-emerald-500 text-white shadow-emerald-500/20'
+                            : isShieldFrozenToday
+                            ? 'bg-blue-500 text-white shadow-blue-500/20'
                             : todayCount > 0
                             ? 'bg-violet-50 border-2 border-violet-500 text-violet-700 font-bold'
                             : 'border-2 border-dashed border-slate-300 hover:border-violet-500 bg-white'
@@ -274,6 +340,8 @@ export const HabitMatrix: React.FC = () => {
                       >
                         {done ? (
                           <Check className="w-6 h-6 text-white stroke-[3]" />
+                        ) : isShieldFrozenToday ? (
+                          <Shield className="w-6 h-6 text-white" />
                         ) : isMultiTarget && todayCount > 0 ? (
                           <span className="text-[11px] font-black font-mono leading-none">
                             {todayCount}/{targetCount}
@@ -299,15 +367,23 @@ export const HabitMatrix: React.FC = () => {
                             )}
                           </div>
 
-                          {/* Streak Badge */}
-                          {h.current_streak > 0 && (
-                            <span className="text-[10px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200 font-bold flex items-center gap-0.5 shrink-0">
-                              <Flame className="w-3 h-3 text-amber-500" /> {h.current_streak}d
-                            </span>
-                          )}
+                          {/* Top Badges: Streak & Rank */}
+                          <div className="flex items-center gap-1 shrink-0">
+                            {h.mastery_rank && (
+                              <span className={`text-[9px] px-1.5 py-0.2 rounded-md border ${rankMeta.color}`} title={`Strength: ${h.strength_percent}%`}>
+                                {rankMeta.label}
+                              </span>
+                            )}
+
+                            {h.current_streak > 0 && (
+                              <span className="text-[10px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200 font-bold flex items-center gap-0.5 shrink-0">
+                                <Flame className="w-3 h-3 text-amber-500" /> {h.current_streak}d
+                              </span>
+                            )}
+                          </div>
                         </div>
 
-                        {/* Progress Details / Stepper */}
+                        {/* Middle Action Controls: Pomodoro Play Button & Routine Badge */}
                         <div className="flex items-center justify-between mt-2 gap-2">
                           {/* Mini 7-Day Sparkline Dots */}
                           <div className="flex items-center gap-1">
@@ -317,6 +393,8 @@ export const HabitMatrix: React.FC = () => {
                                 className={`w-2.5 h-2.5 rounded-full transition ${
                                   day.completed
                                     ? 'bg-emerald-500 ring-1 ring-emerald-300'
+                                    : day.is_frozen_day
+                                    ? 'bg-blue-400 ring-1 ring-blue-200'
                                     : 'bg-slate-200'
                                 }`}
                                 title={day.date}
@@ -324,9 +402,32 @@ export const HabitMatrix: React.FC = () => {
                             ))}
                           </div>
 
-                          {/* Target / Partial Progress Stepper & Badge */}
+                          {/* Routine badge & Focus button & Stepper */}
                           <div className="flex items-center gap-1.5">
-                            {isMultiTarget ? (
+                            {/* Time of day pill */}
+                            {h.time_of_day !== 'anytime' && (
+                              <span className="text-[9px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md">
+                                {h.time_of_day === 'morning' && '🌅 Sáng'}
+                                {h.time_of_day === 'afternoon' && '☀️ Chiều'}
+                                {h.time_of_day === 'evening' && '🌙 Tối'}
+                              </span>
+                            )}
+
+                            {/* 1-Tap Pomodoro Focus Button for Duration Habits */}
+                            {isDuration && !done && (
+                              <button
+                                type="button"
+                                onClick={(e) => handleStartFocus(e, h)}
+                                className="h-6 px-2 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-[10px] font-bold flex items-center gap-1 shadow-2xs active:scale-95 transition"
+                                title={`Start ${h.target_count}m Focus Session`}
+                              >
+                                <Play className="w-2.5 h-2.5 fill-current" />
+                                <span>Focus {h.target_count}m</span>
+                              </button>
+                            )}
+
+                            {/* Target / Stepper */}
+                            {isMultiTarget && !isDuration ? (
                               <div className="flex items-center gap-1 bg-slate-100/90 px-1.5 py-0.5 rounded-lg border border-slate-200">
                                 <button
                                   type="button"
@@ -343,7 +444,7 @@ export const HabitMatrix: React.FC = () => {
                                   className="text-[10px] font-black font-mono px-1 hover:text-violet-700 transition"
                                   title="Click to set exact progress"
                                 >
-                                  {todayCount}/{targetCount} {h.unit} ({progressPercent}%)
+                                  {todayCount}/{targetCount} {h.unit}
                                 </button>
 
                                 <button
@@ -355,11 +456,24 @@ export const HabitMatrix: React.FC = () => {
                                   <Plus className="w-3 h-3" />
                                 </button>
                               </div>
-                            ) : (
-                              <span className="text-[10px] font-bold text-slate-400">
-                                1 {h.unit} / day
-                              </span>
+                            ) : null}
+
+                            {/* Streak Freeze Shield Quick Button */}
+                            {!done && (
+                              <button
+                                type="button"
+                                onClick={(e) => handleFreezeShield(e, h)}
+                                className={`h-6 w-6 rounded-lg border flex items-center justify-center text-[10px] transition active:scale-90 ${
+                                  isShieldFrozenToday
+                                    ? 'bg-blue-100 border-blue-300 text-blue-700'
+                                    : 'bg-white border-slate-200 text-slate-400 hover:text-blue-600 hover:bg-blue-50'
+                                }`}
+                                title={isShieldFrozenToday ? 'Shield active (Streak protected)' : 'Protect streak with Freeze Shield'}
+                              >
+                                <Shield className="w-3 h-3" />
+                              </button>
                             )}
+
                             <ChevronRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-violet-500 transition shrink-0" />
                           </div>
                         </div>
@@ -434,7 +548,7 @@ export const HabitMatrix: React.FC = () => {
                 onPageChange={setCurrentPage}
               />
 
-              {/* Right: Quick Action Buttons (Search & Add Habit Icon-Only) */}
+              {/* Right: Quick Action Buttons */}
               <div className="flex items-center gap-1.5">
                 {/* Search Toggle Button */}
                 <button
@@ -497,6 +611,34 @@ export const HabitMatrix: React.FC = () => {
                 />
               </div>
 
+              {/* Time of Day Routine Selection */}
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
+                  Time of Day Routine
+                </label>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {[
+                    { id: 'morning', label: '🌅 Morning' },
+                    { id: 'afternoon', label: '☀️ Afternoon' },
+                    { id: 'evening', label: '🌙 Evening' },
+                    { id: 'anytime', label: '⚡ Anytime' }
+                  ].map(t => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => setNewTimeOfDay(t.id as any)}
+                      className={`py-2 px-1 text-center rounded-xl border text-[11px] font-bold transition ${
+                        newTimeOfDay === t.id
+                          ? 'bg-violet-50 border-violet-400 text-violet-800 ring-2 ring-violet-500'
+                          : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Habit Tracking Preset Chips */}
               <div>
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
@@ -544,7 +686,7 @@ export const HabitMatrix: React.FC = () => {
                 </div>
               </div>
 
-              {/* Target & Unit (Customizable) */}
+              {/* Target & Unit */}
               {presetType !== 'once' && (
                 <div className="grid grid-cols-2 gap-2 animate-in fade-in duration-150">
                   <div>

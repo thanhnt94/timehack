@@ -30,7 +30,7 @@ interface TimerState {
   // Timer interval reference (internal)
   intervalId: any | null
 
-  startTimer: (target?: { taskId?: number; habitId?: number; title?: string }) => void
+  startTimer: (target?: { taskId?: number; habitId?: number; title?: string; durationMinutes?: number }) => void
   pauseTimer: () => void
   resumeTimer: () => void
   stopTimer: () => Promise<void>
@@ -84,16 +84,17 @@ export const useTimerStore = create<TimerState>((set, get) => ({
 
     const now = new Date()
     const mode = get().mode
-    const workDuration = get().workDuration
+    const customDurationSec = target?.durationMinutes ? target.durationMinutes * 60 : get().workDuration
 
     set({
       isRunning: true,
       isPaused: false,
       startTime: now,
+      workDuration: customDurationSec,
       activeTaskId: target?.taskId || null,
       activeHabitId: target?.habitId || null,
       activeTitle: target?.title || (target?.taskId ? 'Task' : target?.habitId ? 'Habit' : 'Phiên tập trung'),
-      secondsRemaining: mode === 'pomodoro' ? workDuration : 0,
+      secondsRemaining: mode === 'pomodoro' ? customDurationSec : 0,
       elapsedSeconds: 0
     })
 
@@ -156,6 +157,7 @@ export const useTimerStore = create<TimerState>((set, get) => ({
     const start = startTime || new Date(end.getTime() - elapsedSeconds * 1000)
 
     if (elapsedSeconds > 5) {
+      const durationMinutes = Math.max(1, Math.round(elapsedSeconds / 60))
       try {
         await axios.post('/api/v1/time-tracking/logs', {
           task_id: activeTaskId,
@@ -166,9 +168,18 @@ export const useTimerStore = create<TimerState>((set, get) => ({
           timer_type: mode,
           notes: activeTitle
         })
+
+        // If habit focus session, log directly to habit log
+        if (activeHabitId) {
+          await axios.post(`/api/v1/habits/${activeHabitId}/log-focus`, {
+            duration_minutes: durationMinutes,
+            notes: activeTitle
+          })
+          useHabitStore.getState().fetchHabits()
+        }
+
         // Refresh stores
         useTaskStore.getState().fetchTasks()
-        if (activeHabitId) useHabitStore.getState().fetchHabits()
       } catch (e) {
         console.error('Failed to log time session', e)
       }

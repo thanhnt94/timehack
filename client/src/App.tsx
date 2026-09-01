@@ -49,76 +49,82 @@ const AppShell: React.FC = () => {
 
       {/* Main content column */}
       <div className="flex-1 flex flex-col min-h-0 md:ml-60">
-        {/* Unified Mobile Top Bar (Sleek, High-Contrast & Compact) */}
-        <header className="md:hidden shrink-0 flex items-center justify-between px-3 h-11 bg-white/95 backdrop-blur-xl border-b border-slate-200/80 z-20 shadow-2xs">
-          {/* Brand Logo & Active Page */}
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="w-6.5 h-6.5 rounded-lg bg-gradient-to-br from-violet-600 via-indigo-600 to-purple-700 flex items-center justify-center shadow-xs shadow-violet-600/25 shrink-0">
-              <Sparkles className="w-3.5 h-3.5 text-white" />
+        {/* Unified Mobile Top Bar (Ultra Premium, Glassmorphic & Modern App Aesthetic) */}
+        <header className="md:hidden shrink-0 flex items-center justify-between px-3.5 h-12 bg-white/90 backdrop-blur-2xl border-b border-slate-200/80 z-20 shadow-2xs">
+          {/* Left: Brand Identity & Live Context Pill */}
+          <div className="flex items-center gap-2.5 min-w-0">
+            {/* Gem Mascot Brand Logo */}
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-violet-600 via-indigo-600 to-fuchsia-600 flex items-center justify-center text-white shadow-sm shadow-violet-600/30 ring-1 ring-white/30 shrink-0">
+              <Sparkles className="w-4 h-4 fill-white/20 text-white stroke-[2.2]" />
             </div>
             
-            <div className="flex items-center gap-1.5 font-black text-xs sm:text-sm tracking-wider font-mono text-slate-900 truncate">
-              <span className="shrink-0">TIME<span className="text-violet-600 font-black">HACK</span></span>
-              <span className="text-slate-300 font-normal shrink-0">/</span>
-              <span className="px-1.5 py-0.5 rounded-md bg-slate-100 border border-slate-200/70 text-[11px] font-extrabold text-slate-800 font-sans tracking-tight truncate">
-                {isTimePage
-                  ? 'Time'
-                  : isActionsPage
-                  ? 'Actions'
-                  : location.pathname === '/categories'
-                  ? 'Projects'
-                  : location.pathname === '/analytics'
-                  ? 'Analytics'
-                  : ''}
+            {/* Brand Title in Crisp Sans-Serif Typography */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-black tracking-tight font-sans text-slate-900">
+                Time<span className="bg-gradient-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent">Hack</span>
               </span>
-            </div>
 
-            {/* Quick Badges in Header */}
-            {isTimePage && totalTrackedSec > 0 && (
-              <span className="text-[10px] font-black font-mono text-violet-700 bg-violet-50 px-1.5 py-0.5 rounded-md border border-violet-200/80 shrink-0 flex items-center gap-1">
-                <Clock className="w-2.5 h-2.5" />
-                <span>{formattedTracked}</span>
-              </span>
-            )}
-            {isActionsPage && (
-              <div className="flex items-center gap-1 shrink-0">
-                <span className="text-[9px] font-bold font-mono text-violet-700 bg-violet-50 px-1.5 py-0.2 rounded border border-violet-200/80 shrink-0 flex items-center gap-0.5">
-                  <CheckSquare className="w-2.5 h-2.5" />
-                  <span>{doneTasks}/{(tasks || []).length}</span>
-                </span>
-                <span className="text-[9px] font-bold font-mono text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200/80 shrink-0 flex items-center gap-0.5">
-                  <Zap className="w-2.5 h-2.5" />
-                  <span>{doneHabits}/{(habits || []).length}</span>
-                </span>
-              </div>
-            )}
+              {/* Dynamic Context Pill */}
+              {isTimePage ? (
+                totalTrackedSec > 0 ? (
+                  <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-900 text-white shadow-xs border border-slate-800">
+                    <span className="relative flex h-1.5 w-1.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                    </span>
+                    <span className="text-[10px] font-black font-mono text-emerald-400 tracking-tight">{formattedTracked}</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-violet-50 border border-violet-200/70 text-violet-700 text-[10px] font-black">
+                    <Clock className="w-2.5 h-2.5 text-violet-600" />
+                    <span>Time</span>
+                  </div>
+                )
+              ) : isActionsPage ? (
+                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200/80 text-[10px] font-mono font-bold">
+                  <span className="text-violet-700">{doneTasks}/{(tasks || []).length} tasks</span>
+                  <span className="text-slate-300">•</span>
+                  <span className="text-emerald-700">{doneHabits}/{(habits || []).length} habits</span>
+                </div>
+              ) : location.pathname === '/categories' ? (
+                <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-50 border border-indigo-200/70 text-indigo-700 text-[10px] font-black">
+                  <FolderTree className="w-2.5 h-2.5 text-indigo-600" />
+                  <span>Projects</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-violet-50 border border-violet-200/70 text-violet-700 text-[10px] font-black">
+                  <BarChart3 className="w-2.5 h-2.5 text-violet-600" />
+                  <span>Insights</span>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Right Header Actions: Analytics & User Profile Avatar */}
-          <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex items-center gap-2 shrink-0">
             {/* Analytics Shortcut */}
             <Link
               to="/analytics"
               onClick={() => sounds.playTap()}
-              className={`p-1.5 rounded-lg border transition active:scale-95 ${
+              className={`w-8 h-8 rounded-xl flex items-center justify-center border transition active:scale-90 ${
                 location.pathname === '/analytics'
-                  ? 'bg-violet-50 text-violet-700 border-violet-200 shadow-xs'
-                  : 'bg-white border-slate-200 text-slate-500 hover:text-violet-700 hover:bg-slate-50'
+                  ? 'bg-violet-600 text-white border-violet-600 shadow-sm shadow-violet-600/25'
+                  : 'bg-slate-100/90 hover:bg-slate-200/90 border-slate-200/80 text-slate-600 hover:text-slate-900'
               }`}
-              title="Analytics"
+              title="Productivity Analytics"
             >
-              <BarChart3 className="w-3.5 h-3.5" />
+              <BarChart3 className="w-4 h-4 stroke-[2.2]" />
             </Link>
 
             {/* User Profile Avatar (1-Tap opens Settings Modal) */}
             <button
               onClick={() => { sounds.playTap(); setSettingsOpen(true) }}
-              className="relative flex items-center justify-center w-7 h-7 rounded-full bg-gradient-to-tr from-violet-700 to-indigo-600 text-white font-black text-xs shadow-xs hover:ring-2 hover:ring-violet-400 active:scale-90 transition-transform"
+              className="relative w-8 h-8 rounded-xl bg-gradient-to-tr from-violet-600 via-indigo-600 to-purple-700 text-white font-black text-xs shadow-sm shadow-violet-600/25 flex items-center justify-center border border-white/40 ring-1 ring-slate-200 active:scale-90 transition-transform"
               title="User Settings, Timezone & Telegram"
               aria-label="User Settings"
             >
               <span>{user?.full_name?.charAt(0) || user?.username?.charAt(0) || 'U'}</span>
-              <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white" />
+              <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white" />
             </button>
           </div>
         </header>

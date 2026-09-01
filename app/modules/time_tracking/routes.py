@@ -120,6 +120,34 @@ async def create_time_log(payload: TimeLogCreateSchema, request: Request, db: As
     await db.refresh(log_entry)
     return {"status": "ok", "log_id": log_entry.id, "duration_seconds": log_entry.duration_seconds}
 
+@router.patch("/logs/{log_id}")
+async def update_time_log(log_id: int, payload: dict, request: Request, db: AsyncSession = Depends(get_db)):
+    user_id = get_current_user_id(request)
+    res = await db.execute(select(TimeLog).where(TimeLog.id == log_id, TimeLog.user_id == user_id))
+    log = res.scalar_one_or_none()
+    if not log:
+        raise HTTPException(status_code=404, detail="Time log not found")
+
+    u_res = await db.execute(select(User).where(User.id == user_id))
+    user = u_res.scalar_one_or_none()
+    user_tz = user.timezone if user else "Asia/Ho_Chi_Minh"
+
+    if "notes" in payload:
+        log.notes = payload["notes"]
+    if "category_id" in payload:
+        log.category_id = payload["category_id"]
+    if "timer_type" in payload:
+        log.timer_type = payload["timer_type"]
+    if "start_time" in payload:
+        log.start_time = parse_to_utc(payload["start_time"], user_tz)
+    if "end_time" in payload:
+        log.end_time = parse_to_utc(payload["end_time"], user_tz)
+    if "duration_seconds" in payload:
+        log.duration_seconds = payload["duration_seconds"]
+
+    await db.commit()
+    return {"status": "ok", "log_id": log.id}
+
 @router.delete("/logs/{log_id}")
 async def delete_time_log(log_id: int, request: Request, db: AsyncSession = Depends(get_db)):
     user_id = get_current_user_id(request)

@@ -25,7 +25,18 @@ class ScheduleSlotCreateSchema(BaseModel):
 @router.get("")
 async def get_schedule_slots(date_str: Optional[str] = None, request: Request = None, db: AsyncSession = Depends(get_db)):
     user_id = get_current_user_id(request)
-    target_date = date.today()
+    today_date = date.today()
+
+    # Auto-cleanup past unfulfilled schedule slots (date < today and is_done is False)
+    clean_stmt = delete(ScheduleSlot).where(
+        ScheduleSlot.user_id == user_id,
+        ScheduleSlot.date < today_date,
+        ScheduleSlot.is_done == False
+    )
+    await db.execute(clean_stmt)
+    await db.commit()
+
+    target_date = today_date
     if date_str:
         try:
             target_date = date.fromisoformat(date_str)

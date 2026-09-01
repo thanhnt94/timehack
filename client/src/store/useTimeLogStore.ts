@@ -33,6 +33,7 @@ interface TimeLogState {
     timer_type?: string
     notes?: string
   }) => Promise<boolean>
+  updateLog: (id: number, data: Partial<TimeLogItem>) => Promise<boolean>
   deleteLog: (id: number) => Promise<boolean>
 }
 
@@ -67,6 +68,20 @@ export const useTimeLogStore = create<TimeLogState>((set, get) => ({
       return true
     } catch (e) {
       console.error('Failed to create time log', e)
+      return false
+    }
+  },
+
+  updateLog: async (id, data) => {
+    try {
+      set({
+        logs: get().logs.map(l => l.id === id ? { ...l, ...data } : l)
+      })
+      await axios.patch(`/api/v1/time-tracking/logs/${id}`, data)
+      await get().fetchLogs()
+      return true
+    } catch (e) {
+      console.error('Failed to update time log', e)
       return false
     }
   },

@@ -3,7 +3,8 @@ import {
   Calendar as CalendarIcon, Plus, Check, Clock, Trash2, X,
   Sparkles, ArrowRight, Play, CheckCircle2, Flame, BarChart2,
   TrendingUp, AlertCircle, ChevronLeft, ChevronRight, LayoutList,
-  Columns, Clock3, SplitSquareVertical, Layers, Filter, Search, Tag
+  Columns, Clock3, SplitSquareVertical, Layers, Filter, Search, Tag,
+  Edit3
 } from 'lucide-react'
 import { useScheduleStore, type ScheduleSlot } from '../store/useScheduleStore'
 import { useTimeLogStore, type TimeLogItem } from '../store/useTimeLogStore'
@@ -48,7 +49,7 @@ interface DraggingState {
 
 export const TimeBlockingSchedule: React.FC = () => {
   const { slots, selectedDate, setSelectedDate, fetchSlots, createSlot, updateSlot, toggleSlotDone, deleteSlot } = useScheduleStore()
-  const { logs, fetchLogs, createLog, deleteLog } = useTimeLogStore()
+  const { logs, fetchLogs, createLog, updateLog, deleteLog } = useTimeLogStore()
   const { startTimer } = useTimerStore()
   const { categories, tasks, fetchTasks, fetchCategories, toggleTaskStatus } = useTaskStore()
 
@@ -73,6 +74,15 @@ export const TimeBlockingSchedule: React.FC = () => {
   const [slotNotes, setSlotNotes] = useState('')
   const [slotCategoryId, setSlotCategoryId] = useState<number | null>(null)
 
+  // Edit Plan Slot modal state
+  const [editPlanModalOpen, setEditPlanModalOpen] = useState(false)
+  const [editingSlot, setEditingSlot] = useState<ScheduleSlot | null>(null)
+  const [editSlotTitle, setEditSlotTitle] = useState('')
+  const [editSlotStart, setEditSlotStart] = useState('09:00')
+  const [editSlotEnd, setEditSlotEnd] = useState('10:30')
+  const [editSlotNotes, setEditSlotNotes] = useState('')
+  const [editSlotCategoryId, setEditSlotCategoryId] = useState<number | null>(null)
+
   // Create Manual TimeLog modal state
   const [logModalOpen, setLogModalOpen] = useState(false)
   const [logNotes, setLogNotes] = useState('')
@@ -80,6 +90,15 @@ export const TimeBlockingSchedule: React.FC = () => {
   const [logEnd, setLogEnd] = useState('10:00')
   const [logType, setLogType] = useState('manual')
   const [logCategoryId, setLogCategoryId] = useState<number | null>(null)
+
+  // Edit Actual TimeLog modal state
+  const [editLogModalOpen, setEditLogModalOpen] = useState(false)
+  const [editingLog, setEditingLog] = useState<TimeLogItem | null>(null)
+  const [editLogNotes, setEditLogNotes] = useState('')
+  const [editLogStart, setEditLogStart] = useState('09:00')
+  const [editLogEnd, setEditLogEnd] = useState('10:00')
+  const [editLogType, setEditLogType] = useState('manual')
+  const [editLogCategoryId, setEditLogCategoryId] = useState<number | null>(null)
 
   // Current time marker for live Timeline
   const [currentTimeMinutes, setCurrentTimeMinutes] = useState(() => {
@@ -480,6 +499,127 @@ export const TimeBlockingSchedule: React.FC = () => {
     setLogModalOpen(false)
   }
 
+  // ── Open Edit Handlers ──
+  const handleOpenEditSlot = (slot: ScheduleSlot) => {
+    sounds.playTap()
+    setEditingSlot(slot)
+    setEditSlotTitle(slot.title)
+    setEditSlotStart(slot.start_time)
+    setEditSlotEnd(slot.end_time === '00:00' ? '23:59' : slot.end_time)
+    setEditSlotNotes(slot.notes || '')
+    setEditSlotCategoryId(slot.category_id || null)
+    setEditPlanModalOpen(true)
+  }
+
+  const handleOpenEditLog = (log: TimeLogItem) => {
+    sounds.playTap()
+    setEditingLog(log)
+    setEditLogNotes(log.notes || log.task_title || log.habit_title || '')
+    setEditLogStart(formatLocalTime(log.start_time))
+    setEditLogEnd(formatLocalTime(log.end_time))
+    setEditLogType(log.timer_type || 'manual')
+    setEditLogCategoryId(log.category_id || null)
+    setEditLogModalOpen(true)
+  }
+
+  // ── Save Edit Handlers ──
+  const handleSaveEditSlot = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingSlot || !editSlotTitle.trim()) return
+    sounds.playTap()
+
+    const [sh, sm] = editSlotStart.split(':').map(Number)
+    const [eh, em] = editSlotEnd.split(':').map(Number)
+    let endStr = editSlotEnd
+    if (eh * 60 + em <= sh * 60 + sm) {
+      if (editSlotEnd === '00:00') {
+        endStr = '23:59'
+      } else {
+        const newEndMin = Math.min(24 * 60, sh * 60 + sm + 30)
+        endStr = minutesToTimeStr(newEndMin)
+      }
+    }
+
+    await updateSlot(editingSlot.id, {
+      title: editSlotTitle.trim(),
+      start_time: editSlotStart,
+      end_time: endStr,
+      category_id: editSlotCategoryId || undefined,
+      notes: editSlotNotes.trim() || undefined
+    })
+    sounds.playSuccess()
+    setEditPlanModalOpen(false)
+    setEditingSlot(null)
+  }
+
+  const handleSaveEditLog = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingLog) return
+    sounds.playTap()
+
+    const [sh, sm] = editLogStart.split(':').map(Number)
+    const [eh, em] = editLogEnd.split(':').map(Number)
+    let durMins = (eh * 60 + em) - (sh * 60 + sm)
+    if (durMins <= 0) durMins = 30
+
+    const startIso = `${selectedDate}T${editLogStart}:00`
+    const endIso = `${selectedDate}T${editLogEnd}:00`
+
+    await updateLog(editingLog.id, {
+      notes: editLogNotes.trim(),
+      start_time: startIso,
+      end_time: endIso,
+      duration_seconds: durMins * 60,
+      timer_type: editLogType,
+      category_id: editLogCategoryId || undefined
+    })
+    sounds.playSuccess()
+    setEditLogModalOpen(false)
+    setEditingLog(null)
+  }
+
+  // ── Convert Plan Slot to Actual Log ──
+  const handleConvertSlotToActual = async (slot: ScheduleSlot) => {
+    sounds.playTap()
+    if (slot.is_done) {
+      // Toggle back
+      await toggleSlotDone(slot.id, false)
+      return
+    }
+
+    const startMins = timeToMinutes(slot.start_time)
+    let endMins = timeToMinutes(slot.end_time)
+    if (endMins <= startMins) {
+      endMins = slot.end_time === '00:00' ? 24 * 60 : startMins + 30
+    }
+    const durMins = Math.max(15, endMins - startMins)
+
+    const startIso = `${selectedDate}T${slot.start_time}:00`
+    const endIso = `${selectedDate}T${slot.end_time === '00:00' ? '23:59' : slot.end_time}:00`
+
+    // 1. Create Actual Time Log so it counts toward actual metrics
+    await createLog({
+      task_id: slot.task_id || undefined,
+      habit_id: slot.habit_id || undefined,
+      category_id: slot.category_id || undefined,
+      start_time: startIso,
+      end_time: endIso,
+      duration_seconds: durMins * 60,
+      timer_type: 'manual',
+      notes: slot.title
+    })
+
+    // 2. Mark slot as actualized/done
+    await toggleSlotDone(slot.id, true)
+
+    // 3. If slot has linked task, mark task completed
+    if (slot.task_id) {
+      toggleTaskStatus(slot.task_id)
+    }
+
+    sounds.playSuccess()
+  }
+
   const handleTimelineHourClick = (hour: number) => {
     sounds.playTap()
     const startStr = `${String(hour).padStart(2, '0')}:00`
@@ -858,24 +998,27 @@ export const TimeBlockingSchedule: React.FC = () => {
                       }`}
                     >
                       <div className="flex items-center justify-between gap-3">
-                        {/* Checkbox */}
+                        {/* Checkbox: Convert to Actual */}
                         <button
-                          onClick={() => { sounds.playTap(); toggleSlotDone(slot.id, !isDone); if (!isDone) sounds.playSuccess() }}
+                          onClick={() => handleConvertSlotToActual(slot)}
                           className={`w-6 h-6 rounded-xl border flex items-center justify-center shrink-0 transition active:scale-90 ${
                             isDone
                               ? 'bg-emerald-500 border-emerald-500 text-white shadow-2xs'
                               : 'border-slate-300 hover:border-violet-500 bg-white'
                           }`}
-                          title={isDone ? 'Mark Pending' : 'Mark Completed'}
+                          title={isDone ? '✓ Đã chuyển thành Actual' : 'Chuyển thành Actual'}
                         >
                           {isDone && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                         </button>
 
-                        {/* Content */}
-                        <div className="flex-1 min-w-0">
+                        {/* Content (Click to Edit) */}
+                        <div
+                          onClick={() => handleOpenEditSlot(slot)}
+                          className="flex-1 min-w-0 cursor-pointer"
+                        >
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-[10px] font-mono font-bold text-sky-800 bg-sky-50 px-2 py-0.5 rounded-md border border-sky-200">
-                              {slot.start_time} - {slot.end_time} ({item.durationMinutes}m)
+                              {slot.start_time} - {item.endTimeStr} ({item.durationMinutes}m)
                             </span>
                             <span className="text-[9px] font-bold text-sky-700 bg-sky-100/60 px-1.5 py-0.2 rounded">
                               📅 Plan
@@ -897,7 +1040,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                           )}
                         </div>
 
-                        {/* Actions: Start Focus & Delete */}
+                        {/* Actions: Start Focus, Edit & Delete */}
                         <div className="flex items-center gap-1 shrink-0">
                           {!isDone && (
                             <button
@@ -909,6 +1052,13 @@ export const TimeBlockingSchedule: React.FC = () => {
                               <span>Focus</span>
                             </button>
                           )}
+                          <button
+                            onClick={() => handleOpenEditSlot(slot)}
+                            className="p-1.5 text-slate-400 hover:text-violet-600 transition active:scale-90"
+                            title="Edit Plan Slot"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </button>
                           <button
                             onClick={() => { sounds.playTap(); deleteSlot(slot.id) }}
                             className="p-1.5 text-slate-300 hover:text-rose-600 transition active:scale-90"
@@ -932,7 +1082,10 @@ export const TimeBlockingSchedule: React.FC = () => {
                     >
                       <div className="w-2 self-stretch rounded-full bg-violet-500 shrink-0" />
 
-                      <div className="flex-1 min-w-0">
+                      <div
+                        onClick={() => handleOpenEditLog(log)}
+                        className="flex-1 min-w-0 cursor-pointer"
+                      >
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-[10px] font-mono font-bold text-violet-800 bg-violet-50 px-2 py-0.5 rounded-md border border-violet-200">
                             {item.startTimeStr} - {item.endTimeStr} ({item.durationMinutes}m)
@@ -959,13 +1112,22 @@ export const TimeBlockingSchedule: React.FC = () => {
                         )}
                       </div>
 
-                      <button
-                        onClick={() => { sounds.playTap(); deleteLog(log.id) }}
-                        className="p-1.5 text-slate-300 hover:text-rose-600 transition active:scale-90"
-                        title="Delete Time Log"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          onClick={() => handleOpenEditLog(log)}
+                          className="p-1.5 text-slate-400 hover:text-violet-600 transition active:scale-90"
+                          title="Edit Time Log"
+                        >
+                          <Edit3 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => { sounds.playTap(); deleteLog(log.id) }}
+                          className="p-1.5 text-slate-300 hover:text-rose-600 transition active:scale-90"
+                          title="Delete Time Log"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   )
                 }
@@ -1159,7 +1321,15 @@ export const TimeBlockingSchedule: React.FC = () => {
                     {/* Dynamic Content layout depending on height */}
                     {isCompact ? (
                       <div className="flex items-center justify-between gap-1.5 w-full h-full min-w-0 pr-0.5">
-                        <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                        <div
+                          onClick={(e) => {
+                            if (!isBeingDragged) {
+                              e.stopPropagation()
+                              handleOpenEditSlot(slot)
+                            }
+                          }}
+                          className="flex items-center gap-1.5 min-w-0 flex-1 cursor-pointer"
+                        >
                           <span className="text-[9px] font-mono font-black px-1.5 py-0.5 rounded bg-white/90 border border-sky-200 shrink-0 shadow-2xs">
                             {displayStartTime} - {displayEndTime}
                           </span>
@@ -1183,14 +1353,22 @@ export const TimeBlockingSchedule: React.FC = () => {
                           <button
                             onClick={(e) => {
                               e.stopPropagation()
-                              sounds.playTap()
-                              toggleSlotDone(slot.id, !slot.is_done)
-                              if (!slot.is_done) sounds.playSuccess()
+                              handleOpenEditSlot(slot)
+                            }}
+                            className="w-5 h-5 rounded-lg bg-white/80 border border-sky-200 hover:bg-white text-slate-500 flex items-center justify-center shrink-0 shadow-2xs active:scale-90 transition"
+                            title="Edit Plan Slot"
+                          >
+                            <Edit3 className="w-2.5 h-2.5" />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleConvertSlotToActual(slot)
                             }}
                             className={`w-5 h-5 rounded-lg border flex items-center justify-center shrink-0 transition active:scale-90 ${
                               slot.is_done ? 'bg-emerald-500 border-emerald-600 text-white' : 'bg-white border-sky-300 hover:border-sky-500'
                             }`}
-                            title={slot.is_done ? 'Mark pending' : 'Mark completed'}
+                            title={slot.is_done ? '✓ Đã chuyển thành Actual' : 'Chuyển thành Actual'}
                           >
                             {slot.is_done && <Check className="w-3 h-3 stroke-[3]" />}
                           </button>
@@ -1199,7 +1377,15 @@ export const TimeBlockingSchedule: React.FC = () => {
                     ) : (
                       <>
                         <div className="min-w-0 flex-1 flex items-start justify-between gap-2">
-                          <div className="min-w-0 flex-1">
+                          <div
+                            onClick={(e) => {
+                              if (!isBeingDragged) {
+                                e.stopPropagation()
+                                handleOpenEditSlot(slot)
+                              }
+                            }}
+                            className="min-w-0 flex-1 cursor-pointer"
+                          >
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <span className="text-[9px] font-mono font-black px-1.5 py-0.5 rounded bg-white/90 border border-sky-200 shadow-2xs">
                                 {displayStartTime} - {displayEndTime}
@@ -1232,7 +1418,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                             )}
                           </div>
 
-                          {/* Quick Actions: Play Focus & Done Checkbox */}
+                          {/* Quick Actions: Play Focus, Edit & Done Checkbox */}
                           <div className="flex items-center gap-1 shrink-0">
                             {!slot.is_done && (
                               <button
@@ -1249,14 +1435,22 @@ export const TimeBlockingSchedule: React.FC = () => {
                             <button
                               onClick={(e) => {
                                 e.stopPropagation()
-                                sounds.playTap()
-                                toggleSlotDone(slot.id, !slot.is_done)
-                                if (!slot.is_done) sounds.playSuccess()
+                                handleOpenEditSlot(slot)
+                              }}
+                              className="w-6 h-6 rounded-lg bg-white/90 border border-sky-200 hover:bg-white text-slate-600 flex items-center justify-center shrink-0 shadow-2xs active:scale-90 transition"
+                              title="Edit Plan Slot"
+                            >
+                              <Edit3 className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleConvertSlotToActual(slot)
                               }}
                               className={`w-6 h-6 rounded-lg border flex items-center justify-center shrink-0 transition active:scale-90 ${
                                 slot.is_done ? 'bg-emerald-500 border-emerald-600 text-white' : 'bg-white border-sky-300 hover:border-sky-500'
                               }`}
-                              title={slot.is_done ? 'Mark pending' : 'Mark completed'}
+                              title={slot.is_done ? '✓ Đã chuyển thành Actual' : 'Chuyển thành Actual'}
                             >
                               {slot.is_done && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                             </button>
@@ -1290,7 +1484,8 @@ export const TimeBlockingSchedule: React.FC = () => {
                 return (
                   <div
                     key={`log-${log.id}`}
-                    className="absolute left-1/2 right-2 rounded-2xl p-2 bg-violet-50/95 border border-violet-300 text-violet-950 shadow-xs z-10 hidden sm:flex items-start justify-between gap-1.5 overflow-hidden"
+                    onClick={() => handleOpenEditLog(log)}
+                    className="absolute left-1/2 right-2 rounded-2xl p-2 bg-violet-50/95 border border-violet-300 text-violet-950 shadow-xs z-10 hidden sm:flex items-start justify-between gap-1.5 overflow-hidden cursor-pointer hover:border-violet-500 hover:shadow-md transition"
                     style={{ top: `${top}px`, height: `${height}px` }}
                   >
                     <div className="min-w-0 flex-1">
@@ -1311,6 +1506,17 @@ export const TimeBlockingSchedule: React.FC = () => {
                         {log.task_title || log.habit_title || log.notes || 'Focus Session'}
                       </h4>
                     </div>
+
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleOpenEditLog(log)
+                      }}
+                      className="w-5 h-5 rounded-md bg-white border border-violet-200 text-violet-700 flex items-center justify-center shrink-0 shadow-2xs hover:bg-violet-100 transition active:scale-90"
+                      title="Edit Time Log"
+                    >
+                      <Edit3 className="w-2.5 h-2.5" />
+                    </button>
                   </div>
                 )
               })}
@@ -1548,6 +1754,281 @@ export const TimeBlockingSchedule: React.FC = () => {
               >
                 Save Time Log
               </button>
+            </form>
+          </div>
+        </>
+      )}
+
+      {/* ── Modal 3: Edit Plan Slot ────── */}
+      {editPlanModalOpen && editingSlot && (
+        <>
+          <div className="sheet-backdrop" onClick={() => setEditPlanModalOpen(false)} />
+          <div className="sheet-content max-w-lg mx-auto">
+            <div className="sheet-handle" />
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h2 className="text-sm font-black text-slate-900">Edit Plan Slot</h2>
+                <p className="text-[11px] text-slate-500 font-medium">Update or convert scheduled time block</p>
+              </div>
+              <button onClick={() => setEditPlanModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-700">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleSaveEditSlot} className="space-y-3">
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  Activity Title *
+                </label>
+                <input
+                  type="text"
+                  value={editSlotTitle}
+                  onChange={e => setEditSlotTitle(e.target.value)}
+                  placeholder="e.g. Feature Coding, English Study..."
+                  autoFocus
+                  required
+                  className="w-full px-3.5 py-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
+                />
+              </div>
+
+              {/* Category Hierarchy Picker */}
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  Category
+                </label>
+                <select
+                  value={editSlotCategoryId || ''}
+                  onChange={e => setEditSlotCategoryId(e.target.value ? Number(e.target.value) : null)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 outline-none focus:border-violet-500 focus:bg-white transition"
+                >
+                  <option value="">-- Select Category --</option>
+                  {categories.map(c => (
+                    <React.Fragment key={c.id}>
+                      <option value={c.id}>
+                        📁 {c.name} ({c.category_type === 'wasted' ? '🔴 Wasted' : c.category_type === 'neutral' ? '🔵 Neutral' : '🟢 Productive'})
+                      </option>
+                      {c.subcategories && c.subcategories.map(sub => (
+                        <option key={sub.id} value={sub.id}>
+                          &nbsp;&nbsp;&nbsp;&nbsp;↳ {sub.name}
+                        </option>
+                      ))}
+                    </React.Fragment>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                    Start Time
+                  </label>
+                  <input
+                    type="time"
+                    value={editSlotStart}
+                    onChange={e => setEditSlotStart(e.target.value)}
+                    required
+                    className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                    End Time
+                  </label>
+                  <input
+                    type="time"
+                    value={editSlotEnd}
+                    onChange={e => setEditSlotEnd(e.target.value)}
+                    required
+                    className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  Notes (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={editSlotNotes}
+                  onChange={e => setEditSlotNotes(e.target.value)}
+                  placeholder="Additional details..."
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
+                />
+              </div>
+
+              {/* Action Buttons: Convert to Actual, Delete & Save */}
+              <div className="pt-2 space-y-2">
+                {!editingSlot.is_done && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleConvertSlotToActual(editingSlot)
+                      setEditPlanModalOpen(false)
+                    }}
+                    className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black flex items-center justify-center gap-2 active:scale-98 transition shadow-xs"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>✓ Convert to Actual Time Log</span>
+                  </button>
+                )}
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sounds.playTap()
+                      deleteSlot(editingSlot.id)
+                      setEditPlanModalOpen(false)
+                    }}
+                    className="px-4 py-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 text-xs font-bold active:scale-95 transition flex items-center justify-center gap-1.5"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>Delete</span>
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 py-3 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-black active:scale-[0.98] transition shadow-md shadow-violet-600/20"
+                  >
+                    Save Changes
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </>
+      )}
+
+      {/* ── Modal 4: Edit Actual Time Log ── */}
+      {editLogModalOpen && editingLog && (
+        <>
+          <div className="sheet-backdrop" onClick={() => setEditLogModalOpen(false)} />
+          <div className="sheet-content max-w-lg mx-auto">
+            <div className="sheet-handle" />
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h2 className="text-sm font-black text-slate-900">Edit Actual Time Log</h2>
+                <p className="text-[11px] text-slate-500 font-medium">Modify recorded focus session</p>
+              </div>
+              <button onClick={() => setEditLogModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-700">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleSaveEditLog} className="space-y-3">
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  What did you work on? *
+                </label>
+                <input
+                  type="text"
+                  value={editLogNotes}
+                  onChange={e => setEditLogNotes(e.target.value)}
+                  placeholder="e.g. Coding, Reading, Meeting..."
+                  autoFocus
+                  required
+                  className="w-full px-3.5 py-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
+                />
+              </div>
+
+              {/* Category Hierarchy Picker */}
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  Category
+                </label>
+                <select
+                  value={editLogCategoryId || ''}
+                  onChange={e => setEditLogCategoryId(e.target.value ? Number(e.target.value) : null)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 outline-none focus:border-violet-500 focus:bg-white transition"
+                >
+                  <option value="">-- Select Category --</option>
+                  {categories.map(c => (
+                    <React.Fragment key={c.id}>
+                      <option value={c.id}>
+                        📁 {c.name} ({c.category_type === 'wasted' ? '🔴 Wasted' : c.category_type === 'neutral' ? '🔵 Neutral' : '🟢 Productive'})
+                      </option>
+                      {c.subcategories && c.subcategories.map(sub => (
+                        <option key={sub.id} value={sub.id}>
+                          &nbsp;&nbsp;&nbsp;&nbsp;↳ {sub.name}
+                        </option>
+                      ))}
+                    </React.Fragment>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                    Start Time
+                  </label>
+                  <input
+                    type="time"
+                    value={editLogStart}
+                    onChange={e => setEditLogStart(e.target.value)}
+                    required
+                    className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                    End Time
+                  </label>
+                  <input
+                    type="time"
+                    value={editLogEnd}
+                    onChange={e => setEditLogEnd(e.target.value)}
+                    required
+                    className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
+                  />
+                </div>
+              </div>
+
+              {/* Timer Type selector */}
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  Type
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { id: 'pomodoro', label: '🔥 Pomodoro' },
+                    { id: 'stopwatch', label: '⏱️ Stopwatch' },
+                    { id: 'manual', label: '📝 Manual' },
+                  ].map(t => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => setEditLogType(t.id)}
+                      className={`py-2 rounded-xl text-xs font-bold border transition ${
+                        editLogType === t.id
+                          ? 'bg-violet-600 border-violet-600 text-white shadow-2xs'
+                          : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    sounds.playTap()
+                    deleteLog(editingLog.id)
+                    setEditLogModalOpen(false)
+                  }}
+                  className="px-4 py-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 text-xs font-bold active:scale-95 transition flex items-center justify-center gap-1.5"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>Delete</span>
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-black active:scale-[0.98] transition shadow-md shadow-slate-900/20"
+                >
+                  Save Changes
+                </button>
+              </div>
             </form>
           </div>
         </>

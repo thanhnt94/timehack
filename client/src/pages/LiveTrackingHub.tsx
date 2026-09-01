@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import {
   Clock, Play, Pause, Square, Plus, Trash2, Calendar as CalendarIcon,
-  Flame, Target, Edit3, X, ListTodo, Wallet, Tag
+  Flame, Target, Edit3, X, ListTodo, Wallet, Tag, ChevronLeft, ChevronRight,
+  Folder, ArrowUpDown, Layers
 } from 'lucide-react'
 import { useTimerStore, type ActiveTrack } from '../store/useTimerStore'
 import { useTimeLogStore, type TimeLogItem } from '../store/useTimeLogStore'
@@ -11,11 +12,13 @@ import { useScheduleStore, type ScheduleSlot } from '../store/useScheduleStore'
 import { sounds } from '../utils/soundEffects'
 
 interface Props {
-  onOpenFullscreenFocus: () => void
+  onOpenFullscreenFocus?: () => void
 }
 
 type MainTab = 'active' | 'ready' | 'history'
 type ReadySubTab = 'all' | 'tasks' | 'habits' | 'plans'
+type LedgerGroupMode = 'time' | 'category'
+type LedgerSortOrder = 'desc' | 'asc'
 
 export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
   const {
@@ -39,6 +42,11 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
   // 3 Primary Tabs
   const [activeTab, setActiveTab] = useState<MainTab>('active')
   const [readySubTab, setReadySubTab] = useState<ReadySubTab>('all')
+
+  // Sổ Nhật Ký (Time Ledger) Date & View state
+  const [ledgerDate, setLedgerDate] = useState<string>(todayIso)
+  const [ledgerGroupMode, setLedgerGroupMode] = useState<LedgerGroupMode>('time')
+  const [ledgerSortOrder, setLedgerSortOrder] = useState<LedgerSortOrder>('desc')
 
   // Simple Track Input State (Only in 'active' tab)
   const [quickTitle, setQuickTitle] = useState('')
@@ -77,7 +85,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
 
   useEffect(() => {
     fetchActiveTracks()
-    fetchLogs(todayIso)
+    fetchLogs(ledgerDate)
     fetchTasks()
     fetchHabits()
     fetchCategories()
@@ -123,6 +131,62 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
     return `${hours}h ${mins > 0 ? `${mins}p` : ''}`
   }
 
+  // Date navigation helpers
+  const getFormattedDateHeading = (dateStr: string) => {
+    try {
+      const parts = dateStr.split('-').map(Number)
+      const d = new Date(parts[0], parts[1] - 1, parts[2])
+      const today = new Date()
+      const todayYmd = today.toISOString().split('T')[0]
+      
+      const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000)
+      const yesterdayYmd = yesterday.toISOString().split('T')[0]
+      
+      const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000)
+      const tomorrowYmd = tomorrow.toISOString().split('T')[0]
+
+      const dayNames = ['Chủ Nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7']
+      const dayName = dayNames[d.getDay()]
+
+      if (dateStr === todayYmd) {
+        return `Hôm nay, ${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`
+      }
+      if (dateStr === yesterdayYmd) {
+        return `Hôm qua, ${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`
+      }
+      if (dateStr === tomorrowYmd) {
+        return `Ngày mai, ${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`
+      }
+      return `${dayName}, ${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`
+    } catch {
+      return dateStr
+    }
+  }
+
+  const shiftLedgerDate = (offsetDays: number) => {
+    sounds.playTap()
+    try {
+      const parts = ledgerDate.split('-').map(Number)
+      const cur = new Date(parts[0], parts[1] - 1, parts[2])
+      cur.setDate(cur.getDate() + offsetDays)
+      const y = cur.getFullYear()
+      const m = String(cur.getMonth() + 1).padStart(2, '0')
+      const d = String(cur.getDate()).padStart(2, '0')
+      const newIso = `${y}-${m}-${d}`
+      setLedgerDate(newIso)
+      fetchLogs(newIso)
+    } catch {
+      // Ignore
+    }
+  }
+
+  const setLedgerDateDirectly = (newIso: string) => {
+    if (!newIso) return
+    sounds.playTap()
+    setLedgerDate(newIso)
+    fetchLogs(newIso)
+  }
+
   const totalLoggedSeconds = useMemo(() => {
     return (logs || []).reduce((acc, cur) => acc + (cur?.duration_seconds || 0), 0)
   }, [logs])
@@ -152,12 +216,61 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
     }
   }, [logs, categories])
 
+  // Sorted logs list
+  const sortedLogs = useMemo(() => {
+    const list = [...(logs || [])]
+    list.sort((a, b) => {
+      const timeA = new Date(a.start_time).getTime()
+      const timeB = new Date(b.start_time).getTime()
+      return ledgerSortOrder === 'desc' ? timeB - timeA : timeA - timeB
+    })
+    return list
+  }, [logs, ledgerSortOrder])
+
+  // Logs grouped by category
+  const categoryGroupedLogs = useMemo(() => {
+    const groups: {
+      categoryId: number | null
+      categoryName: string
+      categoryColor: string
+      categoryType: string
+      totalDurationSeconds: number
+      logs: TimeLogItem[]
+    }[] = []
+
+    const map = new Map<number | null, typeof groups[0]>()
+
+    ;(sortedLogs || []).forEach(log => {
+      const catId = log.category_id || null
+      if (!map.has(catId)) {
+        const cat = (categories || []).find(c => c.id === catId)
+        const groupObj = {
+          categoryId: catId,
+          categoryName: cat?.name || log.category_name || 'Không có danh mục',
+          categoryColor: cat?.color || log.category_color || '#94A3B8',
+          categoryType: cat?.category_type || 'neutral',
+          totalDurationSeconds: 0,
+          logs: []
+        }
+        map.set(catId, groupObj)
+        groups.push(groupObj)
+      }
+      const group = map.get(catId)!
+      group.totalDurationSeconds += log.duration_seconds || 0
+      group.logs.push(log)
+    })
+
+    // Sort categories: highest total duration first
+    groups.sort((a, b) => b.totalDurationSeconds - a.totalDurationSeconds)
+    return groups
+  }, [sortedLogs, categories])
+
   // Start Track: Explicitly NULL category if none selected
   const handleStartTrack = async (customTitle?: string, catId?: number | null) => {
     sounds.playTap()
     const chosenTitle = customTitle || quickTitle.trim() || 'Hoạt động thực tế'
     const chosenCatId = catId !== undefined ? catId : quickCategoryId
-    const matchedCat = chosenCatId ? categories.find(c => c.id === chosenCatId) : null
+    const matchedCat = chosenCatId ? (categories || []).find(c => c.id === chosenCatId) : null
 
     await startNewTrack({
       title: chosenTitle,
@@ -215,7 +328,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
     sounds.playTap()
     await stopTrack(trackId)
     sounds.playSuccess()
-    fetchLogs(todayIso)
+    fetchLogs(ledgerDate)
   }
 
   // ── Open Edit Running Track Modal ──
@@ -225,7 +338,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
     setEditActiveTitle(track.title)
     setEditActiveCategoryId(track.categoryId || null)
     try {
-      const d = new Date(track.startTime)
+      const d = track.startTime instanceof Date ? track.startTime : new Date(track.startTime)
       setEditActiveStartTime(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`)
     } catch {
       setEditActiveStartTime('09:00')
@@ -237,7 +350,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
     if (!editingActiveTrack) return
 
     sounds.playTap()
-    const chosenCat = categories.find(c => c.id === editActiveCategoryId)
+    const chosenCat = (categories || []).find(c => c.id === editActiveCategoryId)
     
     // Parse adjusted start time
     let adjustedStartDate = editingActiveTrack.startTime
@@ -294,8 +407,8 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
       let calcDuration = (eh * 60 + em) - (sh * 60 + sm)
       if (calcDuration <= 0) calcDuration = editDurationMins || 30
 
-      const startIso = `${todayIso}T${editStartTime}:00`
-      const endIso = `${todayIso}T${editEndTime}:00`
+      const startIso = `${ledgerDate}T${editStartTime}:00`
+      const endIso = `${ledgerDate}T${editEndTime}:00`
 
       await updateLog(editingLog.id, {
         notes: editTitle.trim(),
@@ -307,7 +420,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
 
       sounds.playSuccess()
       setEditingLog(null)
-      fetchLogs(todayIso)
+      fetchLogs(ledgerDate)
     } catch (err) {
       console.error('Failed to update log', err)
     } finally {
@@ -328,8 +441,8 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
       setIsSubmittingManual(true)
       sounds.playTap()
 
-      const startIso = `${todayIso}T${manualStartTime}:00`
-      const endIso = `${todayIso}T${manualEndTime}:00`
+      const startIso = `${ledgerDate}T${manualStartTime}:00`
+      const endIso = `${ledgerDate}T${manualEndTime}:00`
 
       await createLog({
         start_time: startIso,
@@ -345,7 +458,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
       setManualNotes('')
       setManualCategoryId(null)
       setShowManualModal(false)
-      fetchLogs(todayIso)
+      fetchLogs(ledgerDate)
     } catch (err) {
       console.error('Failed to log actual time', err)
     } finally {
@@ -358,10 +471,65 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
     await deleteLog(id)
     sounds.playSuccess()
     if (editingLog?.id === id) setEditingLog(null)
+    fetchLogs(ledgerDate)
   }
 
-  const activePlanSlots = slots.filter(s => !s.is_done)
-  const activeTasks = tasks.filter(t => t.status !== 'completed')
+  const activePlanSlots = (slots || []).filter(s => !s?.is_done)
+  const activeTasks = (tasks || []).filter(t => t?.status !== 'completed')
+
+  // Helper render for single log card
+  const renderLogCard = (log: TimeLogItem) => {
+    const durDisplay = formatDurationDisplay(log.duration_seconds || 0)
+    const logTitle = log.task_title || log.habit_title || log.notes || 'Phiên tập trung'
+    const catColor = log.category_color || '#8B5CF6'
+
+    return (
+      <div
+        key={log.id}
+        onClick={() => handleOpenEditModal(log)}
+        className="py-2.5 px-3 flex items-center justify-between gap-3 hover:bg-violet-50/50 rounded-2xl cursor-pointer transition active:scale-99 group"
+      >
+        <div
+          className="w-8 h-8 rounded-xl flex items-center justify-center text-white shrink-0 shadow-2xs font-bold text-xs"
+          style={{ backgroundColor: catColor }}
+        >
+          {logTitle.slice(0, 2).toUpperCase()}
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <h4 className="text-xs sm:text-sm font-black text-slate-900 truncate group-hover:text-violet-700 transition">
+            {logTitle}
+          </h4>
+          <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-mono mt-0.5 flex-wrap">
+            <span className="text-slate-600 font-bold">
+              {formatLocalTime(log.start_time)} - {formatLocalTime(log.end_time)}
+            </span>
+            <span>•</span>
+            <span className="text-slate-500">
+              {log.timer_type === 'stopwatch' ? '⏱️ Bấm giờ' : log.timer_type === 'pomodoro' ? '🔥 Pomodoro' : '📝 Thủ công'}
+            </span>
+            {log.category_name && ledgerGroupMode === 'time' && (
+              <>
+                <span>•</span>
+                <span className="font-bold" style={{ color: catColor }}>
+                  {log.category_name}
+                </span>
+              </>
+            )}
+          </div>
+        </div>
+
+        <div className="text-right shrink-0">
+          <div className="text-xs sm:text-sm font-black font-mono text-violet-700">
+            +{durDisplay}
+          </div>
+          <span className="text-[9px] font-bold text-slate-400 block uppercase">
+            Đã nạp
+          </span>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#F8FAFC] text-slate-900">
@@ -646,12 +814,56 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
         {/* ── TAB 3: SỔ NHẬT KÝ (MISA TIME LEDGER) ── */}
         {activeTab === 'history' && (
           <div className="space-y-3 anim-fade-in">
-            {/* Daily summary */}
+
+            {/* ── DATE NAVIGATION BAR ── */}
+            <div className="bg-white rounded-2xl p-2 px-3 border border-slate-200/90 shadow-2xs flex items-center justify-between gap-2">
+              <button
+                onClick={() => shiftLedgerDate(-1)}
+                className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition active:scale-90"
+                title="Ngày trước đó"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+
+              {/* Clickable Date with Hidden Native Date Picker */}
+              <div className="relative flex items-center gap-1.5 cursor-pointer group">
+                <input
+                  type="date"
+                  value={ledgerDate}
+                  onChange={e => setLedgerDateDirectly(e.target.value)}
+                  className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
+                  title="Bấm để chọn ngày cụ thể"
+                />
+                <CalendarIcon className="w-4 h-4 text-violet-600 group-hover:scale-110 transition-transform" />
+                <span className="text-xs sm:text-sm font-black text-slate-900 group-hover:text-violet-700 transition">
+                  {getFormattedDateHeading(ledgerDate)}
+                </span>
+                {ledgerDate !== todayIso && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setLedgerDateDirectly(todayIso) }}
+                    className="relative z-20 text-[10px] font-bold text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 px-2 py-0.5 rounded-lg active:scale-95 transition ml-1"
+                    title="Về hôm nay"
+                  >
+                    Về Hôm nay
+                  </button>
+                )}
+              </div>
+
+              <button
+                onClick={() => shiftLedgerDate(1)}
+                className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition active:scale-90"
+                title="Ngày tiếp theo"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Daily summary Card */}
             <div className="bg-gradient-to-br from-violet-900 via-indigo-900 to-slate-900 rounded-3xl p-4 text-white shadow-xl shadow-indigo-950/20 space-y-2.5 border border-indigo-700/40">
               <div className="flex items-center justify-between border-b border-white/10 pb-2">
                 <div>
                   <span className="text-[10px] font-bold uppercase tracking-wider text-violet-300 block font-mono">
-                    Sổ Thu Chi Thời Gian • Hôm Nay
+                    Sổ Thu Chi Thời Gian • {ledgerDate === todayIso ? 'Hôm Nay' : ledgerDate}
                   </span>
                   <div className="text-2xl font-black font-mono tracking-tight text-white mt-0.5">
                     {totalLoggedFormatted}
@@ -704,70 +916,118 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
               </div>
             </div>
 
-            {/* Transaction Stream */}
-            <div className="bg-white rounded-3xl p-3.5 border border-slate-200 shadow-2xs space-y-1">
-              {logs.length === 0 ? (
-                <div className="py-10 text-center text-slate-400 space-y-2">
-                  <Clock className="w-8 h-8 mx-auto opacity-30 text-violet-600" />
-                  <p className="text-xs font-bold text-slate-600">Chưa có bản ghi thời gian nào hôm nay</p>
-                </div>
-              ) : (
+            {/* ── SORT & GROUPING CONTROLS ── */}
+            <div className="flex items-center justify-between gap-2 px-1">
+              {/* Group By Mode: Time vs Category */}
+              <div className="inline-flex p-0.5 bg-slate-200/80 rounded-xl text-xs font-bold">
+                <button
+                  onClick={() => { sounds.playTap(); setLedgerGroupMode('time') }}
+                  className={`px-3 py-1 rounded-lg flex items-center gap-1.5 transition ${
+                    ledgerGroupMode === 'time'
+                      ? 'bg-white text-violet-900 shadow-2xs font-black'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <Clock className="w-3.5 h-3.5" />
+                  <span>Theo thời gian</span>
+                </button>
+                <button
+                  onClick={() => { sounds.playTap(); setLedgerGroupMode('category') }}
+                  className={`px-3 py-1 rounded-lg flex items-center gap-1.5 transition ${
+                    ledgerGroupMode === 'category'
+                      ? 'bg-white text-violet-900 shadow-2xs font-black'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <Folder className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Theo danh mục</span>
+                </button>
+              </div>
+
+              {/* Sort Order Toggle (Only for Chronological Mode) */}
+              {ledgerGroupMode === 'time' && (
+                <button
+                  onClick={() => {
+                    sounds.playTap()
+                    setLedgerSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')
+                  }}
+                  className="px-2.5 py-1 rounded-xl bg-white border border-slate-200 text-slate-600 hover:text-slate-900 text-[11px] font-bold flex items-center gap-1 shadow-2xs active:scale-95 transition"
+                  title="Đổi thứ tự hiển thị"
+                >
+                  <ArrowUpDown className="w-3 h-3 text-violet-600" />
+                  <span>{ledgerSortOrder === 'desc' ? 'Mới nhất ↓' : 'Cũ nhất ↑'}</span>
+                </button>
+              )}
+            </div>
+
+            {/* Transaction Stream / Grouped Stream */}
+            {logs.length === 0 ? (
+              <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-2xs text-center text-slate-400 space-y-2">
+                <Clock className="w-8 h-8 mx-auto opacity-30 text-violet-600" />
+                <p className="text-xs font-bold text-slate-600">
+                  Chưa có bản ghi thời gian nào cho ngày {ledgerDate}
+                </p>
+                <button
+                  onClick={() => { sounds.playTap(); setShowManualModal(true) }}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-violet-50 text-violet-700 text-xs font-bold hover:bg-violet-100 transition active:scale-95 mt-1 border border-violet-200"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Ghi thêm thời gian</span>
+                </button>
+              </div>
+            ) : ledgerGroupMode === 'time' ? (
+              /* Chronological Stream */
+              <div className="bg-white rounded-3xl p-2 sm:p-3 border border-slate-200 shadow-2xs">
                 <div className="divide-y divide-slate-100">
-                  {logs.map(log => {
-                    const durDisplay = formatDurationDisplay(log.duration_seconds || 0)
-                    const logTitle = log.task_title || log.habit_title || log.notes || 'Phiên tập trung'
-                    const catColor = log.category_color || '#8B5CF6'
-
-                    return (
-                      <div
-                        key={log.id}
-                        onClick={() => handleOpenEditModal(log)}
-                        className="py-2.5 px-2 flex items-center justify-between gap-3 hover:bg-violet-50/40 rounded-2xl cursor-pointer transition active:scale-99 group"
-                      >
-                        <div
-                          className="w-9 h-9 rounded-2xl flex items-center justify-center text-white shrink-0 shadow-xs font-bold text-xs"
-                          style={{ backgroundColor: catColor }}
-                        >
-                          {logTitle.slice(0, 2).toUpperCase()}
-                        </div>
-
-                        <div className="min-w-0 flex-1">
-                          <h4 className="text-xs sm:text-sm font-black text-slate-900 truncate group-hover:text-violet-700 transition">
-                            {logTitle}
-                          </h4>
-                          <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-mono mt-0.5 flex-wrap">
-                            <span className="text-slate-600 font-bold">
-                              {formatLocalTime(log.start_time)} - {formatLocalTime(log.end_time)}
-                            </span>
-                            <span>•</span>
-                            <span className="text-slate-500">
-                              {log.timer_type === 'stopwatch' ? '⏱️ Bấm giờ' : log.timer_type === 'pomodoro' ? '🔥 Pomodoro' : '📝 Thủ công'}
-                            </span>
-                            {log.category_name && (
-                              <>
-                                <span>•</span>
-                                <span className="font-bold" style={{ color: catColor }}>
-                                  {log.category_name}
-                                </span>
-                              </>
-                            )}
-                          </div>
+                  {sortedLogs.map(log => renderLogCard(log))}
+                </div>
+              </div>
+            ) : (
+              /* Category Folder Grouped View */
+              <div className="space-y-3">
+                {categoryGroupedLogs.map(group => {
+                  const durStr = formatDurationDisplay(group.totalDurationSeconds)
+                  const typeLabel = group.categoryType === 'wasted' ? '🔴 Lãng phí' : group.categoryType === 'neutral' ? '🔵 Trung tính' : '🟢 Tạo giá trị'
+                  
+                  return (
+                    <div
+                      key={`cat_group_${group.categoryId || 'none'}`}
+                      className="bg-white rounded-3xl border border-slate-200/90 shadow-2xs overflow-hidden"
+                    >
+                      {/* Category Header Card */}
+                      <div className="p-3.5 bg-slate-50/80 border-b border-slate-100 flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div
+                            className="w-4 h-4 rounded-full shrink-0 shadow-2xs"
+                            style={{ backgroundColor: group.categoryColor }}
+                          />
+                          <span className="text-xs sm:text-sm font-black text-slate-900 truncate">
+                            {group.categoryName}
+                          </span>
+                          <span className="text-[9px] font-bold text-slate-500 bg-white px-1.5 py-0.5 rounded border border-slate-200 shrink-0">
+                            {typeLabel}
+                          </span>
                         </div>
 
                         <div className="text-right shrink-0">
                           <div className="text-xs sm:text-sm font-black font-mono text-violet-700">
-                            +{durDisplay}
+                            +{durStr}
                           </div>
-                          <span className="text-[9px] font-bold text-slate-400 block uppercase">
-                            Đã nạp
+                          <span className="text-[9px] font-bold text-slate-400 block font-mono">
+                            {group.logs.length} bản ghi
                           </span>
                         </div>
                       </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
+
+                      {/* Items under this category */}
+                      <div className="p-1 sm:p-2 divide-y divide-slate-100">
+                        {group.logs.map(log => renderLogCard(log))}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </div>
         )}
       </main>
@@ -784,7 +1044,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                 className="px-2 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 outline-none focus:bg-white focus:border-violet-500 transition shrink-0 max-w-[110px]"
               >
                 <option value="">📁 Không mục</option>
-                {categories.map(c => (
+                {(categories || []).map(c => (
                   <option key={c.id} value={c.id}>
                     {c.name}
                   </option>
@@ -823,13 +1083,13 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
               }`}
             >
               <span className="relative flex h-2 w-2">
-                {activeTracks.length > 0 && (
+                {(activeTracks || []).length > 0 && (
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 )}
-                <span className={`relative inline-flex rounded-full h-2 w-2 ${activeTracks.length > 0 ? 'bg-emerald-500' : 'bg-slate-400'}`}></span>
+                <span className={`relative inline-flex rounded-full h-2 w-2 ${(activeTracks || []).length > 0 ? 'bg-emerald-500' : 'bg-slate-400'}`}></span>
               </span>
               <span>Đang Track</span>
-              {activeTracks.length > 0 && (
+              {(activeTracks || []).length > 0 && (
                 <span className="text-[10px] font-mono font-bold bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded-full">
                   {activeTracks.length}
                 </span>
@@ -861,7 +1121,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
             >
               <Wallet className="w-3.5 h-3.5 text-indigo-600" />
               <span>Sổ Nhật Ký</span>
-              {logs.length > 0 && (
+              {(logs || []).length > 0 && (
                 <span className="text-[10px] font-mono font-bold bg-slate-200 text-slate-700 px-1.5 py-0.2 rounded-full">
                   {logs.length}
                 </span>
@@ -912,7 +1172,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 outline-none focus:bg-white focus:border-violet-500"
                 >
                   <option value="">-- Không có danh mục --</option>
-                  {categories.map(c => (
+                  {(categories || []).map(c => (
                     <option key={c.id} value={c.id}>
                       {c.name} ({c.category_type})
                     </option>
@@ -993,7 +1253,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 outline-none focus:bg-white focus:border-violet-500"
                 >
                   <option value="">-- Không có danh mục --</option>
-                  {categories.map(c => (
+                  {(categories || []).map(c => (
                     <option key={c.id} value={c.id}>
                       {c.name} ({c.category_type})
                     </option>
@@ -1102,7 +1362,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 outline-none focus:bg-white focus:border-violet-500"
                 >
                   <option value="">-- Không có danh mục --</option>
-                  {categories.map(c => (
+                  {(categories || []).map(c => (
                     <option key={c.id} value={c.id}>
                       {c.name} ({c.category_type})
                     </option>

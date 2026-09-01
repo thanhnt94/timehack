@@ -150,32 +150,23 @@ export const TimeBlockingSchedule: React.FC = () => {
   }
 
   return (
-    <div className="space-y-4">
-      {/* ── Top Header ──────────────── */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-black text-slate-900">Calendar</h1>
-          <p className="text-xs text-slate-500 font-medium mt-0.5">Kế hoạch dự kiến & Nhật ký thời gian thực tế</p>
+    <div className="space-y-4 pb-4">
+      {/* ── Ergonomic Large Header (1-Handed Friendly) ── */}
+      <div className="pt-1">
+        <div className="flex items-center justify-between">
+          <div>
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Quản lý thời gian</span>
+            <h1 className="text-2xl font-black text-slate-900 mt-0.5">Calendar</h1>
+          </div>
+          <div className="text-right">
+            <span className="text-xs font-bold text-slate-500 font-mono">
+              {new Date(selectedDate).toLocaleDateString('vi-VN', { weekday: 'short', day: 'numeric', month: 'numeric' })}
+            </span>
+          </div>
         </div>
-
-        {activeTab === 'plan' ? (
-          <button
-            onClick={() => { sounds.playTap(); setPlanModalOpen(true) }}
-            className="px-3 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold flex items-center gap-1 active:scale-95 transition shadow-xs"
-          >
-            <Plus className="w-3.5 h-3.5 stroke-[2.5]" /> Thêm Plan
-          </button>
-        ) : (
-          <button
-            onClick={() => { sounds.playTap(); setLogModalOpen(true) }}
-            className="px-3 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold flex items-center gap-1 active:scale-95 transition shadow-xs"
-          >
-            <Plus className="w-3.5 h-3.5 stroke-[2.5]" /> Ghi Log
-          </button>
-        )}
       </div>
 
-      {/* ── Date Carousel ───────────── */}
+      {/* ── Date Carousel (Thumb Zone) ── */}
       <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
         {datePills.map(d => {
           const isSelected = selectedDate === d.iso
@@ -198,11 +189,11 @@ export const TimeBlockingSchedule: React.FC = () => {
         })}
       </div>
 
-      {/* ── 2 Main Modes Sub-tabs ────── */}
-      <div className="grid grid-cols-3 gap-1 p-1 bg-slate-200/70 rounded-xl text-xs font-bold">
+      {/* ── 3 Main Sub-tabs (Thumb Segmented Control) ── */}
+      <div className="grid grid-cols-3 gap-1 p-1 bg-slate-200/70 rounded-2xl text-xs font-bold">
         <button
           onClick={() => { sounds.playTap(); setActiveTab('plan') }}
-          className={`py-2 rounded-lg transition flex items-center justify-center gap-1.5 ${
+          className={`py-2 rounded-xl transition flex items-center justify-center gap-1.5 ${
             activeTab === 'plan'
               ? 'bg-white text-violet-700 shadow-xs'
               : 'text-slate-600 hover:text-slate-900'
@@ -214,7 +205,7 @@ export const TimeBlockingSchedule: React.FC = () => {
 
         <button
           onClick={() => { sounds.playTap(); setActiveTab('timelog') }}
-          className={`py-2 rounded-lg transition flex items-center justify-center gap-1.5 ${
+          className={`py-2 rounded-xl transition flex items-center justify-center gap-1.5 ${
             activeTab === 'timelog'
               ? 'bg-white text-violet-700 shadow-xs'
               : 'text-slate-600 hover:text-slate-900'
@@ -226,7 +217,7 @@ export const TimeBlockingSchedule: React.FC = () => {
 
         <button
           onClick={() => { sounds.playTap(); setActiveTab('compare') }}
-          className={`py-2 rounded-lg transition flex items-center justify-center gap-1.5 ${
+          className={`py-2 rounded-xl transition flex items-center justify-center gap-1.5 ${
             activeTab === 'compare'
               ? 'bg-white text-violet-700 shadow-xs'
               : 'text-slate-600 hover:text-slate-900'
@@ -244,7 +235,7 @@ export const TimeBlockingSchedule: React.FC = () => {
           <div className="bg-sky-50 border border-sky-200/80 rounded-2xl p-3 flex items-center justify-between text-xs">
             <div className="flex items-center gap-2 text-sky-900 font-semibold">
               <CalendarIcon className="w-4 h-4 text-sky-600" />
-              <span>Dự kiến phân bổ: <strong>{totalPlannedHoursFormatted}</strong></span>
+              <span>Dự kiến: <strong>{totalPlannedHoursFormatted}</strong></span>
             </div>
             <span className="text-[11px] font-bold text-sky-700">
               Đã xong {slots.filter(s => s.is_done).length}/{slots.length}
@@ -252,28 +243,36 @@ export const TimeBlockingSchedule: React.FC = () => {
           </div>
 
           {sortedSlots.length === 0 ? (
-            <div className="glass rounded-2xl p-8 text-center border border-slate-200">
-              <p className="text-sm font-semibold text-slate-600">Chưa có kế hoạch khung giờ nào cho ngày này.</p>
+            <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
+              <div className="w-16 h-16 rounded-3xl bg-sky-50 border border-sky-200 text-sky-600 flex items-center justify-center shadow-xs mb-3">
+                <CalendarIcon className="w-8 h-8" />
+              </div>
+              <h3 className="text-base font-black text-slate-900">Chưa có kế hoạch khung giờ</h3>
+              <p className="text-xs text-slate-500 mt-1 max-w-[260px] leading-relaxed">
+                Phân bổ các khung giờ tập trung trong ngày để làm việc có chủ đích.
+              </p>
+
               <button
                 onClick={() => { sounds.playTap(); setPlanModalOpen(true) }}
-                className="mt-3 px-4 py-2 rounded-xl bg-violet-600 text-white text-xs font-bold active:scale-95 transition"
+                className="mt-6 px-6 py-3.5 rounded-2xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold shadow-lg shadow-violet-600/25 active:scale-95 transition flex items-center gap-2"
               >
-                + Lên lịch khung giờ đầu tiên
+                <Plus className="w-4 h-4 stroke-[3]" />
+                <span>Lên Kế Hoạch Khung Giờ Đầu Tiên</span>
               </button>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               {sortedSlots.map((slot) => {
                 const isDone = !!slot.is_done
                 return (
                   <div
                     key={slot.id}
-                    className={`glass rounded-2xl p-3.5 border border-slate-200 transition ${
-                      isDone ? 'opacity-50 bg-slate-50' : 'hover:border-violet-300'
+                    className={`glass rounded-2xl p-3.5 border transition ${
+                      isDone ? 'opacity-50 bg-slate-50 border-slate-200' : 'border-slate-200 hover:border-violet-300'
                     }`}
                   >
                     <div className="flex items-center justify-between gap-3">
-                      {/* Checkbox */}
+                      {/* 44px Checkbox */}
                       <button
                         onClick={() => { sounds.playTap(); toggleSlotDone(slot.id, !isDone); if (!isDone) sounds.playSuccess() }}
                         className={`w-6 h-6 rounded-xl border flex items-center justify-center shrink-0 transition active:scale-90 ${
@@ -281,17 +280,16 @@ export const TimeBlockingSchedule: React.FC = () => {
                             ? 'bg-emerald-500 border-emerald-500 text-white'
                             : 'border-slate-300 hover:border-violet-500 bg-white'
                         }`}
+                        aria-label="Hoàn tất khung giờ"
                       >
                         {isDone && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                       </button>
 
                       {/* Content */}
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[11px] font-mono font-bold text-violet-700 bg-violet-50 px-2 py-0.5 rounded-md border border-violet-100">
-                            {slot.start_time} - {slot.end_time}
-                          </span>
-                        </div>
+                        <span className="text-[10px] font-mono font-bold text-violet-700 bg-violet-50 px-2 py-0.5 rounded-md border border-violet-100">
+                          {slot.start_time} - {slot.end_time}
+                        </span>
                         <h4 className={`text-sm font-bold mt-1 truncate ${isDone ? 'line-through text-slate-400' : 'text-slate-900'}`}>
                           {slot.title}
                         </h4>
@@ -303,7 +301,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                       {/* Delete */}
                       <button
                         onClick={() => { sounds.playTap(); deleteSlot(slot.id) }}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition active:scale-90 shrink-0"
+                        className="p-1.5 text-slate-300 hover:text-rose-600 transition active:scale-90 shrink-0"
                         title="Xoá khung giờ"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -312,6 +310,17 @@ export const TimeBlockingSchedule: React.FC = () => {
                   </div>
                 )
               })}
+
+              {/* Bottom Thumb CTA */}
+              <div className="pt-2">
+                <button
+                  onClick={() => { sounds.playTap(); setPlanModalOpen(true) }}
+                  className="w-full py-3 rounded-2xl bg-white border border-dashed border-slate-300 hover:border-violet-400 text-slate-600 hover:text-violet-700 text-xs font-bold transition active:scale-[0.98] flex items-center justify-center gap-1.5 shadow-xs"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Thêm khung giờ mới</span>
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -337,18 +346,25 @@ export const TimeBlockingSchedule: React.FC = () => {
           </div>
 
           {sortedLogs.length === 0 ? (
-            <div className="glass rounded-2xl p-8 text-center border border-slate-200">
-              <p className="text-sm font-semibold text-slate-600">Chưa có bản ghi Time Log nào cho ngày này.</p>
-              <p className="text-xs text-slate-400 mt-1">Chạy đồng hồ Pomodoro hoặc nhấn "Ghi Log" để thêm thủ công.</p>
+            <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
+              <div className="w-16 h-16 rounded-3xl bg-violet-50 border border-violet-200 text-violet-600 flex items-center justify-center shadow-xs mb-3">
+                <Clock className="w-8 h-8" />
+              </div>
+              <h3 className="text-base font-black text-slate-900">Chưa có Time Log hôm nay</h3>
+              <p className="text-xs text-slate-500 mt-1 max-w-[260px] leading-relaxed">
+                Chạy đồng hồ Pomodoro hoặc ghi nhận thủ công để lưu lại thời gian thực tế bạn đã làm việc.
+              </p>
+
               <button
                 onClick={() => { sounds.playTap(); setLogModalOpen(true) }}
-                className="mt-3 px-4 py-2 rounded-xl bg-violet-600 text-white text-xs font-bold active:scale-95 transition"
+                className="mt-6 px-6 py-3.5 rounded-2xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold shadow-lg shadow-violet-600/25 active:scale-95 transition flex items-center gap-2"
               >
-                + Ghi nhận Time Log thủ công
+                <Plus className="w-4 h-4 stroke-[3]" />
+                <span>Ghi Nhận Time Log Đầu Tiên</span>
               </button>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               {sortedLogs.map((log) => {
                 const durMinutes = Math.round(log.duration_seconds / 60)
                 const startTimeStr = formatLocalTime(log.start_time)
@@ -363,7 +379,7 @@ export const TimeBlockingSchedule: React.FC = () => {
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="text-[11px] font-mono font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
+                        <span className="text-[10px] font-mono font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
                           {startTimeStr} - {endTimeStr}
                         </span>
                         <span className="text-[10px] font-bold uppercase text-violet-700 bg-violet-50 px-1.5 py-0.5 rounded">
@@ -381,12 +397,12 @@ export const TimeBlockingSchedule: React.FC = () => {
                     </div>
 
                     <div className="text-right shrink-0 flex items-center gap-2">
-                      <div className="text-xs font-black font-mono text-violet-700">
+                      <div className="text-xs font-black font-mono text-violet-700 bg-violet-50 px-2 py-1 rounded-xl border border-violet-100">
                         {durMinutes}p
                       </div>
                       <button
                         onClick={() => { sounds.playTap(); deleteLog(log.id) }}
-                        className="p-1 text-slate-400 hover:text-rose-600 transition active:scale-90"
+                        className="p-1 text-slate-300 hover:text-rose-600 transition active:scale-90"
                         title="Xoá log"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -395,6 +411,17 @@ export const TimeBlockingSchedule: React.FC = () => {
                   </div>
                 )
               })}
+
+              {/* Bottom Thumb CTA */}
+              <div className="pt-2">
+                <button
+                  onClick={() => { sounds.playTap(); setLogModalOpen(true) }}
+                  className="w-full py-3 rounded-2xl bg-white border border-dashed border-slate-300 hover:border-violet-400 text-slate-600 hover:text-violet-700 text-xs font-bold transition active:scale-[0.98] flex items-center justify-center gap-1.5 shadow-xs"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Ghi nhận thêm Time Log</span>
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -437,7 +464,7 @@ export const TimeBlockingSchedule: React.FC = () => {
 
           {/* Side by side list */}
           <div className="space-y-2 pt-1">
-            <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Chi tiết theo dòng thời gian</h3>
+            <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Chi tiết các khung giờ</h3>
             {slots.map(s => (
               <div key={s.id} className="bg-white border border-slate-200 rounded-xl p-3 flex items-center justify-between text-xs">
                 <div className="min-w-0 pr-2">
@@ -462,7 +489,10 @@ export const TimeBlockingSchedule: React.FC = () => {
           <div className="sheet-content max-w-lg mx-auto">
             <div className="sheet-handle" />
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-black text-slate-900">Lên Kế Hoạch Khung Giờ (Plan)</h2>
+              <div>
+                <h2 className="text-sm font-black text-slate-900">Lên Kế Hoạch Khung Giờ (Plan)</h2>
+                <p className="text-[11px] text-slate-500 font-medium">Khóa khung giờ dự kiến làm việc trong ngày</p>
+              </div>
               <button onClick={() => setPlanModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-700">
                 <X className="w-5 h-5" />
               </button>
@@ -476,9 +506,10 @@ export const TimeBlockingSchedule: React.FC = () => {
                   type="text"
                   value={slotTitle}
                   onChange={e => setSlotTitle(e.target.value)}
-                  placeholder="Ví dụ: Viết báo cáo, Học tiếng Anh, Họp team"
+                  placeholder="Ví dụ: Viết báo cáo, Học tiếng Anh, Họp team..."
+                  autoFocus
                   required
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white"
+                  className="w-full px-3.5 py-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
                 />
               </div>
 
@@ -492,7 +523,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                     value={slotStart}
                     onChange={e => setSlotStart(e.target.value)}
                     required
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white"
+                    className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
                   />
                 </div>
                 <div>
@@ -504,7 +535,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                     value={slotEnd}
                     onChange={e => setSlotEnd(e.target.value)}
                     required
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white"
+                    className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
                   />
                 </div>
               </div>
@@ -518,13 +549,13 @@ export const TimeBlockingSchedule: React.FC = () => {
                   value={slotNotes}
                   onChange={e => setSlotNotes(e.target.value)}
                   placeholder="Thêm ghi chú ngắn..."
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-900 outline-none focus:border-violet-500 focus:bg-white"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
                 />
               </div>
 
               <button
                 type="submit"
-                className="w-full py-3 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold active:scale-[0.98] transition shadow-xs mt-2"
+                className="w-full py-3.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold active:scale-[0.98] transition shadow-md shadow-violet-600/20 mt-2"
               >
                 Lưu Khung Giờ Plan
               </button>
@@ -540,7 +571,10 @@ export const TimeBlockingSchedule: React.FC = () => {
           <div className="sheet-content max-w-lg mx-auto">
             <div className="sheet-handle" />
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-black text-slate-900">Ghi Nhận Time Log Thực Tế</h2>
+              <div>
+                <h2 className="text-sm font-black text-slate-900">Ghi Nhận Time Log Thực Tế</h2>
+                <p className="text-[11px] text-slate-500 font-medium">Lưu lại khoảng thời gian thực tế đã chi</p>
+              </div>
               <button onClick={() => setLogModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-700">
                 <X className="w-5 h-5" />
               </button>
@@ -554,9 +588,10 @@ export const TimeBlockingSchedule: React.FC = () => {
                   type="text"
                   value={logNotes}
                   onChange={e => setLogNotes(e.target.value)}
-                  placeholder="Ví dụ: Đọc sách 30p, Nghiên cứu tài liệu, Sửa lỗi bug"
+                  placeholder="Ví dụ: Đọc sách 30p, Nghiên cứu tài liệu, Fix bug..."
+                  autoFocus
                   required
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white"
+                  className="w-full px-3.5 py-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
                 />
               </div>
 
@@ -570,7 +605,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                     value={logStart}
                     onChange={e => setLogStart(e.target.value)}
                     required
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white"
+                    className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
                   />
                 </div>
                 <div>
@@ -582,14 +617,14 @@ export const TimeBlockingSchedule: React.FC = () => {
                     value={logEnd}
                     onChange={e => setLogEnd(e.target.value)}
                     required
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white"
+                    className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
                   />
                 </div>
               </div>
 
               <button
                 type="submit"
-                className="w-full py-3 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold active:scale-[0.98] transition shadow-xs mt-2"
+                className="w-full py-3.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold active:scale-[0.98] transition shadow-md shadow-violet-600/20 mt-2"
               >
                 Lưu Bản Ghi Time Log
               </button>

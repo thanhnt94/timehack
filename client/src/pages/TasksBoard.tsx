@@ -6,18 +6,18 @@ import { useNavigate } from 'react-router-dom'
 import { sounds } from '../utils/soundEffects'
 
 const EISENHOWER_TABS = [
-  { key: 'all', label: 'Tất cả' },
-  { key: 'do_first', label: 'Q1 Khẩn cấp', color: 'text-rose-700 bg-rose-50 border-rose-200' },
-  { key: 'schedule', label: 'Q2 Kế hoạch', color: 'text-violet-700 bg-violet-50 border-violet-200' },
-  { key: 'delegate', label: 'Q3 Bàn giao', color: 'text-amber-700 bg-amber-50 border-amber-200' },
-  { key: 'eliminate', label: 'Q4 Loại bỏ', color: 'text-slate-600 bg-slate-100 border-slate-200' },
+  { key: 'all', label: 'All' },
+  { key: 'do_first', label: 'Q1 Urgent', color: 'text-rose-700 bg-rose-50 border-rose-200' },
+  { key: 'schedule', label: 'Q2 Schedule', color: 'text-violet-700 bg-violet-50 border-violet-200' },
+  { key: 'delegate', label: 'Q3 Delegate', color: 'text-amber-700 bg-amber-50 border-amber-200' },
+  { key: 'eliminate', label: 'Q4 Eliminate', color: 'text-slate-600 bg-slate-100 border-slate-200' },
 ] as const
 
 const EISENHOWER_QUADRANTS = [
-  { key: 'do_first', label: 'Q1 · Khẩn cấp & Quan trọng', color: 'border-rose-300 text-rose-700 bg-rose-50/70' },
-  { key: 'schedule', label: 'Q2 · Quan trọng, chưa gấp', color: 'border-violet-300 text-violet-700 bg-violet-50/70' },
-  { key: 'delegate', label: 'Q3 · Gấp, ít quan trọng', color: 'border-amber-300 text-amber-800 bg-amber-50/70' },
-  { key: 'eliminate', label: 'Q4 · Không gấp & quan trọng', color: 'border-slate-200 text-slate-600 bg-slate-50' },
+  { key: 'do_first', label: 'Q1 · Urgent & Important', color: 'border-rose-300 text-rose-700 bg-rose-50/70' },
+  { key: 'schedule', label: 'Q2 · Important, Not Urgent', color: 'border-violet-300 text-violet-700 bg-violet-50/70' },
+  { key: 'delegate', label: 'Q3 · Urgent, Less Important', color: 'border-amber-300 text-amber-800 bg-amber-50/70' },
+  { key: 'eliminate', label: 'Q4 · Not Urgent or Important', color: 'border-slate-200 text-slate-600 bg-slate-50' },
 ] as const
 
 export const TasksBoard: React.FC = () => {
@@ -63,22 +63,22 @@ export const TasksBoard: React.FC = () => {
 
   return (
     <div className="space-y-4 pb-4">
-      {/* ── Ergonomic Large Header (1-Handed Friendly) ── */}
+      {/* ── Ergonomic Large Header ─────── */}
       <div className="pt-1">
         <div className="flex items-center justify-between">
           <div>
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Danh sách việc cần làm</span>
-            <h1 className="text-2xl font-black text-slate-900 mt-0.5">Nhiệm Vụ</h1>
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Deliverables & Action Items</span>
+            <h1 className="text-2xl font-black text-slate-900 mt-0.5">Tasks</h1>
           </div>
           {tasks.length > 0 && (
             <span className="text-xs font-black font-mono text-violet-700 bg-violet-50 px-2.5 py-1 rounded-xl border border-violet-200">
-              {doneCount}/{tasks.length} xong
+              {doneCount}/{tasks.length} done
             </span>
           )}
         </div>
       </div>
 
-      {/* ── Horizontal Eisenhower Filter Pills (Thumb Zone) ── */}
+      {/* ── Horizontal Eisenhower Filter Pills ── */}
       <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-1">
         {EISENHOWER_TABS.map(tab => {
           const isSelected = filter === tab.key
@@ -105,10 +105,10 @@ export const TasksBoard: React.FC = () => {
             <CheckSquare className="w-8 h-8" />
           </div>
           <h3 className="text-base font-black text-slate-900">
-            {filter === 'all' ? 'Không có nhiệm vụ nào' : 'Chưa có task trong mục này'}
+            {filter === 'all' ? 'No tasks found' : 'No tasks in this quadrant'}
           </h3>
           <p className="text-xs text-slate-500 mt-1 max-w-[260px] leading-relaxed">
-            Thêm việc cần làm kèm hạn chót và mức độ ưu tiên để quản lý công việc hiệu quả.
+            Add deliverables with deadlines and priorities to manage your productivity effectively.
           </p>
 
           <button
@@ -116,7 +116,7 @@ export const TasksBoard: React.FC = () => {
             className="mt-6 px-6 py-3.5 rounded-2xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold shadow-lg shadow-violet-600/25 active:scale-95 transition flex items-center gap-2"
           >
             <Plus className="w-4 h-4 stroke-[3]" />
-            <span>Tạo Nhiệm Vụ Mới</span>
+            <span>Create First Task</span>
           </button>
         </div>
       ) : (
@@ -133,7 +133,7 @@ export const TasksBoard: React.FC = () => {
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  {/* Large Checkbox (44px target) */}
+                  {/* Large Checkbox */}
                   <button
                     onClick={() => { sounds.playTap(); toggleTaskStatus(task.id); if (!done) sounds.playSuccess() }}
                     className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 active:scale-90 transition ${
@@ -141,7 +141,7 @@ export const TasksBoard: React.FC = () => {
                         ? 'bg-emerald-500 border-emerald-500 text-white'
                         : 'border-slate-300 hover:border-violet-500 bg-white'
                     }`}
-                    aria-label="Hoàn thành task"
+                    aria-label="Mark task completed"
                   >
                     {done && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                   </button>
@@ -158,14 +158,14 @@ export const TasksBoard: React.FC = () => {
                           task.eisenhower === 'schedule' ? 'text-violet-600' :
                           task.eisenhower === 'delegate' ? 'text-amber-600' : 'text-slate-400'
                         }`}>
-                          {task.eisenhower === 'do_first' ? 'Q1 Khẩn cấp' :
-                           task.eisenhower === 'schedule' ? 'Q2 Kế hoạch' :
-                           task.eisenhower === 'delegate' ? 'Q3 Bàn giao' : 'Q4 Loại bỏ'}
+                          {task.eisenhower === 'do_first' ? 'Q1 Urgent' :
+                           task.eisenhower === 'schedule' ? 'Q2 Plan' :
+                           task.eisenhower === 'delegate' ? 'Q3 Delegate' : 'Q4 Eliminate'}
                         </span>
                       )}
                       {task.due_date && (
                         <span className="text-[10px] text-slate-400 font-mono">
-                          Hạn: {new Date(task.due_date).toLocaleDateString('vi-VN')}
+                          Due: {new Date(task.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                         </span>
                       )}
                     </div>
@@ -176,7 +176,7 @@ export const TasksBoard: React.FC = () => {
                     <button
                       onClick={() => handlePlayTask(task)}
                       className="w-8 h-8 rounded-xl bg-violet-50 border border-violet-200 text-violet-700 hover:bg-violet-600 hover:text-white active:scale-90 transition shrink-0 flex items-center justify-center shadow-xs"
-                      title="Bắt đầu Focus"
+                      title="Start Focus"
                     >
                       <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
                     </button>
@@ -186,7 +186,7 @@ export const TasksBoard: React.FC = () => {
                   <button
                     onClick={() => { sounds.playTap(); deleteTask(task.id) }}
                     className="p-1.5 text-slate-300 hover:text-rose-600 transition shrink-0 active:scale-90"
-                    title="Xoá task"
+                    title="Delete task"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -202,7 +202,7 @@ export const TasksBoard: React.FC = () => {
               className="w-full py-3 rounded-2xl bg-white border border-dashed border-slate-300 hover:border-violet-400 text-slate-600 hover:text-violet-700 text-xs font-bold transition active:scale-[0.98] flex items-center justify-center gap-1.5 shadow-xs"
             >
               <Plus className="w-4 h-4" />
-              <span>Thêm nhiệm vụ mới</span>
+              <span>Add New Task</span>
             </button>
           </div>
         </div>
@@ -216,8 +216,8 @@ export const TasksBoard: React.FC = () => {
             <div className="sheet-handle" />
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h2 className="text-sm font-black text-slate-900">Tạo Nhiệm Vụ Mới</h2>
-                <p className="text-[11px] text-slate-500 font-medium">Gắn deadline và mức độ ưu tiên Eisenhower</p>
+                <h2 className="text-sm font-black text-slate-900">Create New Task</h2>
+                <p className="text-[11px] text-slate-500 font-medium">Set deadline and Eisenhower priority</p>
               </div>
               <button onClick={() => setSheetOpen(false)} className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700">
                 <X className="w-5 h-5" />
@@ -227,13 +227,13 @@ export const TasksBoard: React.FC = () => {
             <form onSubmit={handleCreate} className="space-y-3.5">
               <div>
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  Tên công việc
+                  Task Title
                 </label>
                 <input
                   type="text"
                   value={title}
                   onChange={e => setTitle(e.target.value)}
-                  placeholder="Ví dụ: Hoàn thiện báo cáo, Gửi email cho khách..."
+                  placeholder="e.g. Finish financial report, Send client invoice..."
                   autoFocus
                   required
                   className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
@@ -242,7 +242,7 @@ export const TasksBoard: React.FC = () => {
 
               <div>
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
-                  Mức độ ưu tiên (Eisenhower Matrix)
+                  Priority Level (Eisenhower Matrix)
                 </label>
                 <div className="grid grid-cols-2 gap-1.5">
                   {EISENHOWER_QUADRANTS.map(q => (
@@ -264,7 +264,7 @@ export const TasksBoard: React.FC = () => {
 
               <div>
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  Hạn chót (Deadline - Tùy chọn)
+                  Deadline (Optional)
                 </label>
                 <input
                   type="date"
@@ -278,7 +278,7 @@ export const TasksBoard: React.FC = () => {
                 type="submit"
                 className="w-full py-3.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-xs active:scale-[0.98] transition shadow-md shadow-violet-600/20 mt-2"
               >
-                Lưu Nhiệm Vụ
+                Save Task
               </button>
             </form>
           </div>

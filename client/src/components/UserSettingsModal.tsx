@@ -14,17 +14,17 @@ interface Props {
 }
 
 const COMMON_TIMEZONES = [
-  { id: 'Asia/Ho_Chi_Minh', label: 'Việt Nam / TP.HCM', offset: 'UTC+7' },
-  { id: 'Asia/Bangkok', label: 'Bangkok, Thái Lan', offset: 'UTC+7' },
+  { id: 'Asia/Ho_Chi_Minh', label: 'Vietnam / Bangkok', offset: 'UTC+7' },
+  { id: 'Asia/Bangkok', label: 'Bangkok, Thailand', offset: 'UTC+7' },
   { id: 'Asia/Singapore', label: 'Singapore', offset: 'UTC+8' },
-  { id: 'Asia/Tokyo', label: 'Tokyo, Nhật Bản', offset: 'UTC+9' },
-  { id: 'Asia/Seoul', label: 'Seoul, Hàn Quốc', offset: 'UTC+9' },
-  { id: 'UTC', label: 'Giờ Quốc Tế Chuẩn (UTC)', offset: 'UTC+0' },
-  { id: 'Europe/London', label: 'London, Vương quốc Anh', offset: 'UTC+0' },
-  { id: 'Europe/Paris', label: 'Paris, Pháp / Tây Âu', offset: 'UTC+1' },
-  { id: 'America/New_York', label: 'New York / Bờ Đông Mỹ', offset: 'UTC-5' },
-  { id: 'America/Los_Angeles', label: 'Los Angeles / Bờ Tây Mỹ', offset: 'UTC-8' },
-  { id: 'Australia/Sydney', label: 'Sydney, Úc', offset: 'UTC+10' }
+  { id: 'Asia/Tokyo', label: 'Tokyo, Japan', offset: 'UTC+9' },
+  { id: 'Asia/Seoul', label: 'Seoul, South Korea', offset: 'UTC+9' },
+  { id: 'UTC', label: 'Coordinated Universal Time', offset: 'UTC+0' },
+  { id: 'Europe/London', label: 'London, United Kingdom', offset: 'UTC+0' },
+  { id: 'Europe/Paris', label: 'Paris, Central Europe', offset: 'UTC+1' },
+  { id: 'America/New_York', label: 'New York, US Eastern', offset: 'UTC-5' },
+  { id: 'America/Los_Angeles', label: 'Los Angeles, US Pacific', offset: 'UTC-8' },
+  { id: 'Australia/Sydney', label: 'Sydney, Australia', offset: 'UTC+10' }
 ]
 
 type SettingsTab = 'profile' | 'timezone' | 'telegram' | 'notifications'
@@ -95,31 +95,31 @@ export const UserSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
       })
       await updateSettings({ telegram_chat_id: telegramChatId.trim() })
       setTelegramStatus('saved')
-      setTelegramMessage('Đã lưu Telegram Chat ID thành công!')
+      setTelegramMessage('Telegram Chat ID linked successfully!')
       sounds.playSuccess()
     } catch (err: any) {
       setTelegramStatus('idle')
-      setTelegramMessage(err.response?.data?.detail || 'Lỗi khi lưu Chat ID')
+      setTelegramMessage(err.response?.data?.detail || 'Failed to save Chat ID')
     }
   }
 
   const handleTestTelegram = async () => {
     sounds.playTap()
     setTelegramStatus('testing')
-    setTelegramMessage('Đang gửi tin nhắn thử nghiệm...')
+    setTelegramMessage('Sending test notification...')
     try {
       const res = await axios.post('/api/v1/notifications/telegram/test')
       if (res.data.status === 'ok' || res.data.sent) {
         setTelegramStatus('test_success')
-        setTelegramMessage('Đã gửi tin nhắn thử nghiệm thành công! Hãy kiểm tra Telegram của bạn.')
+        setTelegramMessage('Test notification sent! Check your Telegram.')
         sounds.playSuccess()
       } else {
         setTelegramStatus('test_failed')
-        setTelegramMessage('Không thể gửi tin nhắn. Hãy đảm bảo bạn đã bấm /start với Bot trước!')
+        setTelegramMessage('Failed to deliver message. Make sure you started the Bot on Telegram first!')
       }
     } catch (err: any) {
       setTelegramStatus('test_failed')
-      setTelegramMessage(err.response?.data?.detail || 'Lỗi gửi tin nhắn thử nghiệm')
+      setTelegramMessage(err.response?.data?.detail || 'Test notification error')
     }
   }
 
@@ -147,7 +147,7 @@ export const UserSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
             </div>
             <div>
               <h2 className="text-sm font-black text-slate-900">{user?.full_name || user?.username}</h2>
-              <p className="text-[11px] text-slate-500 font-medium">{user?.email || 'Tài khoản TimeHack'}</p>
+              <p className="text-[11px] text-slate-500 font-medium">{user?.email || 'TimeHack Account'}</p>
             </div>
           </div>
           <button
@@ -168,7 +168,7 @@ export const UserSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            Hồ sơ
+            Profile
           </button>
           <button
             onClick={() => { sounds.playTap(); setActiveTab('timezone') }}
@@ -178,7 +178,7 @@ export const UserSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            Múi giờ
+            Timezone
           </button>
           <button
             onClick={() => { sounds.playTap(); setActiveTab('telegram') }}
@@ -198,7 +198,7 @@ export const UserSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            Thông báo
+            Alerts
           </button>
         </div>
 
@@ -207,7 +207,7 @@ export const UserSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
           <div className="space-y-3 animate-fade-in">
             <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 space-y-2">
               <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-500 font-medium">Tên tài khoản</span>
+                <span className="text-slate-500 font-medium">Username</span>
                 <span className="font-bold text-slate-900">{user?.username}</span>
               </div>
               <div className="flex items-center justify-between text-xs">
@@ -215,13 +215,13 @@ export const UserSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 <span className="font-bold text-slate-900">{user?.email}</span>
               </div>
               <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-500 font-medium">Vai trò</span>
+                <span className="text-slate-500 font-medium">Account Role</span>
                 <span className="font-bold uppercase text-[10px] bg-violet-100 text-violet-700 px-2 py-0.5 rounded-md">
                   {user?.role || 'user'}
                 </span>
               </div>
               <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-500 font-medium">Múi giờ hiện tại</span>
+                <span className="text-slate-500 font-medium">Active Timezone</span>
                 <span className="font-bold text-slate-900">{currentTimezone}</span>
               </div>
             </div>
@@ -232,7 +232,7 @@ export const UserSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 text-xs font-bold hover:bg-rose-100 active:scale-[0.98] transition"
               >
                 <LogOut className="w-4 h-4" />
-                <span>Đăng Xuất Khỏi Thiết Bị</span>
+                <span>Log Out from Device</span>
               </button>
             </div>
           </div>
@@ -245,7 +245,7 @@ export const UserSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
               <div className="flex items-center gap-2 min-w-0">
                 <Clock className="w-4 h-4 text-violet-600 shrink-0" />
                 <div className="min-w-0">
-                  <div className="text-[10px] uppercase font-bold text-violet-700 tracking-wider">Đang sử dụng</div>
+                  <div className="text-[10px] uppercase font-bold text-violet-700 tracking-wider">Current Timezone</div>
                   <div className="text-xs font-black text-slate-900 truncate">{currentTimezone}</div>
                 </div>
               </div>
@@ -253,7 +253,7 @@ export const UserSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 onClick={handleDetectDeviceTz}
                 className="px-2.5 py-1.5 rounded-xl bg-white border border-violet-300 text-violet-700 text-[11px] font-bold shadow-xs hover:bg-violet-600 hover:text-white active:scale-95 transition shrink-0"
               >
-                Tự phát hiện
+                Auto Detect
               </button>
             </div>
 
@@ -293,7 +293,7 @@ export const UserSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
             <div className="text-[11px] text-slate-500 leading-relaxed flex items-start gap-1.5 pt-1">
               <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-              <span>Dữ liệu server luôn lưu chuẩn <strong>UTC+0</strong>. Múi giờ này dùng để tính streak và hiển thị lịch trình.</span>
+              <span>All database timestamps are stored in <strong>UTC+0</strong>. This timezone adjusts streaks and local schedule timelines.</span>
             </div>
           </div>
         )}
@@ -305,12 +305,12 @@ export const UserSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
             <div className="bg-sky-50 border border-sky-200 rounded-2xl p-3.5 space-y-2">
               <div className="flex items-center gap-2 text-sky-800 text-xs font-bold">
                 <MessageSquare className="w-4 h-4 text-sky-600" />
-                <span>Cách kết nối Telegram Bot</span>
+                <span>How to link Telegram Bot</span>
               </div>
               <ol className="text-[11px] text-sky-900/80 space-y-1 list-decimal list-inside leading-relaxed">
-                <li>Mở Telegram và tìm kiếm bot <strong>@InMindBot</strong> hoặc <strong>@userinfobot</strong>.</li>
-                <li>Nhấn nút <code>/start</code> để lấy <strong>Chat ID</strong> của bạn (dãy số gồm 9 - 10 chữ số).</li>
-                <li>Dán mã Chat ID vào ô bên dưới và nhấn <strong>Lưu Liên Kết</strong>.</li>
+                <li>Open Telegram and search for <strong>@InMindBot</strong> or <strong>@userinfobot</strong>.</li>
+                <li>Tap <code>/start</code> to get your numeric <strong>Chat ID</strong> (9-10 digits).</li>
+                <li>Paste your Chat ID below and click <strong>Link Chat ID</strong>.</li>
               </ol>
             </div>
 
@@ -318,13 +318,13 @@ export const UserSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
             <form onSubmit={handleSaveTelegram} className="space-y-2.5">
               <div>
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  Telegram Chat ID của bạn
+                  Your Telegram Chat ID
                 </label>
                 <input
                   type="text"
                   value={telegramChatId}
                   onChange={e => setTelegramChatId(e.target.value)}
-                  placeholder="Ví dụ: 123456789"
+                  placeholder="e.g. 123456789"
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
                 />
               </div>
@@ -352,7 +352,7 @@ export const UserSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
                   disabled={telegramStatus === 'saving'}
                   className="py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold active:scale-[0.98] transition shadow-xs disabled:opacity-50"
                 >
-                  {telegramStatus === 'saving' ? 'Đang lưu...' : 'Lưu Chat ID'}
+                  {telegramStatus === 'saving' ? 'Linking...' : 'Link Chat ID'}
                 </button>
 
                 <button
@@ -362,7 +362,7 @@ export const UserSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
                   className="py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold active:scale-[0.98] transition shadow-xs disabled:opacity-40 flex items-center justify-center gap-1.5"
                 >
                   <Send className="w-3.5 h-3.5 text-violet-600" />
-                  <span>{telegramStatus === 'testing' ? 'Đang gửi...' : 'Gửi thử tin nhắn'}</span>
+                  <span>{telegramStatus === 'testing' ? 'Sending...' : 'Send Test Alert'}</span>
                 </button>
               </div>
             </form>
@@ -375,8 +375,8 @@ export const UserSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
             {/* Toggle 1: Task Reminders */}
             <div className="glass rounded-2xl p-3.5 flex items-center justify-between border border-slate-200">
               <div className="pr-3">
-                <div className="text-xs font-bold text-slate-900">Nhắc nhở công việc</div>
-                <div className="text-[11px] text-slate-500 mt-0.5">Báo qua Telegram khi sắp đến hạn hoàn thành task</div>
+                <div className="text-xs font-bold text-slate-900">Task Due Reminders</div>
+                <div className="text-[11px] text-slate-500 mt-0.5">Telegram notification when deadlines approach</div>
               </div>
               <button
                 onClick={() => handleToggleSetting('notify_task', !notifyTask, setNotifyTask)}
@@ -393,8 +393,8 @@ export const UserSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
             {/* Toggle 2: Habit Reminders */}
             <div className="glass rounded-2xl p-3.5 flex items-center justify-between border border-slate-200">
               <div className="pr-3">
-                <div className="text-xs font-bold text-slate-900">Nhắc nhở thói quen</div>
-                <div className="text-[11px] text-slate-500 mt-0.5">Nhắc duy trì chuỗi Streak mỗi ngày</div>
+                <div className="text-xs font-bold text-slate-900">Habit Streak Reminders</div>
+                <div className="text-[11px] text-slate-500 mt-0.5">Daily reminder to maintain your active streak</div>
               </div>
               <button
                 onClick={() => handleToggleSetting('notify_habit', !notifyHabit, setNotifyHabit)}
@@ -411,8 +411,8 @@ export const UserSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
             {/* Toggle 3: Daily Wrap-up */}
             <div className="glass rounded-2xl p-3.5 flex items-center justify-between border border-slate-200">
               <div className="pr-3">
-                <div className="text-xs font-bold text-slate-900">Tổng kết cuối ngày (21:00)</div>
-                <div className="text-[11px] text-slate-500 mt-0.5">Báo cáo năng suất, số task & thói quen đã hoàn tất</div>
+                <div className="text-xs font-bold text-slate-900">Daily Wrap-up (21:00)</div>
+                <div className="text-[11px] text-slate-500 mt-0.5">End-of-day summary of completed tasks & focus hours</div>
               </div>
               <button
                 onClick={() => handleToggleSetting('notify_daily_report', !notifyDailyReport, setNotifyDailyReport)}
@@ -429,8 +429,8 @@ export const UserSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
             {/* Toggle 4: Haptic Web Audio Sounds */}
             <div className="glass rounded-2xl p-3.5 flex items-center justify-between border border-slate-200">
               <div className="pr-3">
-                <div className="text-xs font-bold text-slate-900">Âm thanh tương tác (Sound FX)</div>
-                <div className="text-[11px] text-slate-500 mt-0.5">Phát âm thanh khi hoàn thành task, streak & focus</div>
+                <div className="text-xs font-bold text-slate-900">Interactive Sound Effects (Web Audio)</div>
+                <div className="text-[11px] text-slate-500 mt-0.5">Auditory feedback on task check, streak & timers</div>
               </div>
               <button
                 onClick={() => handleToggleSetting('sound_enabled', !soundEnabled, setSoundEnabled)}

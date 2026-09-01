@@ -57,7 +57,7 @@ const AppShell: React.FC = () => {
                   ? 'bg-violet-50 text-violet-700 border-violet-200 shadow-xs'
                   : 'bg-white border-slate-200 text-slate-600 hover:text-violet-700 hover:bg-slate-50'
               }`}
-              title="Thống kê"
+              title="Analytics"
             >
               <BarChart3 className="w-4 h-4" />
             </Link>
@@ -66,8 +66,8 @@ const AppShell: React.FC = () => {
             <button
               onClick={() => { sounds.playTap(); setSettingsOpen(true) }}
               className="relative flex items-center justify-center w-8 h-8 rounded-full bg-violet-600 text-white font-black text-xs shadow-xs hover:ring-2 hover:ring-violet-400 active:scale-90 transition-transform"
-              title="Cài đặt tài khoản & Múi giờ, Telegram"
-              aria-label="Cài đặt người dùng"
+              title="User Settings, Timezone & Telegram"
+              aria-label="User Settings"
             >
               <span>{user?.full_name?.charAt(0) || user?.username?.charAt(0) || 'U'}</span>
               <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white" />

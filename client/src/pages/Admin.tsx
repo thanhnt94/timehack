@@ -71,7 +71,7 @@ export const Admin: React.FC = () => {
 
   // Telegram Test State
   const [telegramChatId, setTelegramChatId] = useState('')
-  const [telegramMessage, setTelegramMessage] = useState('🔔 [TimeHack Admin] Kiểm tra thông báo Telegram Bot!')
+  const [telegramMessage, setTelegramMessage] = useState('🔔 [TimeHack Admin] Test Telegram Bot Notification!')
   const [telegramSending, setTelegramSending] = useState(false)
   const [telegramResult, setTelegramResult] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
@@ -118,10 +118,10 @@ export const Admin: React.FC = () => {
         redirect_uri: redirectUri
       })
       if (res.data.status === 'ok') {
-        setSsoMessage({ type: 'success', text: 'Cập nhật cấu hình SSO CentralAuth thành công!' })
+        setSsoMessage({ type: 'success', text: 'CentralAuth SSO configuration saved successfully!' })
       }
     } catch (e: any) {
-      setSsoMessage({ type: 'error', text: e.response?.data?.detail || 'Lỗi lưu cấu hình SSO' })
+      setSsoMessage({ type: 'error', text: e.response?.data?.detail || 'Failed to save SSO configuration' })
     } finally {
       setSsoSaving(false)
     }
@@ -137,14 +137,14 @@ export const Admin: React.FC = () => {
         setSsoMessage({ type: 'error', text: res.data.message })
       }
     } catch (e: any) {
-      setSsoMessage({ type: 'error', text: 'Không thể kết nối tới CentralAuth' })
+      setSsoMessage({ type: 'error', text: 'Cannot connect to CentralAuth' })
     }
   }
 
   const handleSendTelegramTest = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!telegramChatId.trim()) {
-      setTelegramResult({ type: 'error', text: 'Vui lòng nhập Telegram Chat ID' })
+      setTelegramResult({ type: 'error', text: 'Please enter Telegram Chat ID' })
       return
     }
     setTelegramSending(true)
@@ -155,12 +155,12 @@ export const Admin: React.FC = () => {
         message: telegramMessage
       })
       if (res.data.status === 'ok') {
-        setTelegramResult({ type: 'success', text: `Đã gửi tin nhắn thử nghiệm tới Chat ID: ${telegramChatId}` })
+        setTelegramResult({ type: 'success', text: `Test message delivered to Chat ID: ${telegramChatId}` })
       } else {
-        setTelegramResult({ type: 'error', text: 'Gửi tin nhắn thất bại. Vui lòng kiểm tra lại cấu hình Bot Token / CentralAuth Queue' })
+        setTelegramResult({ type: 'error', text: 'Delivery failed. Check Bot Token or Chat ID permissions' })
       }
     } catch (e: any) {
-      setTelegramResult({ type: 'error', text: e.response?.data?.detail || 'Lỗi gửi thông báo Telegram' })
+      setTelegramResult({ type: 'error', text: e.response?.data?.detail || 'Error sending Telegram message' })
     } finally {
       setTelegramSending(false)
     }
@@ -172,7 +172,7 @@ export const Admin: React.FC = () => {
       await axios.patch(`/api/v1/admin/users/${targetUser.id}/role`, { role: newRole })
       setUsersList(prev => prev.map(u => u.id === targetUser.id ? { ...u, role: newRole } : u))
     } catch (e) {
-      alert('Không thể thay đổi quyền người dùng')
+      alert('Failed to update user role')
     }
   }
 
@@ -182,34 +182,34 @@ export const Admin: React.FC = () => {
         <div className="w-16 h-16 rounded-3xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400">
           <Lock className="w-8 h-8" />
         </div>
-        <h2 className="text-xl font-black text-white">Yêu Cầu Quyền Quản Trị Viên</h2>
-        <p className="text-xs text-slate-400 max-w-md">
-          Bạn cần đăng nhập với tài khoản Admin để truy cập trang cấu hình SSO, Telegram và quản lý hệ thống.
+        <h2 className="text-xl font-black text-slate-900">Administrator Privileges Required</h2>
+        <p className="text-xs text-slate-500 max-w-md">
+          You need an Admin role to access CentralAuth SSO configuration and system diagnostics.
         </p>
         <Link
           to="/"
-          className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 inline-flex items-center gap-2"
+          className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-xs font-bold text-white inline-flex items-center gap-2"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>Về Trang Chủ</span>
+          <span>Back to Home</span>
         </Link>
       </div>
     )
   }
 
   return (
-    <div className="space-y-8 max-w-6xl mx-auto pb-12">
+    <div className="space-y-6 max-w-6xl mx-auto pb-12">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
         <div>
-          <div className="flex items-center gap-2.5 mb-1">
-            <div className="p-2 rounded-xl bg-violet-600/20 border border-violet-500/30 text-violet-400">
+          <div className="flex items-center gap-2 mb-1">
+            <div className="p-2 rounded-xl bg-violet-50 text-violet-700 border border-violet-200">
               <Shield className="w-5 h-5" />
             </div>
-            <h1 className="text-2xl font-black text-white tracking-tight">Trung Tâm Quản Trị Hệ Thống</h1>
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight">System Admin Console</h1>
           </div>
-          <p className="text-xs text-slate-400">
-            Quản lý cơ chế Single Sign-On (SSO), cấu hình Telegram Notification Hub và giám sát dữ liệu TimeHack.
+          <p className="text-xs text-slate-500">
+            Manage Single Sign-On (SSO), Telegram Notification Hub, and database metrics.
           </p>
         </div>
 
@@ -217,130 +217,129 @@ export const Admin: React.FC = () => {
           <button
             onClick={fetchData}
             disabled={isLoading}
-            className="px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800 hover:bg-slate-800 text-xs font-bold text-slate-300 flex items-center gap-1.5 transition active:scale-95"
+            className="px-3.5 py-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-xs font-bold text-slate-700 flex items-center gap-1.5 transition active:scale-95 shadow-xs"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-            <span>Làm Mới</span>
+            <span>Refresh</span>
           </button>
         </div>
       </div>
 
       {/* Quick Metrics Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="glass-card rounded-2xl p-4 border border-slate-800 space-y-1">
-          <div className="flex items-center justify-between text-slate-400">
-            <span className="text-xs font-bold">Người Dùng</span>
-            <Users className="w-4 h-4 text-violet-400" />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="glass rounded-2xl p-4 border border-slate-200 space-y-1">
+          <div className="flex items-center justify-between text-slate-500">
+            <span className="text-xs font-bold">Total Users</span>
+            <Users className="w-4 h-4 text-violet-600" />
           </div>
-          <div className="text-2xl font-black text-white">{overview?.stats.total_users || 0}</div>
-          <div className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1">
-            <CheckCircle2 className="w-3 h-3" /> Đã đồng bộ DB
+          <div className="text-2xl font-black text-slate-900 font-mono">{overview?.stats.total_users || 0}</div>
+          <div className="text-[10px] text-emerald-600 font-semibold flex items-center gap-1">
+            <CheckCircle2 className="w-3 h-3" /> Synced with DB
           </div>
         </div>
 
-        <div className="glass-card rounded-2xl p-4 border border-slate-800 space-y-1">
-          <div className="flex items-center justify-between text-slate-400">
-            <span className="text-xs font-bold">Nhiệm Vụ (Tasks)</span>
-            <CheckSquare className="w-4 h-4 text-cyan-400" />
+        <div className="glass rounded-2xl p-4 border border-slate-200 space-y-1">
+          <div className="flex items-center justify-between text-slate-500">
+            <span className="text-xs font-bold">Tasks</span>
+            <CheckSquare className="w-4 h-4 text-sky-600" />
           </div>
-          <div className="text-2xl font-black text-white">{overview?.stats.total_tasks || 0}</div>
-          <div className="text-[10px] text-slate-400">Ma trận Eisenhower</div>
+          <div className="text-2xl font-black text-slate-900 font-mono">{overview?.stats.total_tasks || 0}</div>
+          <div className="text-[10px] text-slate-400 font-medium">Eisenhower Matrix</div>
         </div>
 
-        <div className="glass-card rounded-2xl p-4 border border-slate-800 space-y-1">
-          <div className="flex items-center justify-between text-slate-400">
-            <span className="text-xs font-bold">Thói Quen (Habits)</span>
-            <Zap className="w-4 h-4 text-emerald-400" />
+        <div className="glass rounded-2xl p-4 border border-slate-200 space-y-1">
+          <div className="flex items-center justify-between text-slate-500">
+            <span className="text-xs font-bold">Habits</span>
+            <Zap className="w-4 h-4 text-emerald-600" />
           </div>
-          <div className="text-2xl font-black text-white">{overview?.stats.total_habits || 0}</div>
-          <div className="text-[10px] text-slate-400">Đang theo dõi 7 ngày</div>
+          <div className="text-2xl font-black text-slate-900 font-mono">{overview?.stats.total_habits || 0}</div>
+          <div className="text-[10px] text-slate-400 font-medium">Active Streaks</div>
         </div>
 
-        <div className="glass-card rounded-2xl p-4 border border-slate-800 space-y-1">
-          <div className="flex items-center justify-between text-slate-400">
-            <span className="text-xs font-bold">Thời Gian Tập Trung</span>
-            <Clock className="w-4 h-4 text-rose-400" />
+        <div className="glass rounded-2xl p-4 border border-slate-200 space-y-1">
+          <div className="flex items-center justify-between text-slate-500">
+            <span className="text-xs font-bold">Focus Time</span>
+            <Clock className="w-4 h-4 text-rose-600" />
           </div>
-          <div className="text-2xl font-black text-white">{overview?.stats.total_focus_minutes || 0} <span className="text-sm font-normal text-slate-400">phút</span></div>
-          <div className="text-[10px] text-slate-400">Phiên Pomodoro / Logs</div>
+          <div className="text-2xl font-black text-slate-900 font-mono">{overview?.stats.total_focus_minutes || 0} <span className="text-xs font-normal text-slate-400">mins</span></div>
+          <div className="text-[10px] text-slate-400 font-medium">Pomodoro & Logs</div>
         </div>
       </div>
 
       {/* Sub-Navigation Tabs */}
-      <div className="flex border-b border-slate-800 gap-2">
+      <div className="flex border-b border-slate-200 gap-2">
         <button
           onClick={() => setActiveTab('sso')}
-          className={`pb-3 px-4 text-xs font-bold transition border-b-2 flex items-center gap-2 ${
+          className={`pb-3 px-3 text-xs font-bold transition border-b-2 flex items-center gap-2 ${
             activeTab === 'sso'
-              ? 'border-violet-500 text-violet-400'
-              : 'border-transparent text-slate-400 hover:text-slate-200'
+              ? 'border-violet-600 text-violet-700'
+              : 'border-transparent text-slate-500 hover:text-slate-900'
           }`}
         >
           <KeyRound className="w-4 h-4" />
-          <span>Cấu Hình SSO CentralAuth</span>
+          <span>CentralAuth SSO</span>
         </button>
 
         <button
           onClick={() => setActiveTab('telegram')}
-          className={`pb-3 px-4 text-xs font-bold transition border-b-2 flex items-center gap-2 ${
+          className={`pb-3 px-3 text-xs font-bold transition border-b-2 flex items-center gap-2 ${
             activeTab === 'telegram'
-              ? 'border-amber-500 text-amber-400'
-              : 'border-transparent text-slate-400 hover:text-slate-200'
+              ? 'border-violet-600 text-violet-700'
+              : 'border-transparent text-slate-500 hover:text-slate-900'
           }`}
         >
           <Bell className="w-4 h-4" />
-          <span>Telegram Notification Hub</span>
+          <span>Telegram Notifications</span>
         </button>
 
         <button
           onClick={() => setActiveTab('users')}
-          className={`pb-3 px-4 text-xs font-bold transition border-b-2 flex items-center gap-2 ${
+          className={`pb-3 px-3 text-xs font-bold transition border-b-2 flex items-center gap-2 ${
             activeTab === 'users'
-              ? 'border-cyan-500 text-cyan-400'
-              : 'border-transparent text-slate-400 hover:text-slate-200'
+              ? 'border-violet-600 text-violet-700'
+              : 'border-transparent text-slate-500 hover:text-slate-900'
           }`}
         >
           <Users className="w-4 h-4" />
-          <span>Danh Sách Người Dùng ({usersList.length})</span>
+          <span>User Directory ({usersList.length})</span>
         </button>
 
         <button
           onClick={() => setActiveTab('system')}
-          className={`pb-3 px-4 text-xs font-bold transition border-b-2 flex items-center gap-2 ${
+          className={`pb-3 px-3 text-xs font-bold transition border-b-2 flex items-center gap-2 ${
             activeTab === 'system'
-              ? 'border-emerald-500 text-emerald-400'
-              : 'border-transparent text-slate-400 hover:text-slate-200'
+              ? 'border-violet-600 text-violet-700'
+              : 'border-transparent text-slate-500 hover:text-slate-900'
           }`}
         >
           <Database className="w-4 h-4" />
-          <span>Hệ Thống & Cơ Sở Dữ Liệu</span>
+          <span>System & Database</span>
         </button>
       </div>
 
       {/* Tab 1: SSO CentralAuth Settings */}
       {activeTab === 'sso' && (
-        <div className="glass-card rounded-3xl p-6 sm:p-8 border border-slate-800 space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+        <div className="glass rounded-3xl p-6 border border-slate-200 space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
             <div>
-              <h2 className="text-base font-black text-white flex items-center gap-2">
-                <Globe className="w-4 h-4 text-violet-400" />
-                Cấu Hình Xác Thực Single Sign-On (CentralAuth)
+              <h2 className="text-base font-black text-slate-900 flex items-center gap-2">
+                <Globe className="w-4 h-4 text-violet-600" />
+                Single Sign-On (CentralAuth) Settings
               </h2>
-              <p className="text-xs text-slate-400 mt-1">
-                Tự động chuyển hướng đăng nhập về cổng tập trung CentralAuth cổng 5000 khi được kích hoạt.
+              <p className="text-xs text-slate-500 mt-1">
+                Redirects users to CentralAuth SSO gateway when enabled.
               </p>
             </div>
 
-            {/* Master SSO Toggle */}
-            <div className="flex items-center gap-3 bg-slate-900/90 border border-slate-800 p-2 rounded-2xl">
-              <span className={`text-xs font-bold ${ssoEnabled ? 'text-emerald-400' : 'text-slate-400'}`}>
-                {ssoEnabled ? '🟢 Đang Bật SSO' : '⚪ Đang Tắt SSO (Dùng Đăng Nhập Cục Bộ)'}
+            <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 p-2 rounded-2xl">
+              <span className={`text-xs font-bold ${ssoEnabled ? 'text-emerald-700' : 'text-slate-500'}`}>
+                {ssoEnabled ? '🟢 SSO Enabled' : '⚪ SSO Disabled'}
               </span>
               <button
                 type="button"
                 onClick={() => setSsoEnabled(!ssoEnabled)}
                 className={`w-12 h-6 flex items-center rounded-full p-1 transition duration-300 ${
-                  ssoEnabled ? 'bg-violet-600 justify-end' : 'bg-slate-700 justify-start'
+                  ssoEnabled ? 'bg-violet-600 justify-end' : 'bg-slate-300 justify-start'
                 }`}
               >
                 <div className="bg-white w-4 h-4 rounded-full shadow-md transform transition" />
@@ -350,81 +349,77 @@ export const Admin: React.FC = () => {
 
           {ssoMessage && (
             <div className={`p-3 rounded-2xl text-xs font-bold flex items-center gap-2 ${
-              ssoMessage.type === 'success' ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/30' : 'bg-rose-500/10 text-rose-300 border border-rose-500/30'
+              ssoMessage.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200'
             }`}>
-              {ssoMessage.type === 'success' ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+              {ssoMessage.type === 'success' ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <XCircle className="w-4 h-4 text-rose-600" />}
               <span>{ssoMessage.text}</span>
             </div>
           )}
 
-          <form onSubmit={handleSaveSSO} className="space-y-5">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <form onSubmit={handleSaveSSO} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-300">CentralAuth Server URL</label>
+                <label className="text-xs font-bold text-slate-700">CentralAuth Server URL</label>
                 <input
                   type="text"
                   value={serverUrl}
                   onChange={(e) => setServerUrl(e.target.value)}
                   placeholder="https://inmind.site"
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-violet-500"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-violet-500 focus:bg-white"
                 />
-                <span className="text-[10px] text-slate-500">Địa chỉ máy chủ định danh trung tâm CentralAuth</span>
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-300">Client ID</label>
+                <label className="text-xs font-bold text-slate-700">Client ID</label>
                 <input
                   type="text"
                   value={clientId}
                   onChange={(e) => setClientId(e.target.value)}
                   placeholder="timehack-v1"
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-violet-500 font-mono"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-violet-500 focus:bg-white font-mono"
                 />
-                <span className="text-[10px] text-slate-500">Mã định danh Client đã đăng ký trong CentralAuth</span>
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-300">Client Secret</label>
+                <label className="text-xs font-bold text-slate-700">Client Secret</label>
                 <input
                   type="password"
                   value={clientSecret}
                   onChange={(e) => setClientSecret(e.target.value)}
                   placeholder="timehack_secret_123"
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-violet-500 font-mono"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-violet-500 focus:bg-white font-mono"
                 />
-                <span className="text-[10px] text-slate-500">Khóa bí mật dùng cho OAuth token exchange</span>
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-300">Redirect URI Callback</label>
+                <label className="text-xs font-bold text-slate-700">Redirect URI Callback</label>
                 <input
                   type="text"
                   value={redirectUri}
                   onChange={(e) => setRedirectUri(e.target.value)}
                   placeholder="https://time.inmind.site/auth-center/callback"
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-violet-500 font-mono"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-violet-500 focus:bg-white font-mono"
                 />
-                <span className="text-[10px] text-slate-500">Điểm tiếp nhận mã code sau khi user đăng nhập tại CentralAuth</span>
               </div>
             </div>
 
-            <div className="flex items-center justify-between pt-4 border-t border-slate-800">
+            <div className="flex items-center justify-between pt-4 border-t border-slate-200">
               <button
                 type="button"
                 onClick={handleTestSSOConnection}
-                className="px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-700 hover:bg-slate-800 text-xs font-bold text-slate-200 flex items-center gap-1.5 transition active:scale-95"
+                className="px-4 py-2.5 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-xs font-bold text-slate-700 flex items-center gap-1.5 transition active:scale-95 shadow-xs"
               >
-                <Sparkles className="w-3.5 h-3.5 text-violet-400" />
-                <span>Kiểm Tra Kết Nối CentralAuth</span>
+                <Sparkles className="w-3.5 h-3.5 text-violet-600" />
+                <span>Test SSO Connection</span>
               </button>
 
               <button
                 type="submit"
                 disabled={ssoSaving}
-                className="px-6 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold shadow-lg shadow-violet-600/30 flex items-center gap-1.5 transition active:scale-95 disabled:opacity-50"
+                className="px-6 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold shadow-md shadow-violet-600/25 flex items-center gap-1.5 transition active:scale-95 disabled:opacity-50"
               >
                 <Save className="w-3.5 h-3.5" />
-                <span>{ssoSaving ? 'Đang Lưu...' : 'Lưu Cấu Hình SSO'}</span>
+                <span>{ssoSaving ? 'Saving...' : 'Save SSO Settings'}</span>
               </button>
             </div>
           </form>
@@ -433,56 +428,55 @@ export const Admin: React.FC = () => {
 
       {/* Tab 2: Telegram Notification Hub */}
       {activeTab === 'telegram' && (
-        <div className="glass-card rounded-3xl p-6 sm:p-8 border border-slate-800 space-y-6">
-          <div className="pb-4 border-b border-slate-800">
-            <h2 className="text-base font-black text-white flex items-center gap-2">
-              <Bell className="w-4 h-4 text-amber-400" />
-              Cấu Hình & Thử Nghiệm Telegram Notification Hub
+        <div className="glass rounded-3xl p-6 border border-slate-200 space-y-6">
+          <div className="pb-4 border-b border-slate-200">
+            <h2 className="text-base font-black text-slate-900 flex items-center gap-2">
+              <Bell className="w-4 h-4 text-amber-500" />
+              Telegram Notification Dispatcher
             </h2>
-            <p className="text-xs text-slate-400 mt-1">
-              Gửi thông báo nhắc việc và tổng kết năng suất hàng ngày qua CentralAuth Queue hoặc Telegram Bot riêng.
+            <p className="text-xs text-slate-500 mt-1">
+              Test notification delivery via Telegram Bot.
             </p>
           </div>
 
           {telegramResult && (
             <div className={`p-3 rounded-2xl text-xs font-bold flex items-center gap-2 ${
-              telegramResult.type === 'success' ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/30' : 'bg-rose-500/10 text-rose-300 border border-rose-500/30'
+              telegramResult.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200'
             }`}>
-              {telegramResult.type === 'success' ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+              {telegramResult.type === 'success' ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <XCircle className="w-4 h-4 text-rose-600" />}
               <span>{telegramResult.text}</span>
             </div>
           )}
 
-          <form onSubmit={handleSendTelegramTest} className="space-y-4 max-w-xl">
+          <form onSubmit={handleSendTelegramTest} className="space-y-3.5 max-w-xl">
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-300">Telegram Chat ID (Người Nhận)</label>
+              <label className="text-xs font-bold text-slate-700">Recipient Telegram Chat ID</label>
               <input
                 type="text"
                 value={telegramChatId}
                 onChange={(e) => setTelegramChatId(e.target.value)}
-                placeholder="Ví dụ: 123456789"
-                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
+                placeholder="e.g. 123456789"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-violet-500 focus:bg-white font-mono"
               />
-              <span className="text-[10px] text-slate-500">ID tài khoản hoặc nhóm Telegram cần gửi tin nhắn kiểm tra</span>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-300">Nội Dung Thông Báo (Hỗ Trợ HTML)</label>
+              <label className="text-xs font-bold text-slate-700">Notification Body (HTML)</label>
               <textarea
                 rows={3}
                 value={telegramMessage}
                 onChange={(e) => setTelegramMessage(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 font-mono"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-violet-500 focus:bg-white font-mono"
               />
             </div>
 
             <button
               type="submit"
               disabled={telegramSending}
-              className="px-6 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold shadow-lg shadow-amber-600/30 flex items-center gap-1.5 transition active:scale-95 disabled:opacity-50"
+              className="px-6 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold shadow-md shadow-violet-600/25 flex items-center gap-1.5 transition active:scale-95 disabled:opacity-50"
             >
               <Send className="w-3.5 h-3.5" />
-              <span>{telegramSending ? 'Đang Gửi...' : 'Gửi Thử Nghiệm Ngay'}</span>
+              <span>{telegramSending ? 'Sending...' : 'Send Test Notification'}</span>
             </button>
           </form>
         </div>
@@ -490,64 +484,64 @@ export const Admin: React.FC = () => {
 
       {/* Tab 3: Users Management */}
       {activeTab === 'users' && (
-        <div className="glass-card rounded-3xl p-6 border border-slate-800 space-y-4">
-          <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+        <div className="glass rounded-3xl p-6 border border-slate-200 space-y-4">
+          <div className="flex items-center justify-between pb-4 border-b border-slate-200">
             <div>
-              <h2 className="text-base font-black text-white flex items-center gap-2">
-                <Users className="w-4 h-4 text-cyan-400" />
-                Danh Sách Người Dùng TimeHack
+              <h2 className="text-base font-black text-slate-900 flex items-center gap-2">
+                <Users className="w-4 h-4 text-sky-600" />
+                TimeHack User Directory
               </h2>
-              <p className="text-xs text-slate-400">Danh sách các tài khoản đã đăng nhập cục bộ hoặc qua SSO.</p>
+              <p className="text-xs text-slate-500">List of local and CentralAuth accounts.</p>
             </div>
-            <span className="text-xs font-bold text-slate-400 bg-slate-900 px-3 py-1 rounded-xl border border-slate-800">
-              Tổng: {usersList.length} tài khoản
+            <span className="text-xs font-bold text-slate-600 bg-slate-100 px-3 py-1 rounded-xl">
+              Total: {usersList.length} users
             </span>
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead>
-                <tr className="border-b border-slate-800 text-slate-400 font-bold">
+                <tr className="border-b border-slate-200 text-slate-500 font-bold">
                   <th className="pb-3 px-3">ID</th>
-                  <th className="pb-3 px-3">Tài Khoản</th>
+                  <th className="pb-3 px-3">Account</th>
                   <th className="pb-3 px-3">Email</th>
-                  <th className="pb-3 px-3">Vai Trò</th>
-                  <th className="pb-3 px-3">Nhiệm Vụ</th>
-                  <th className="pb-3 px-3">Thói Quen</th>
-                  <th className="pb-3 px-3 text-right">Thao Tác</th>
+                  <th className="pb-3 px-3">Role</th>
+                  <th className="pb-3 px-3">Tasks</th>
+                  <th className="pb-3 px-3">Habits</th>
+                  <th className="pb-3 px-3 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60">
+              <tbody className="divide-y divide-slate-100">
                 {usersList.map((u) => (
-                  <tr key={u.id} className="hover:bg-slate-900/40 transition">
+                  <tr key={u.id} className="hover:bg-slate-50 transition">
                     <td className="py-3 px-3 font-mono text-slate-400">{u.id}</td>
-                    <td className="py-3 px-3 font-bold text-slate-200">
+                    <td className="py-3 px-3 font-bold text-slate-900">
                       <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-full bg-violet-600/20 text-violet-400 flex items-center justify-center text-[10px] font-bold">
+                        <div className="w-6 h-6 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center text-[10px] font-bold">
                           {u.username.charAt(0).toUpperCase()}
                         </div>
                         <span>{u.username}</span>
                       </div>
                     </td>
-                    <td className="py-3 px-3 text-slate-400">{u.email}</td>
+                    <td className="py-3 px-3 text-slate-500">{u.email}</td>
                     <td className="py-3 px-3">
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                         u.role === 'admin'
-                          ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                          : 'bg-slate-800 text-slate-300'
+                          ? 'bg-violet-100 text-violet-700 border border-violet-200'
+                          : 'bg-slate-100 text-slate-600'
                       }`}>
                         {u.role.toUpperCase()}
                       </span>
                     </td>
-                    <td className="py-3 px-3 text-slate-300 font-semibold">{u.tasks_count}</td>
-                    <td className="py-3 px-3 text-slate-300 font-semibold">{u.habits_count}</td>
+                    <td className="py-3 px-3 text-slate-700 font-semibold">{u.tasks_count}</td>
+                    <td className="py-3 px-3 text-slate-700 font-semibold">{u.habits_count}</td>
                     <td className="py-3 px-3 text-right">
                       {u.id !== user?.id && (
                         <button
                           onClick={() => handleToggleUserRole(u)}
-                          className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition"
+                          className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition"
                         >
-                          {u.role === 'admin' ? 'Hạ quyền User' : 'Nâng lên Admin'}
+                          {u.role === 'admin' ? 'Demote to User' : 'Promote to Admin'}
                         </button>
                       )}
                     </td>
@@ -561,31 +555,31 @@ export const Admin: React.FC = () => {
 
       {/* Tab 4: System & Database Details */}
       {activeTab === 'system' && (
-        <div className="glass-card rounded-3xl p-6 sm:p-8 border border-slate-800 space-y-6">
-          <div className="pb-4 border-b border-slate-800">
-            <h2 className="text-base font-black text-white flex items-center gap-2">
-              <Database className="w-4 h-4 text-emerald-400" />
-              Thông Tin Cơ Sở Dữ Liệu & Hạ Tầng
+        <div className="glass rounded-3xl p-6 border border-slate-200 space-y-6">
+          <div className="pb-4 border-b border-slate-200">
+            <h2 className="text-base font-black text-slate-900 flex items-center gap-2">
+              <Database className="w-4 h-4 text-emerald-600" />
+              Database & Infrastructure Details
             </h2>
-            <p className="text-xs text-slate-400 mt-1">
-              Trạng thái tệp cơ sở dữ liệu SQLite Async WAL Mode và kiến trúc Modular Monolith.
+            <p className="text-xs text-slate-500 mt-1">
+              SQLite Async WAL Mode & Modular Monolith architecture health.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-            <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 space-y-2">
-              <span className="font-bold text-slate-400">Đường Dẫn Tệp Cơ Sở Dữ Liệu:</span>
-              <div className="font-mono text-emerald-400 bg-slate-950 p-2.5 rounded-xl border border-slate-800 break-all select-all">
+            <div className="p-4 rounded-2xl bg-white border border-slate-200 space-y-2">
+              <span className="font-bold text-slate-500">Database File Path:</span>
+              <div className="font-mono text-violet-700 bg-slate-50 p-2.5 rounded-xl border border-slate-200 break-all select-all">
                 {overview?.stats.db_path || 'Storage/database/TimeHack.db'}
               </div>
             </div>
 
-            <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 space-y-2">
-              <span className="font-bold text-slate-400">Dung Lượng Tệp Database:</span>
-              <div className="font-mono text-cyan-300 text-lg font-bold">
+            <div className="p-4 rounded-2xl bg-white border border-slate-200 space-y-2">
+              <span className="font-bold text-slate-500">Database Storage Size:</span>
+              <div className="font-mono text-slate-900 text-lg font-bold">
                 {overview?.stats.db_size_kb || 0} KB
               </div>
-              <div className="text-[10px] text-slate-500">Chế độ ghi: SQLite WAL Mode (Write-Ahead Logging)</div>
+              <div className="text-[10px] text-slate-400 font-medium">Write Mode: SQLite WAL Mode (Write-Ahead Logging)</div>
             </div>
           </div>
         </div>

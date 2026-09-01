@@ -23,7 +23,7 @@ export const HabitMatrix: React.FC = () => {
     e.preventDefault()
     if (!title.trim()) return
     sounds.playTap()
-    await createHabit({ title, color, icon: '⚡', target_count: 1, unit: 'lần', frequency_type: 'daily' })
+    await createHabit({ title, color, icon: '⚡', target_count: 1, unit: 'times', frequency_type: 'daily' })
     sounds.playSuccess()
     setTitle('')
     setSheetOpen(false)
@@ -39,7 +39,7 @@ export const HabitMatrix: React.FC = () => {
   const MiniHeatmap = ({ habitId }: { habitId: number }) => {
     const data = heatmapData[habitId] || []
     const last7: { completed: boolean; label: string }[] = []
-    const daysOfWeek = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7']
+    const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
     for (let i = 6; i >= 0; i--) {
       const d = new Date()
@@ -73,17 +73,17 @@ export const HabitMatrix: React.FC = () => {
 
   return (
     <div className="space-y-4 pb-4">
-      {/* ── Ergonomic Large Header (1-Handed Friendly) ── */}
+      {/* ── Ergonomic Large Header ─────── */}
       <div className="pt-1">
         <div className="flex items-center justify-between">
           <div>
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Xây dựng thói quen</span>
-            <h1 className="text-2xl font-black text-slate-900 mt-0.5">Thói Quen</h1>
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Daily Habit Builder</span>
+            <h1 className="text-2xl font-black text-slate-900 mt-0.5">Habits</h1>
           </div>
           {habits.length > 0 && (
             <div className="text-right">
               <span className="text-xs font-black font-mono text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-200">
-                {completedTodayCount}/{habits.length} hoàn tất
+                {completedTodayCount}/{habits.length} done
               </span>
             </div>
           )}
@@ -96,18 +96,17 @@ export const HabitMatrix: React.FC = () => {
           <div className="w-16 h-16 rounded-3xl bg-amber-50 border border-amber-200 text-amber-500 flex items-center justify-center shadow-xs mb-3">
             <Zap className="w-8 h-8 fill-amber-400" />
           </div>
-          <h3 className="text-base font-black text-slate-900">Bắt đầu thói quen mới</h3>
+          <h3 className="text-base font-black text-slate-900">Start a New Habit</h3>
           <p className="text-xs text-slate-500 mt-1 max-w-[260px] leading-relaxed">
-            Duy trì những hành động nhỏ hàng ngày để tạo nên sự bứt phá dài hạn và tích lũy streak 🔥.
+            Small daily actions compound into extraordinary long-term results. Build your streak 🔥!
           </p>
 
-          {/* Large Thumb-Zone CTA Button */}
           <button
             onClick={() => { sounds.playTap(); setSheetOpen(true) }}
             className="mt-6 px-6 py-3.5 rounded-2xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold shadow-lg shadow-violet-600/25 active:scale-95 transition flex items-center gap-2"
           >
             <Plus className="w-4 h-4 stroke-[3]" />
-            <span>Tạo Thói Quen Đầu Tiên</span>
+            <span>Create First Habit</span>
           </button>
         </div>
       ) : (
@@ -124,7 +123,7 @@ export const HabitMatrix: React.FC = () => {
                 }`}
               >
                 <div className="flex items-center gap-3.5">
-                  {/* Large 48px Check-in Target (Thumb friendly) */}
+                  {/* Large 48px Check-in Target */}
                   <button
                     onClick={() => handleCheckin(h)}
                     className={`w-13 h-13 rounded-2xl flex items-center justify-center shrink-0 transition active:scale-90 ${
@@ -132,7 +131,7 @@ export const HabitMatrix: React.FC = () => {
                         ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/25'
                         : 'border-2 border-dashed border-slate-300 hover:border-violet-500 bg-white'
                     }`}
-                    aria-label={done ? 'Đã hoàn thành' : 'Đánh dấu hoàn thành'}
+                    aria-label={done ? 'Habit completed' : 'Mark habit completed'}
                   >
                     {done ? (
                       <Check className="w-7 h-7 text-white stroke-[3] anim-check" />
@@ -160,11 +159,11 @@ export const HabitMatrix: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Delete option */}
+                  {/* Delete */}
                   <button
                     onClick={() => { sounds.playTap(); deleteHabit(h.id) }}
                     className="p-2 text-slate-300 hover:text-rose-600 transition shrink-0 active:scale-90"
-                    title="Xoá thói quen"
+                    title="Delete habit"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -180,7 +179,7 @@ export const HabitMatrix: React.FC = () => {
               className="w-full py-3 rounded-2xl bg-white border border-dashed border-slate-300 hover:border-violet-400 text-slate-600 hover:text-violet-700 text-xs font-bold transition active:scale-[0.98] flex items-center justify-center gap-1.5 shadow-xs"
             >
               <Plus className="w-4 h-4" />
-              <span>Thêm thói quen mới</span>
+              <span>Add New Habit</span>
             </button>
           </div>
         </div>
@@ -194,8 +193,8 @@ export const HabitMatrix: React.FC = () => {
             <div className="sheet-handle" />
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h2 className="text-sm font-black text-slate-900">Tạo Thói Quen Mới</h2>
-                <p className="text-[11px] text-slate-500 font-medium">Hành động lặp lại hàng ngày để duy trì streak</p>
+                <h2 className="text-sm font-black text-slate-900">Create New Habit</h2>
+                <p className="text-[11px] text-slate-500 font-medium">Daily recurring action to maintain streak</p>
               </div>
               <button onClick={() => setSheetOpen(false)} className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700">
                 <X className="w-5 h-5" />
@@ -204,13 +203,13 @@ export const HabitMatrix: React.FC = () => {
             <form onSubmit={handleCreate} className="space-y-3.5">
               <div>
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  Tên thói quen
+                  Habit Title
                 </label>
                 <input
                   type="text"
                   value={title}
                   onChange={e => setTitle(e.target.value)}
-                  placeholder="Ví dụ: Đọc sách 20p, Uống 2L nước, Chạy bộ 15p..."
+                  placeholder="e.g. Read 20 mins, Drink 2L water, Morning run 15 mins..."
                   autoFocus
                   required
                   className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
@@ -219,7 +218,7 @@ export const HabitMatrix: React.FC = () => {
 
               <div>
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
-                  Màu sắc nhận diện
+                  Color Tag
                 </label>
                 <div className="flex gap-2">
                   {COLORS.map(c => (
@@ -240,7 +239,7 @@ export const HabitMatrix: React.FC = () => {
                 type="submit"
                 className="w-full py-3.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-xs active:scale-[0.98] transition shadow-md shadow-violet-600/20 mt-2"
               >
-                Lưu Thói Quen
+                Save Habit
               </button>
             </form>
           </div>

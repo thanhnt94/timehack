@@ -90,7 +90,7 @@ export const Sidebar: React.FC<Props> = ({ user, onLogout, onOpenSettings }) => 
           <button
             onClick={() => { sounds.playTap(); onOpenSettings?.() }}
             className="flex items-center gap-2 min-w-0 text-left hover:opacity-80 transition"
-            title="Cài đặt người dùng"
+            title="User Settings"
           >
             <div className="relative">
               <div className="w-7 h-7 rounded-full bg-violet-600 flex items-center justify-center text-[10px] font-black text-white shrink-0">
@@ -106,7 +106,7 @@ export const Sidebar: React.FC<Props> = ({ user, onLogout, onOpenSettings }) => 
           <button
             onClick={() => { sounds.playTap(); onLogout() }}
             className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition active:scale-90"
-            title="Đăng xuất"
+            title="Log Out"
           >
             <LogOut className="w-3.5 h-3.5" />
           </button>

@@ -95,9 +95,9 @@ export const PomodoroFocus: React.FC<Props> = ({ onClose }) => {
   }
 
   const ambientButtons = [
-    { id: 'rain', label: 'Mưa', icon: CloudRain, color: 'text-sky-600' },
-    { id: 'forest', label: 'Rừng', icon: Trees, color: 'text-emerald-600' },
-    { id: 'waves', label: 'Biển', icon: Waves, color: 'text-blue-600' },
+    { id: 'rain', label: 'Rain', icon: CloudRain, color: 'text-sky-600' },
+    { id: 'forest', label: 'Forest', icon: Trees, color: 'text-emerald-600' },
+    { id: 'waves', label: 'Waves', icon: Waves, color: 'text-blue-600' },
     { id: 'cafe', label: 'Cafe', icon: Coffee, color: 'text-amber-600' },
   ] as const
 
@@ -126,7 +126,7 @@ export const PomodoroFocus: React.FC<Props> = ({ onClose }) => {
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              Bấm giờ
+              Stopwatch
             </button>
           </div>
 
@@ -136,7 +136,7 @@ export const PomodoroFocus: React.FC<Props> = ({ onClose }) => {
                 ? 'bg-violet-50 border-violet-200 text-violet-700'
                 : 'bg-emerald-50 border-emerald-200 text-emerald-700'
             }`}>
-              {currentPhase === 'work' ? '🔥 Làm việc' : currentPhase === 'short_break' ? '☕ Nghỉ ngắn' : '🌴 Nghỉ dài'}
+              {currentPhase === 'work' ? '🔥 Focus' : currentPhase === 'short_break' ? '☕ Short Break' : '🌴 Long Break'}
             </span>
           )}
         </div>
@@ -145,7 +145,7 @@ export const PomodoroFocus: React.FC<Props> = ({ onClose }) => {
         <button
           onClick={() => { sounds.playTap(); onClose() }}
           className="p-2.5 rounded-2xl bg-white border border-slate-200 text-slate-500 hover:text-slate-900 hover:bg-slate-50 active:scale-90 transition shadow-sm"
-          title="Thu nhỏ"
+          title="Minimize"
         >
           <X className="w-5 h-5" />
         </button>
@@ -157,9 +157,9 @@ export const PomodoroFocus: React.FC<Props> = ({ onClose }) => {
         <div className="text-center max-w-xs mb-6">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-slate-200 text-[11px] font-bold text-slate-600 shadow-xs mb-2">
             <Sparkles className="w-3.5 h-3.5 text-violet-600" />
-            <span>Mục tiêu tập trung</span>
+            <span>Focus Target</span>
           </div>
-          <h2 className="text-xl font-black text-slate-900 truncate">{activeTitle || 'Phiên tập trung'}</h2>
+          <h2 className="text-xl font-black text-slate-900 truncate">{activeTitle || 'Deep Work Session'}</h2>
         </div>
 
         {/* SVG Progress Circle */}
@@ -203,7 +203,7 @@ export const PomodoroFocus: React.FC<Props> = ({ onClose }) => {
             {mode === 'pomodoro' && (
               <span className="text-xs text-slate-500 font-bold mt-1.5 flex items-center gap-1">
                 <Flame className="w-3.5 h-3.5 text-amber-500" />
-                <span>{completedPomodoros} Pomodoro hoàn thành</span>
+                <span>{completedPomodoros} Pomodoro completed</span>
               </span>
             )}
           </div>
@@ -216,7 +216,7 @@ export const PomodoroFocus: React.FC<Props> = ({ onClose }) => {
             <button
               onClick={handleStop}
               className="w-12 h-12 rounded-2xl bg-white border border-slate-200 text-slate-600 hover:text-rose-600 hover:border-rose-300 flex items-center justify-center active:scale-90 transition shadow-sm"
-              title="Kết thúc & Lưu"
+              title="Finish & Save"
             >
               <Square className="w-5 h-5 fill-current" />
             </button>
@@ -243,13 +243,13 @@ export const PomodoroFocus: React.FC<Props> = ({ onClose }) => {
       {/* ── Bottom: Ambient Soundscapes Bar ──── */}
       <div className="space-y-2">
         <div className="flex items-center justify-between px-1">
-          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Âm thanh nền (Ambient)</span>
+          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Ambient Soundscape</span>
           {activeAmbient && (
             <button
               onClick={handleStopAmbient}
               className="text-[11px] text-rose-600 font-bold hover:underline flex items-center gap-1"
             >
-              <VolumeX className="w-3.5 h-3.5" /> Tắt âm
+              <VolumeX className="w-3.5 h-3.5" /> Mute
             </button>
           )}
         </div>

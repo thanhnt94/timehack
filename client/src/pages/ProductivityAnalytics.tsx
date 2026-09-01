@@ -34,7 +34,7 @@ export const ProductivityAnalytics: React.FC = () => {
       const d = new Date()
       d.setDate(d.getDate() - i)
       const dateStr = d.toISOString().split('T')[0]
-      const dayLabel = d.toLocaleDateString('vi-VN', { weekday: 'short' }).replace('Th ', 'T')
+      const dayLabel = d.toLocaleDateString('en-US', { weekday: 'short' })
       const count = tasks.filter(t => {
         if (!t.completed_at) return false
         return t.completed_at.startsWith(dateStr)
@@ -47,8 +47,12 @@ export const ProductivityAnalytics: React.FC = () => {
   const maxBar = Math.max(...barData.map(d => d.count), 1)
 
   return (
-    <div className="space-y-5">
-      <h1 className="text-2xl font-black text-slate-900">Thống Kê</h1>
+    <div className="space-y-4 pb-4">
+      {/* ── Ergonomic Large Header ─────── */}
+      <div className="pt-1">
+        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Performance & Reports</span>
+        <h1 className="text-2xl font-black text-slate-900 mt-0.5">Analytics</h1>
+      </div>
 
       {/* Range selector */}
       <div className="flex gap-2">
@@ -62,7 +66,7 @@ export const ProductivityAnalytics: React.FC = () => {
                 : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
             }`}
           >
-            {r} ngày
+            {r} Days
           </button>
         ))}
       </div>
@@ -72,17 +76,17 @@ export const ProductivityAnalytics: React.FC = () => {
         <div className="glass rounded-2xl p-3.5 text-center border border-slate-200">
           <CheckCircle2 className="w-4 h-4 text-emerald-500 mx-auto mb-1" />
           <div className="text-xl font-black text-slate-900 font-mono">{doneTasks}</div>
-          <div className="text-[11px] text-slate-500 font-medium">Hoàn thành</div>
+          <div className="text-[11px] text-slate-500 font-medium">Completed</div>
         </div>
         <div className="glass rounded-2xl p-3.5 text-center border border-slate-200">
           <Clock className="w-4 h-4 text-violet-600 mx-auto mb-1" />
           <div className="text-xl font-black text-slate-900 font-mono">{totalFocusMin}<span className="text-xs text-slate-400">m</span></div>
-          <div className="text-[11px] text-slate-500 font-medium">Tập trung</div>
+          <div className="text-[11px] text-slate-500 font-medium">Focus Time</div>
         </div>
         <div className="glass rounded-2xl p-3.5 text-center border border-slate-200">
           <Flame className="w-4 h-4 text-amber-500 mx-auto mb-1" />
           <div className="text-xl font-black text-slate-900 font-mono">{longestStreak}</div>
-          <div className="text-[11px] text-slate-500 font-medium">Streak dài</div>
+          <div className="text-[11px] text-slate-500 font-medium">Best Streak</div>
         </div>
       </div>
 
@@ -98,9 +102,8 @@ export const ProductivityAnalytics: React.FC = () => {
             <circle
               cx={ringSize / 2} cy={ringSize / 2} r={radius}
               stroke="url(#flatPurpleGrad)" strokeWidth={strokeW} fill="none"
-              strokeLinecap="round" strokeDasharray={circumference}
-              strokeDashoffset={offset}
-              className="transition-all duration-700"
+              strokeDasharray={circumference} strokeDashoffset={offset}
+              strokeLinecap="round" className="transition-all duration-700"
             />
             <defs>
               <linearGradient id="flatPurpleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -109,26 +112,29 @@ export const ProductivityAnalytics: React.FC = () => {
               </linearGradient>
             </defs>
           </svg>
-          <div className="mt-3 text-center">
+          <div className="text-center mt-3">
             <div className="text-2xl font-black text-slate-900 font-mono">{completionPct}%</div>
-            <div className="text-[11px] text-slate-500 font-medium">Tỉ lệ hoàn thành task</div>
+            <div className="text-xs text-slate-500 font-semibold">Task Completion Rate</div>
           </div>
         </div>
 
-        {/* Bar chart */}
-        <div className="glass rounded-2xl p-5 border border-slate-200">
-          <div className="flex items-center gap-1.5 mb-4">
-            <TrendingUp className="w-4 h-4 text-violet-600" />
-            <span className="text-xs font-bold text-slate-800">Task hoàn thành mỗi ngày</span>
+        {/* Bar Chart */}
+        <div className="glass rounded-2xl p-4 border border-slate-200 flex flex-col justify-between">
+          <div className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+            Completed Tasks by Day
           </div>
-          <div className="flex items-end gap-1.5 h-28 pt-2">
-            {barData.slice(-7).map((d, i) => (
-              <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
+          <div className="flex items-end justify-between gap-1.5 h-32 pt-2">
+            {barData.map((d, i) => (
+              <div key={i} className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end">
                 <div
-                  className="w-full rounded-t-md bg-violet-600 hover:bg-violet-700 transition-all duration-300"
-                  style={{ height: `${Math.max((d.count / maxBar) * 85, 6)}%` }}
+                  style={{ height: `${(d.count / maxBar) * 100}%` }}
+                  className={`w-full rounded-t-lg transition-all ${
+                    d.count > 0 ? 'bg-violet-600' : 'bg-slate-100'
+                  }`}
                 />
-                <span className="text-[9px] text-slate-500 font-mono font-medium">{d.label}</span>
+                <span className="text-[9px] font-bold text-slate-400 font-mono truncate max-w-full">
+                  {d.label}
+                </span>
               </div>
             ))}
           </div>

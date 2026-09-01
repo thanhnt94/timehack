@@ -18,14 +18,14 @@ export const LandingPage: React.FC = () => {
     setLoading(true)
     setError('')
     const res = await login(username)
-    if (!res.success) setError(res.error || 'Đăng nhập thất bại')
+    if (!res.success) setError(res.error || 'Login failed')
     setLoading(false)
   }
 
   const handleBackdoor = async () => {
     setLoading(true)
     const res = await backdoorLogin('admin')
-    if (!res.success) setError(res.error || 'Lỗi')
+    if (!res.success) setError(res.error || 'Error')
     setLoading(false)
   }
 
@@ -41,8 +41,8 @@ export const LandingPage: React.FC = () => {
           TIME<span className="text-violet-600">HACK</span>
         </h1>
         <p className="text-sm text-slate-500 mt-2 text-center max-w-xs font-medium">
-          Quản lý thời gian & năng suất cá nhân.<br />
-          Tập trung sâu. Xây thói quen. Đạt mục tiêu.
+          Personal time management & focus hub.<br />
+          Deep focus. Build habits. Master your time.
         </p>
       </div>
 
@@ -54,16 +54,16 @@ export const LandingPage: React.FC = () => {
           className="flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-sm shadow-md shadow-violet-600/25 active:scale-[0.98] transition"
         >
           <ArrowRight className="w-4 h-4 stroke-[2.5]" />
-          <span>Đăng nhập với CentralAuth</span>
+          <span>Sign In with CentralAuth</span>
         </a>
 
-        {/* Secondary: Internal login */}
+        {/* Secondary: Direct login */}
         <button
           onClick={() => { sounds.playTap(); setSheetOpen(true) }}
           className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl border border-slate-200 bg-white text-slate-700 font-semibold text-xs active:scale-[0.98] transition hover:bg-slate-50 shadow-sm"
         >
           <KeyRound className="w-3.5 h-3.5 text-slate-500" />
-          <span>Đăng nhập nội bộ</span>
+          <span>Direct Login</span>
         </button>
       </div>
 
@@ -71,11 +71,11 @@ export const LandingPage: React.FC = () => {
       {sheetOpen && (
         <>
           <div className="sheet-backdrop" onClick={() => setSheetOpen(false)} />
-          <div className="sheet-content">
+          <div className="sheet-content max-w-lg mx-auto">
             <div className="sheet-handle" />
 
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-black text-slate-900">Đăng Nhập Nội Bộ</h2>
+              <h2 className="text-sm font-black text-slate-900">Direct Sign In</h2>
               <button onClick={() => setSheetOpen(false)} className="p-1 text-slate-400 hover:text-slate-600">
                 <X className="w-5 h-5" />
               </button>
@@ -86,7 +86,7 @@ export const LandingPage: React.FC = () => {
                 type="text"
                 value={username}
                 onChange={e => setUsername(e.target.value)}
-                placeholder="Tên đăng nhập"
+                placeholder="Username"
                 autoFocus
                 className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-900 placeholder-slate-400 outline-none focus:border-violet-500 focus:bg-white transition"
               />
@@ -98,21 +98,11 @@ export const LandingPage: React.FC = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-sm active:scale-[0.98] transition disabled:opacity-50 shadow-md shadow-violet-600/20"
+                className="w-full py-3.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-sm active:scale-[0.98] transition shadow-md shadow-violet-600/20 disabled:opacity-50"
               >
-                {loading ? 'Đang xử lý...' : 'Đăng Nhập'}
+                {loading ? 'Signing in...' : 'Sign In'}
               </button>
             </form>
-
-            <div className="mt-4 pt-3 border-t border-slate-100">
-              <button
-                onClick={handleBackdoor}
-                disabled={loading}
-                className="w-full py-2.5 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 text-xs font-bold active:scale-[0.98] transition disabled:opacity-50"
-              >
-                🔑 Đăng nhập Admin (Backdoor)
-              </button>
-            </div>
           </div>
         </>
       )}

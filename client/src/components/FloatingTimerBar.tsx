@@ -61,11 +61,11 @@ export const FloatingTimerBar: React.FC<Props> = ({ onTap }) => {
           {/* Title & Phase */}
           <div className="min-w-0">
             <div className="text-xs font-bold text-slate-900 truncate max-w-[150px] sm:max-w-[240px]">
-              {activeTitle || 'Phiên tập trung'}
+              {activeTitle || 'Focus Session'}
             </div>
             <div className="text-[10px] text-slate-500 font-semibold flex items-center gap-1">
               <span className={currentPhase === 'work' ? 'text-violet-600' : 'text-emerald-600'}>
-                {mode === 'pomodoro' ? (currentPhase === 'work' ? 'Làm việc' : 'Nghỉ ngơi') : 'Bấm giờ'}
+                {mode === 'pomodoro' ? (currentPhase === 'work' ? 'Focusing' : 'On Break') : 'Stopwatch'}
               </span>
             </div>
           </div>

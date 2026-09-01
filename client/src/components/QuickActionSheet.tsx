@@ -65,6 +65,7 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
   const [taskCategoryId, setTaskCategoryId] = useState<number | null>(null)
 
   const [habitTitle, setHabitTitle] = useState('')
+  const [habitCategoryId, setHabitCategoryId] = useState<number | null>(null)
   const [habitFreqPeriod, setHabitFreqPeriod] = useState<'daily' | 'weekly_target' | 'monthly_target'>('daily')
   const [habitTargetCount, setHabitTargetCount] = useState(1)
   const [habitUnit, setHabitUnit] = useState('times')
@@ -128,6 +129,7 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
     sounds.playTap()
     await createHabit({
       title: habitTitle.trim(),
+      category_id: habitCategoryId || undefined,
       color: habitColor,
       icon: '⚡',
       target_count: Math.max(1, Number(habitTargetCount) || 1),
@@ -136,6 +138,7 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
     })
     sounds.playSuccess()
     setHabitTitle('')
+    setHabitCategoryId(null)
     handleClose()
   }
 
@@ -490,6 +493,28 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
                   ))}
                 </div>
               </div>
+            </div>
+
+            {/* Category Selector */}
+            <div>
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                Category (Optional)
+              </label>
+              <select
+                value={habitCategoryId || ''}
+                onChange={e => setHabitCategoryId(e.target.value ? Number(e.target.value) : null)}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 outline-none focus:border-violet-500 focus:bg-white transition"
+              >
+                <option value="">-- No category --</option>
+                {categories.map(c => (
+                  <React.Fragment key={c.id}>
+                    <option value={c.id}>📁 {c.name}</option>
+                    {c.subcategories && c.subcategories.map(sub => (
+                      <option key={sub.id} value={sub.id}>&nbsp;&nbsp;&nbsp;&nbsp;↳ {sub.name}</option>
+                    ))}
+                  </React.Fragment>
+                ))}
+              </select>
             </div>
 
             {/* Color */}

@@ -7,6 +7,7 @@ import {
   Shield, Award, Trophy, CalendarDays, CalendarRange, Split
 } from 'lucide-react'
 import { useHabitStore, type Habit } from '../store/useHabitStore'
+import { useTaskStore } from '../store/useTaskStore'
 import { useTimerStore } from '../store/useTimerStore'
 import { TaskPagination } from '../components/TaskPagination'
 import { sounds } from '../utils/soundEffects'
@@ -38,6 +39,7 @@ export const HabitMatrix: React.FC = () => {
     freezeDay
   } = useHabitStore()
 
+  const { categories, fetchCategories } = useTaskStore()
   const { startTimer } = useTimerStore()
   const navigate = useNavigate()
 
@@ -50,6 +52,7 @@ export const HabitMatrix: React.FC = () => {
   // Create Habit Sheet State (Default: 1 time / day)
   const [createSheetOpen, setCreateSheetOpen] = useState(false)
   const [newTitle, setNewTitle] = useState('')
+  const [newCategoryId, setNewCategoryId] = useState<number | null>(null)
   const [newFreqPeriod, setNewFreqPeriod] = useState<'daily' | 'weekly_target' | 'monthly_target'>('daily')
   const [newTargetCount, setNewTargetCount] = useState(1)
   const [newUnit, setNewUnit] = useState('times')
@@ -71,6 +74,7 @@ export const HabitMatrix: React.FC = () => {
 
   useEffect(() => {
     fetchHabits(true)
+    fetchCategories()
   }, [])
 
   // Reset page when filter or search changes
@@ -127,6 +131,7 @@ export const HabitMatrix: React.FC = () => {
     return filteredHabits.slice(start, start + PAGE_SIZE)
   }, [filteredHabits, currentPage])
 
+  // Handlers
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newTitle.trim()) return
@@ -134,6 +139,7 @@ export const HabitMatrix: React.FC = () => {
 
     const payload: Partial<Habit> = {
       title: newTitle.trim(),
+      category_id: newCategoryId || undefined,
       frequency_type: newFreqPeriod,
       time_of_day: newTimeOfDay,
       target_count: Math.max(1, Number(newTargetCount) || 1),
@@ -153,6 +159,7 @@ export const HabitMatrix: React.FC = () => {
     const newId = await createHabit(payload)
     sounds.playSuccess()
     setNewTitle('')
+    setNewCategoryId(null)
     setNewFreqPeriod('daily')
     setNewTargetCount(1)
     setNewUnit('times')
@@ -388,12 +395,20 @@ export const HabitMatrix: React.FC = () => {
                       <div className="flex-1 min-w-0">
                         {/* Top Line: Title + Routine Badge + Status Badges */}
                         <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-1.5 min-w-0">
+                          <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
                             <h4 className={`text-sm font-black truncate transition ${
                               isPeriodDone ? 'text-emerald-950 line-through opacity-75' : 'text-slate-900 group-hover:text-violet-700'
                             }`}>
                               {h.title}
                             </h4>
+                            {h.category && (
+                              <span
+                                className="px-1.5 py-0.2 rounded text-[9px] font-bold text-white shadow-2xs shrink-0"
+                                style={{ backgroundColor: h.category.color }}
+                              >
+                                {h.category.name}
+                              </span>
+                            )}
                             {isFrozen && (
                               <span className="px-1.5 py-0.2 rounded-md bg-blue-50 text-blue-700 border border-blue-200 text-[9px] font-black shrink-0">
                                 ❄️ Frozen
@@ -829,7 +844,43 @@ export const HabitMatrix: React.FC = () => {
                 </div>
               </div>
 
-              {/* 4. Icon Row */}
+              {/* 4. Category Selection */}
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
+                  Category (Shared System)
+                </label>
+                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
+                  <button
+                    type="button"
+                    onClick={() => { sounds.playTap(); setNewCategoryId(null) }}
+                    className={`px-3 py-1.5 rounded-xl text-[11px] font-bold shrink-0 transition border ${
+                      newCategoryId === null
+                        ? 'bg-violet-600 text-white border-violet-600 shadow-2xs'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    None
+                  </button>
+                  {(categories || []).map(c => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => { sounds.playTap(); setNewCategoryId(c.id) }}
+                      className={`px-3 py-1.5 rounded-xl text-[11px] font-bold shrink-0 transition border flex items-center gap-1.5 ${
+                        newCategoryId === c.id
+                          ? 'text-white border-transparent shadow-xs ring-2 ring-violet-400'
+                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                      }`}
+                      style={newCategoryId === c.id ? { backgroundColor: c.color } : {}}
+                    >
+                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: c.color }} />
+                      <span>{c.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 5. Icon Row */}
               <div>
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
                   Icon

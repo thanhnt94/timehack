@@ -7,6 +7,7 @@ import {
   Shield, Sun, Sunrise, Sunset, Award, Minus, Split
 } from 'lucide-react'
 import { useHabitStore, type HabitDetail, type HabitLogEntry } from '../store/useHabitStore'
+import { useTaskStore } from '../store/useTaskStore'
 import { useTimerStore } from '../store/useTimerStore'
 import { sounds } from '../utils/soundEffects'
 
@@ -41,12 +42,14 @@ export const HabitDetailPage: React.FC = () => {
     deleteHabit
   } = useHabitStore()
 
+  const { categories, fetchCategories } = useTaskStore()
   const { startTimer } = useTimerStore()
 
   // Edit Habit Sheet State
   const [editSheetOpen, setEditSheetOpen] = useState(false)
   const [editTitle, setEditTitle] = useState('')
   const [editDescription, setEditDescription] = useState('')
+  const [editCategoryId, setEditCategoryId] = useState<number | null>(null)
   const [editFreq, setEditFreq] = useState<'daily' | 'weekly_days' | 'weekly_target' | 'monthly_target'>('daily')
   const [editTimeOfDay, setEditTimeOfDay] = useState<'morning' | 'afternoon' | 'evening' | 'anytime'>('anytime')
   const [editTargetCount, setEditTargetCount] = useState(1)
@@ -78,6 +81,7 @@ export const HabitDetailPage: React.FC = () => {
   const [viewDate, setViewDate] = useState(() => new Date())
 
   useEffect(() => {
+    fetchCategories()
     if (habitId && !isNaN(habitId)) {
       fetchHabitDetail(habitId)
     }
@@ -88,6 +92,7 @@ export const HabitDetailPage: React.FC = () => {
     if (activeDetail) {
       setEditTitle(activeDetail.title || '')
       setEditDescription(activeDetail.description || '')
+      setEditCategoryId(activeDetail.category_id || null)
       setEditFreq(activeDetail.frequency_type || 'daily')
       setEditTimeOfDay(activeDetail.time_of_day || 'anytime')
       setEditTargetCount(activeDetail.target_count || 1)
@@ -111,21 +116,19 @@ export const HabitDetailPage: React.FC = () => {
     }
   }, [activeDetail])
 
-  if (isDetailLoading) {
+  if (isDetailLoading || !activeDetail) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center py-20">
-        <div className="w-10 h-10 border-4 border-violet-600 border-t-transparent rounded-full animate-spin mb-3" />
-        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Loading Habit Details...</span>
+      <div className="flex-1 flex flex-col items-center justify-center p-8 bg-[#F8FAFC]">
+        <div className="w-8 h-8 rounded-full border-2 border-violet-600 border-t-transparent animate-spin mb-3" />
+        <p className="text-xs font-bold text-slate-500">Loading habit analytics...</p>
       </div>
     )
   }
 
-  if (!activeDetail) {
+  if (activeDetail.id !== habitId) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center py-20 px-4 text-center">
-        <div className="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center mb-3">
-          <AlertCircle className="w-6 h-6" />
-        </div>
+      <div className="flex-1 flex flex-col items-center justify-center p-8 bg-[#F8FAFC] text-center">
+        <AlertCircle className="w-10 h-10 text-slate-400 mb-2" />
         <h3 className="text-sm font-black text-slate-900">Habit Not Found</h3>
         <p className="text-xs text-slate-500 mt-1 mb-4">This habit may have been deleted or does not exist.</p>
         <button
@@ -146,6 +149,7 @@ export const HabitDetailPage: React.FC = () => {
     const payload: Partial<HabitDetail> = {
       title: editTitle.trim(),
       description: editDescription.trim() || undefined,
+      category_id: editCategoryId || undefined,
       frequency_type: editFreq,
       time_of_day: editTimeOfDay,
       target_count: editTargetCount,
@@ -282,9 +286,19 @@ export const HabitDetailPage: React.FC = () => {
                 {activeDetail.icon || '⚡'}
               </div>
               <div className="min-w-0">
-                <h1 className="text-sm font-black text-slate-900 truncate">
-                  {activeDetail.title}
-                </h1>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <h1 className="text-sm font-black text-slate-900 truncate">
+                    {activeDetail.title}
+                  </h1>
+                  {activeDetail.category && (
+                    <span
+                      className="px-1.5 py-0.2 rounded text-[9px] font-bold text-white shadow-2xs shrink-0"
+                      style={{ backgroundColor: activeDetail.category.color }}
+                    >
+                      {activeDetail.category.name}
+                    </span>
+                  )}
+                </div>
                 <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-bold uppercase tracking-wider">
                   <span>{activeDetail.time_of_day !== 'anytime' ? activeDetail.time_of_day : 'anytime'}</span>
                   <span>•</span>
@@ -1055,6 +1069,42 @@ export const HabitDetailPage: React.FC = () => {
                       }`}
                     >
                       {t.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Category Selection */}
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
+                  Category (Shared System)
+                </label>
+                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
+                  <button
+                    type="button"
+                    onClick={() => { sounds.playTap(); setEditCategoryId(null) }}
+                    className={`px-3 py-1.5 rounded-xl text-[11px] font-bold shrink-0 transition border ${
+                      editCategoryId === null
+                        ? 'bg-violet-600 text-white border-violet-600 shadow-2xs'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    None
+                  </button>
+                  {(categories || []).map(c => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => { sounds.playTap(); setEditCategoryId(c.id) }}
+                      className={`px-3 py-1.5 rounded-xl text-[11px] font-bold shrink-0 transition border flex items-center gap-1.5 ${
+                        editCategoryId === c.id
+                          ? 'text-white border-transparent shadow-xs ring-2 ring-violet-400'
+                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                      }`}
+                      style={editCategoryId === c.id ? { backgroundColor: c.color } : {}}
+                    >
+                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: c.color }} />
+                      <span>{c.name}</span>
                     </button>
                   ))}
                 </div>

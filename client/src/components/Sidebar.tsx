@@ -1,7 +1,7 @@
 import React from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import {
-  Sparkles, Calendar, Clock, CheckSquare, BarChart3,
+  Sparkles, Clock, CheckSquare, BarChart3,
   FolderTree, LogOut, ShieldAlert, Settings
 } from 'lucide-react'
 import { sounds } from '../utils/soundEffects'
@@ -13,10 +13,9 @@ interface Props {
 }
 
 const links = [
-  { path: '/', icon: Calendar, label: 'Calendar', matchPaths: ['/', '/calendar', '/schedule'] },
-  { path: '/tracking', icon: Clock, label: 'Live Tracking', matchPaths: ['/tracking'] },
+  { path: '/', icon: Clock, label: 'Time Hub (Schedule & Track)', matchPaths: ['/', '/calendar', '/schedule', '/tracking'] },
   { path: '/tasks', icon: CheckSquare, label: 'Tasks & Habits', matchPaths: ['/tasks', '/habits'] },
-  { path: '/categories', icon: FolderTree, label: 'Categories', matchPaths: ['/categories'] },
+  { path: '/categories', icon: FolderTree, label: 'Projects & Categories', matchPaths: ['/categories'] },
   { path: '/analytics', icon: BarChart3, label: 'Analytics', matchPaths: ['/analytics'] },
 ]
 
@@ -40,7 +39,7 @@ export const Sidebar: React.FC<Props> = ({ user, onLogout, onOpenSettings }) => 
         {links.map(link => {
           const Icon = link.icon
           const active = link.path === '/'
-            ? (pathname === '/' || pathname.startsWith('/calendar') || pathname.startsWith('/schedule'))
+            ? (pathname === '/' || pathname.startsWith('/calendar') || pathname.startsWith('/schedule') || pathname.startsWith('/tracking'))
             : (link.matchPaths ? link.matchPaths.some(p => pathname.startsWith(p)) : pathname.startsWith(link.path))
           return (
             <Link

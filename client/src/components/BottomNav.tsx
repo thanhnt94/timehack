@@ -1,6 +1,6 @@
 import React from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Calendar, Clock, CheckSquare, BarChart3, Plus } from 'lucide-react'
+import { Clock, CheckSquare, BarChart3, FolderTree, Plus } from 'lucide-react'
 import { sounds } from '../utils/soundEffects'
 
 interface Props {
@@ -8,11 +8,11 @@ interface Props {
 }
 
 const tabs = [
-  { path: '/', icon: Calendar, label: 'Calendar', matchPaths: ['/', '/calendar', '/schedule'] },
-  { path: '/tracking', icon: Clock, label: 'Tracking', matchPaths: ['/tracking'] },
+  { path: '/', icon: Clock, label: 'Time', matchPaths: ['/', '/calendar', '/schedule', '/tracking'] },
+  { path: '/tasks', icon: CheckSquare, label: 'Actions', matchPaths: ['/tasks', '/habits'] },
   { path: '__fab__', icon: Plus, label: 'Create', matchPaths: [] },
-  { path: '/tasks', icon: CheckSquare, label: 'Tasks', matchPaths: ['/tasks', '/habits'] },
   { path: '/analytics', icon: BarChart3, label: 'Analytics', matchPaths: ['/analytics'] },
+  { path: '/categories', icon: FolderTree, label: 'Projects', matchPaths: ['/categories'] },
 ]
 
 export const BottomNav: React.FC<Props> = ({ onFabTap }) => {
@@ -38,7 +38,7 @@ export const BottomNav: React.FC<Props> = ({ onFabTap }) => {
 
         const Icon = tab.icon
         const isActive = tab.path === '/'
-          ? (pathname === '/' || pathname.startsWith('/calendar') || pathname.startsWith('/schedule'))
+          ? (pathname === '/' || pathname.startsWith('/calendar') || pathname.startsWith('/schedule') || pathname.startsWith('/tracking'))
           : tab.matchPaths.some(p => pathname.startsWith(p))
 
         return (

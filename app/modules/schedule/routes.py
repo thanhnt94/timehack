@@ -103,9 +103,18 @@ async def update_schedule_slot(slot_id: int, payload: dict, request: Request, db
         slot.start_time = payload["start_time"]
     if "end_time" in payload:
         slot.end_time = payload["end_time"]
+    if "date" in payload:
+        try:
+            slot.date = date.fromisoformat(payload["date"])
+        except Exception:
+            pass
+    if "category_id" in payload:
+        slot.category_id = payload["category_id"]
+    if "notes" in payload:
+        slot.notes = payload["notes"]
 
     await db.commit()
-    return {"status": "ok", "is_done": slot.is_done}
+    return {"status": "ok", "slot_id": slot.id, "is_done": slot.is_done, "start_time": slot.start_time, "end_time": slot.end_time}
 
 @router.delete("/{slot_id}")
 async def delete_schedule_slot(slot_id: int, request: Request, db: AsyncSession = Depends(get_db)):

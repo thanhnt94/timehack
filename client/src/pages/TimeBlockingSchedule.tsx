@@ -36,8 +36,18 @@ interface CombinedBlockItem {
   rawTask?: Task
 }
 
+interface DraggingState {
+  type: 'move' | 'resize'
+  slotId: number
+  initialY: number
+  initialStartMins: number
+  initialEndMins: number
+  currentStartMins: number
+  currentEndMins: number
+}
+
 export const TimeBlockingSchedule: React.FC = () => {
-  const { slots, selectedDate, setSelectedDate, fetchSlots, createSlot, toggleSlotDone, deleteSlot } = useScheduleStore()
+  const { slots, selectedDate, setSelectedDate, fetchSlots, createSlot, updateSlot, toggleSlotDone, deleteSlot } = useScheduleStore()
   const { logs, fetchLogs, createLog, deleteLog } = useTimeLogStore()
   const { startTimer } = useTimerStore()
   const { categories, tasks, fetchTasks, fetchCategories, toggleTaskStatus } = useTaskStore()
@@ -51,6 +61,9 @@ export const TimeBlockingSchedule: React.FC = () => {
   // 3. Search & Category Filter State (Identical to Tasks page)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategoryType, setSelectedCategoryType] = useState<string>('all')
+
+  // Drag and Drop & Resize State for Timeline Slots
+  const [draggingSlot, setDraggingSlot] = useState<DraggingState | null>(null)
 
   // Create Plan Slot modal state
   const [planModalOpen, setPlanModalOpen] = useState(false)
@@ -156,8 +169,16 @@ export const TimeBlockingSchedule: React.FC = () => {
   }
 
   const timeToMinutes = (timeStr: string) => {
+    if (!timeStr) return 0
     const [h, m] = timeStr.split(':').map(Number)
     return (h || 0) * 60 + (m || 0)
+  }
+
+  const minutesToTimeStr = (totalMins: number) => {
+    const clamped = Math.max(0, Math.min(24 * 60, totalMins))
+    const h = Math.floor(clamped / 60)
+    const m = clamped % 60
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
   }
 
   // Combined and sorted list of Blocks (No empty hours)
@@ -167,13 +188,17 @@ export const TimeBlockingSchedule: React.FC = () => {
     // 1. Add Planned Slots
     slots.forEach(s => {
       const startMins = timeToMinutes(s.start_time)
-      const endMins = timeToMinutes(s.end_time)
-      const dur = Math.max(0, endMins - startMins)
+      let endMins = timeToMinutes(s.end_time)
+      if (endMins <= startMins) {
+        endMins = s.end_time === '00:00' ? 24 * 60 : startMins + 30
+      }
+      const dur = Math.max(15, endMins - startMins)
+      const displayEndTime = s.end_time === '00:00' ? '23:59' : s.end_time
       list.push({
         type: 'slot',
         id: s.id,
         startTimeStr: s.start_time,
-        endTimeStr: s.end_time,
+        endTimeStr: displayEndTime,
         title: s.title,
         notes: s.notes,
         durationMinutes: dur,
@@ -273,9 +298,12 @@ export const TimeBlockingSchedule: React.FC = () => {
   const totalPlannedMinutes = useMemo(() => {
     return slots.reduce((acc, slot) => {
       try {
-        const [sh, sm] = slot.start_time.split(':').map(Number)
-        const [eh, em] = slot.end_time.split(':').map(Number)
-        const mins = (eh * 60 + em) - (sh * 60 + sm)
+        const startMins = timeToMinutes(slot.start_time)
+        let endMins = timeToMinutes(slot.end_time)
+        if (endMins <= startMins) {
+          endMins = slot.end_time === '00:00' ? 24 * 60 : startMins + 30
+        }
+        const mins = endMins - startMins
         return acc + (mins > 0 ? mins : 0)
       } catch {
         return acc
@@ -290,15 +318,131 @@ export const TimeBlockingSchedule: React.FC = () => {
     return `${hours}h ${mins > 0 ? `${mins}m` : ''}`
   }, [totalPlannedMinutes])
 
+  // Drag & Drop Handlers for Timeline Slots
+  const handleStartMove = (e: React.PointerEvent, slot: ScheduleSlot) => {
+    if ((e.target as HTMLElement).closest('button')) return
+    e.preventDefault()
+    e.stopPropagation()
+    sounds.playTap()
+
+    const startMins = timeToMinutes(slot.start_time)
+    let endMins = timeToMinutes(slot.end_time)
+    if (endMins <= startMins) {
+      endMins = slot.end_time === '00:00' ? 24 * 60 : startMins + 30
+    }
+
+    setDraggingSlot({
+      type: 'move',
+      slotId: slot.id,
+      initialY: e.clientY,
+      initialStartMins: startMins,
+      initialEndMins: endMins,
+      currentStartMins: startMins,
+      currentEndMins: endMins
+    })
+  }
+
+  const handleStartResize = (e: React.PointerEvent, slot: ScheduleSlot) => {
+    e.preventDefault()
+    e.stopPropagation()
+    sounds.playTap()
+
+    const startMins = timeToMinutes(slot.start_time)
+    let endMins = timeToMinutes(slot.end_time)
+    if (endMins <= startMins) {
+      endMins = slot.end_time === '00:00' ? 24 * 60 : startMins + 30
+    }
+
+    setDraggingSlot({
+      type: 'resize',
+      slotId: slot.id,
+      initialY: e.clientY,
+      initialStartMins: startMins,
+      initialEndMins: endMins,
+      currentStartMins: startMins,
+      currentEndMins: endMins
+    })
+  }
+
+  // Global Pointer Events for Drag & Drop / Resize
+  useEffect(() => {
+    if (!draggingSlot) return
+
+    const handlePointerMove = (e: PointerEvent) => {
+      const deltaY = e.clientY - draggingSlot.initialY
+      const deltaMins = Math.round((deltaY / HOUR_HEIGHT) * 60)
+      const snapInterval = 15
+
+      if (draggingSlot.type === 'move') {
+        const dur = draggingSlot.initialEndMins - draggingSlot.initialStartMins
+        let newStart = draggingSlot.initialStartMins + deltaMins
+        newStart = Math.round(newStart / snapInterval) * snapInterval
+        newStart = Math.max(START_HOUR * 60, Math.min(23 * 60 + 45, newStart))
+        const newEnd = Math.min(24 * 60, newStart + dur)
+
+        setDraggingSlot(prev => prev ? {
+          ...prev,
+          currentStartMins: newStart,
+          currentEndMins: newEnd
+        } : null)
+      } else if (draggingSlot.type === 'resize') {
+        let newEnd = draggingSlot.initialEndMins + deltaMins
+        newEnd = Math.round(newEnd / snapInterval) * snapInterval
+        newEnd = Math.max(draggingSlot.currentStartMins + 15, Math.min(24 * 60, newEnd))
+
+        setDraggingSlot(prev => prev ? {
+          ...prev,
+          currentEndMins: newEnd
+        } : null)
+      }
+    }
+
+    const handlePointerUp = async () => {
+      if (!draggingSlot) return
+      const { slotId, currentStartMins, currentEndMins, initialStartMins, initialEndMins } = draggingSlot
+
+      if (currentStartMins !== initialStartMins || currentEndMins !== initialEndMins) {
+        const startStr = minutesToTimeStr(currentStartMins)
+        const endStr = currentEndMins === 24 * 60 ? '23:59' : minutesToTimeStr(currentEndMins)
+        sounds.playSuccess()
+        await updateSlot(slotId, {
+          start_time: startStr,
+          end_time: endStr
+        })
+      }
+      setDraggingSlot(null)
+    }
+
+    window.addEventListener('pointermove', handlePointerMove)
+    window.addEventListener('pointerup', handlePointerUp)
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove)
+      window.removeEventListener('pointerup', handlePointerUp)
+    }
+  }, [draggingSlot])
+
   // Handlers
   const handleCreatePlan = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!slotTitle.trim()) return
     sounds.playTap()
+
+    const [sh, sm] = slotStart.split(':').map(Number)
+    const [eh, em] = slotEnd.split(':').map(Number)
+    let endStr = slotEnd
+    if (eh * 60 + em <= sh * 60 + sm) {
+      if (slotEnd === '00:00') {
+        endStr = '23:59'
+      } else {
+        const newEndMin = Math.min(24 * 60, sh * 60 + sm + 30)
+        endStr = minutesToTimeStr(newEndMin)
+      }
+    }
+
     await createSlot({
       date: selectedDate,
       start_time: slotStart,
-      end_time: slotEnd,
+      end_time: endStr,
       title: slotTitle,
       category_id: slotCategoryId || undefined,
       notes: slotNotes.trim() || undefined
@@ -348,9 +492,12 @@ export const TimeBlockingSchedule: React.FC = () => {
 
   const handleStartSlotFocus = (slot: ScheduleSlot) => {
     sounds.playTap()
-    const [sh, sm] = slot.start_time.split(':').map(Number)
-    const [eh, em] = slot.end_time.split(':').map(Number)
-    const durMins = Math.max(15, (eh * 60 + em) - (sh * 60 + sm))
+    const startMins = timeToMinutes(slot.start_time)
+    let endMins = timeToMinutes(slot.end_time)
+    if (endMins <= startMins) {
+      endMins = slot.end_time === '00:00' ? 24 * 60 : startMins + 30
+    }
+    const durMins = Math.max(15, endMins - startMins)
 
     startTimer({
       title: slot.title,
@@ -971,81 +1118,160 @@ export const TimeBlockingSchedule: React.FC = () => {
                 )
               })}
 
-              {/* Render Planned Slots as Sky Blue Blocks */}
+              {/* Render Planned Slots as Sky Blue Blocks with Drag & Drop + Resize */}
               {slots.map(slot => {
+                const isBeingDragged = draggingSlot?.slotId === slot.id
+
                 const startMins = timeToMinutes(slot.start_time)
-                const endMins = timeToMinutes(slot.end_time)
+                let endMins = timeToMinutes(slot.end_time)
+                if (endMins <= startMins) {
+                  endMins = slot.end_time === '00:00' ? 24 * 60 : startMins + 30
+                }
                 const durMins = Math.max(15, endMins - startMins)
 
-                const top = Math.max(0, ((startMins - START_HOUR * 60) / 60) * HOUR_HEIGHT)
-                const height = Math.max(26, (durMins / 60) * HOUR_HEIGHT)
+                const activeStart = isBeingDragged ? draggingSlot.currentStartMins : startMins
+                const activeEnd = isBeingDragged ? draggingSlot.currentEndMins : endMins
+                const activeDur = Math.max(15, activeEnd - activeStart)
+
+                const top = Math.max(0, ((activeStart - START_HOUR * 60) / 60) * HOUR_HEIGHT)
+                const height = Math.max(34, (activeDur / 60) * HOUR_HEIGHT)
+
+                const displayStartTime = isBeingDragged ? minutesToTimeStr(activeStart) : slot.start_time
+                const displayEndTime = isBeingDragged
+                  ? (activeEnd === 24 * 60 ? '23:59' : minutesToTimeStr(activeEnd))
+                  : (slot.end_time === '00:00' ? '23:59' : slot.end_time)
+
+                const isCompact = height < 50
 
                 return (
                   <div
                     key={`slot-${slot.id}`}
-                    className={`absolute left-14 right-2 sm:right-1/2 rounded-xl p-2 border shadow-xs transition z-10 flex items-start justify-between gap-2 overflow-hidden ${
-                      slot.is_done
-                        ? 'bg-emerald-50/90 border-emerald-300 text-emerald-950 opacity-80'
-                        : 'bg-sky-50/95 border-sky-300 text-sky-950 hover:border-sky-500 hover:shadow-md'
+                    onPointerDown={(e) => handleStartMove(e, slot)}
+                    className={`absolute left-14 right-2 sm:right-1/2 rounded-2xl p-2 border transition select-none touch-none cursor-grab active:cursor-grabbing flex flex-col justify-between overflow-hidden ${
+                      isBeingDragged
+                        ? 'ring-2 ring-violet-500 shadow-2xl z-30 scale-[1.01] bg-sky-100/95 border-sky-400 text-sky-950'
+                        : slot.is_done
+                        ? 'bg-emerald-50/90 border-emerald-300 text-emerald-950 opacity-80 z-10'
+                        : 'bg-sky-50/95 border-sky-300 text-sky-950 hover:border-sky-500 hover:shadow-md z-10'
                     }`}
-                    style={{ top, height: `${height}px` }}
+                    style={{ top: `${top}px`, height: `${height}px` }}
                   >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[9px] font-mono font-black px-1.5 py-0.2 rounded bg-white/80 border border-sky-200">
-                          {slot.start_time} - {slot.end_time}
-                        </span>
-                        {slot.is_done && (
-                          <span className="text-[9px] font-bold text-emerald-700 bg-emerald-100 px-1 rounded">✓ Done</span>
-                        )}
-                      </div>
-                      <h4 className={`text-xs font-bold mt-1 truncate ${slot.is_done ? 'line-through text-slate-400' : 'text-slate-900'}`}>
-                        {slot.title}
-                      </h4>
-                      {slot.category && (
-                        <div className="flex items-center gap-1 mt-0.5">
-                          <span
-                            className="w-2 h-2 rounded-full shrink-0"
-                            style={{ backgroundColor: slot.category.color }}
-                          />
-                          <span className="text-[10px] text-slate-500 font-bold truncate">
-                            {slot.category.name}
+                    {/* Dynamic Content layout depending on height */}
+                    {isCompact ? (
+                      <div className="flex items-center justify-between gap-1.5 w-full h-full min-w-0 pr-0.5">
+                        <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                          <span className="text-[9px] font-mono font-black px-1.5 py-0.5 rounded bg-white/90 border border-sky-200 shrink-0 shadow-2xs">
+                            {displayStartTime} - {displayEndTime}
+                          </span>
+                          <span className={`text-xs font-bold truncate ${slot.is_done ? 'line-through text-slate-400' : 'text-slate-900'}`}>
+                            {slot.title}
                           </span>
                         </div>
-                      )}
-                      {slot.notes && (
-                        <p className="text-[10px] text-slate-500 mt-0.5 line-clamp-1 italic">{slot.notes}</p>
-                      )}
-                    </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          {!slot.is_done && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleStartSlotFocus(slot)
+                              }}
+                              className="w-5 h-5 rounded-lg bg-violet-600 hover:bg-violet-700 text-white flex items-center justify-center shrink-0 shadow-2xs active:scale-90 transition"
+                              title="Start Focus Timer"
+                            >
+                              <Play className="w-2.5 h-2.5 fill-current ml-0.5" />
+                            </button>
+                          )}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              sounds.playTap()
+                              toggleSlotDone(slot.id, !slot.is_done)
+                              if (!slot.is_done) sounds.playSuccess()
+                            }}
+                            className={`w-5 h-5 rounded-lg border flex items-center justify-center shrink-0 transition active:scale-90 ${
+                              slot.is_done ? 'bg-emerald-500 border-emerald-600 text-white' : 'bg-white border-sky-300 hover:border-sky-500'
+                            }`}
+                            title={slot.is_done ? 'Mark pending' : 'Mark completed'}
+                          >
+                            {slot.is_done && <Check className="w-3 h-3 stroke-[3]" />}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="min-w-0 flex-1 flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="text-[9px] font-mono font-black px-1.5 py-0.5 rounded bg-white/90 border border-sky-200 shadow-2xs">
+                                {displayStartTime} - {displayEndTime}
+                              </span>
+                              {slot.is_done && (
+                                <span className="text-[9px] font-bold text-emerald-700 bg-emerald-100 px-1 rounded">✓ Done</span>
+                              )}
+                              {isBeingDragged && (
+                                <span className="text-[9px] font-bold text-violet-700 bg-violet-100 px-1.5 rounded animate-pulse">
+                                  {draggingSlot?.type === 'resize' ? 'Resizing...' : 'Moving...'}
+                                </span>
+                              )}
+                            </div>
+                            <h4 className={`text-xs font-bold mt-1 truncate ${slot.is_done ? 'line-through text-slate-400' : 'text-slate-900'}`}>
+                              {slot.title}
+                            </h4>
+                            {slot.category && (
+                              <div className="flex items-center gap-1 mt-0.5">
+                                <span
+                                  className="w-2 h-2 rounded-full shrink-0"
+                                  style={{ backgroundColor: slot.category.color }}
+                                />
+                                <span className="text-[10px] text-slate-500 font-bold truncate">
+                                  {slot.category.name}
+                                </span>
+                              </div>
+                            )}
+                            {slot.notes && (
+                              <p className="text-[10px] text-slate-500 mt-0.5 line-clamp-1 italic">{slot.notes}</p>
+                            )}
+                          </div>
 
-                    {/* Quick Actions: Play Focus & Done Checkbox */}
-                    <div className="flex items-center gap-1 shrink-0">
-                      {!slot.is_done && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleStartSlotFocus(slot)
-                          }}
-                          className="w-6 h-6 rounded-lg bg-violet-600 hover:bg-violet-700 text-white flex items-center justify-center shrink-0 shadow-2xs active:scale-90 transition"
-                          title="Start Focus Timer"
-                        >
-                          <Play className="w-2.5 h-2.5 fill-current ml-0.5" />
-                        </button>
-                      )}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          sounds.playTap()
-                          toggleSlotDone(slot.id, !slot.is_done)
-                          if (!slot.is_done) sounds.playSuccess()
-                        }}
-                        className={`w-6 h-6 rounded-lg border flex items-center justify-center shrink-0 transition active:scale-90 ${
-                          slot.is_done ? 'bg-emerald-500 border-emerald-600 text-white' : 'bg-white border-sky-300 hover:border-sky-500'
-                        }`}
-                        title={slot.is_done ? 'Mark pending' : 'Mark completed'}
-                      >
-                        {slot.is_done && <Check className="w-3.5 h-3.5 stroke-[3]" />}
-                      </button>
+                          {/* Quick Actions: Play Focus & Done Checkbox */}
+                          <div className="flex items-center gap-1 shrink-0">
+                            {!slot.is_done && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleStartSlotFocus(slot)
+                                }}
+                                className="w-6 h-6 rounded-lg bg-violet-600 hover:bg-violet-700 text-white flex items-center justify-center shrink-0 shadow-2xs active:scale-90 transition"
+                                title="Start Focus Timer"
+                              >
+                                <Play className="w-2.5 h-2.5 fill-current ml-0.5" />
+                              </button>
+                            )}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                sounds.playTap()
+                                toggleSlotDone(slot.id, !slot.is_done)
+                                if (!slot.is_done) sounds.playSuccess()
+                              }}
+                              className={`w-6 h-6 rounded-lg border flex items-center justify-center shrink-0 transition active:scale-90 ${
+                                slot.is_done ? 'bg-emerald-500 border-emerald-600 text-white' : 'bg-white border-sky-300 hover:border-sky-500'
+                              }`}
+                              title={slot.is_done ? 'Mark pending' : 'Mark completed'}
+                            >
+                              {slot.is_done && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                            </button>
+                          </div>
+                        </div>
+                      </>
+                    )}
+
+                    {/* Resize Bottom Handle */}
+                    <div
+                      onPointerDown={(e) => handleStartResize(e, slot)}
+                      className="absolute bottom-0 left-0 right-0 h-3 cursor-ns-resize flex items-center justify-center hover:bg-sky-400/20 group/resize transition rounded-b-2xl z-20"
+                      title="Drag bottom handle to change duration"
+                    >
+                      <div className="w-8 h-1 rounded-full bg-sky-300 group-hover/resize:bg-sky-600 transition" />
                     </div>
                   </div>
                 )
@@ -1059,13 +1285,13 @@ export const TimeBlockingSchedule: React.FC = () => {
                 const durMins = Math.max(15, Math.round(log.duration_seconds / 60))
 
                 const top = Math.max(0, ((startMins - START_HOUR * 60) / 60) * HOUR_HEIGHT)
-                const height = Math.max(26, (durMins / 60) * HOUR_HEIGHT)
+                const height = Math.max(34, (durMins / 60) * HOUR_HEIGHT)
 
                 return (
                   <div
                     key={`log-${log.id}`}
-                    className="absolute left-1/2 right-2 rounded-xl p-2 bg-violet-50/95 border border-violet-300 text-violet-950 shadow-xs z-10 hidden sm:flex items-start justify-between gap-1.5 overflow-hidden"
-                    style={{ top, height: `${height}px` }}
+                    className="absolute left-1/2 right-2 rounded-2xl p-2 bg-violet-50/95 border border-violet-300 text-violet-950 shadow-xs z-10 hidden sm:flex items-start justify-between gap-1.5 overflow-hidden"
+                    style={{ top: `${top}px`, height: `${height}px` }}
                   >
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1">

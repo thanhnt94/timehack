@@ -143,10 +143,25 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
     e.preventDefault()
     if (!scheduleTitle.trim()) return
     sounds.playTap()
+
+    const [sh, sm] = scheduleStart.split(':').map(Number)
+    const [eh, em] = scheduleEnd.split(':').map(Number)
+    let endStr = scheduleEnd
+    if (eh * 60 + em <= sh * 60 + sm) {
+      if (scheduleEnd === '00:00') {
+        endStr = '23:59'
+      } else {
+        const newEndMin = Math.min(24 * 60, sh * 60 + sm + 30)
+        const h = Math.floor(newEndMin / 60)
+        const m = newEndMin % 60
+        endStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+      }
+    }
+
     await createSlot({
       date: selectedDate,
       start_time: scheduleStart,
-      end_time: scheduleEnd,
+      end_time: endStr,
       title: scheduleTitle.trim(),
       category_id: scheduleCategoryId || undefined
     })

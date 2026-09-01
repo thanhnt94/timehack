@@ -23,6 +23,7 @@ interface ScheduleState {
   setSelectedDate: (dateStr: string) => void
   fetchSlots: (dateStr?: string) => Promise<void>
   createSlot: (data: Partial<ScheduleSlot>) => Promise<void>
+  updateSlot: (slotId: number, data: Partial<ScheduleSlot>) => Promise<void>
   toggleSlotDone: (slotId: number, is_done: boolean) => Promise<void>
   deleteSlot: (slotId: number) => Promise<void>
 }
@@ -55,7 +56,7 @@ export const useScheduleStore = create<ScheduleState>((set, get) => ({
         date: data.date || get().selectedDate,
         start_time: data.start_time || '09:00',
         end_time: data.end_time || '10:00',
-        title: data.title || 'Mục công việc mới',
+        title: data.title || 'New Schedule Slot',
         task_id: data.task_id,
         habit_id: data.habit_id,
         category_id: data.category_id,
@@ -65,6 +66,20 @@ export const useScheduleStore = create<ScheduleState>((set, get) => ({
       await get().fetchSlots(payload.date)
     } catch (e) {
       console.error('Failed to create schedule slot', e)
+    }
+  },
+
+  updateSlot: async (slotId, data) => {
+    try {
+      // Optimistic update
+      set({
+        slots: get().slots.map(s => s.id === slotId ? { ...s, ...data } : s)
+      })
+      await axios.patch(`/api/v1/schedule/${slotId}`, data)
+      await get().fetchSlots()
+    } catch (e) {
+      console.error('Failed to update schedule slot', e)
+      await get().fetchSlots()
     }
   },
 

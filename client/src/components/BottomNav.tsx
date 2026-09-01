@@ -1,6 +1,6 @@
 import React from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Calendar, Clock, CheckSquare, Zap, Plus } from 'lucide-react'
+import { Calendar, Clock, CheckSquare, BarChart3, Plus } from 'lucide-react'
 import { sounds } from '../utils/soundEffects'
 
 interface Props {
@@ -8,11 +8,11 @@ interface Props {
 }
 
 const tabs = [
-  { path: '/', icon: Calendar, label: 'Calendar' },
-  { path: '/tracking', icon: Clock, label: 'Tracking' },
-  { path: '__fab__', icon: Plus, label: 'Create' },
-  { path: '/tasks', icon: CheckSquare, label: 'Tasks' },
-  { path: '/habits', icon: Zap, label: 'Habits' },
+  { path: '/', icon: Calendar, label: 'Lịch', matchPaths: ['/', '/calendar', '/schedule'] },
+  { path: '/tracking', icon: Clock, label: 'Tracking', matchPaths: ['/tracking'] },
+  { path: '__fab__', icon: Plus, label: 'Tạo', matchPaths: [] },
+  { path: '/tasks', icon: CheckSquare, label: 'Nhiệm vụ', matchPaths: ['/tasks', '/habits'] },
+  { path: '/analytics', icon: BarChart3, label: 'Thống kê', matchPaths: ['/analytics'] },
 ]
 
 export const BottomNav: React.FC<Props> = ({ onFabTap }) => {
@@ -27,7 +27,7 @@ export const BottomNav: React.FC<Props> = ({ onFabTap }) => {
               key="fab"
               onClick={() => { sounds.playTap(); onFabTap() }}
               className="flex flex-col items-center justify-center w-14 py-1 active:scale-90 transition-transform"
-              aria-label="Quick Create"
+              aria-label="Tạo nhanh"
             >
               <div className="w-9 h-9 rounded-xl bg-violet-600 hover:bg-violet-700 flex items-center justify-center shadow-md shadow-violet-600/25">
                 <Plus className="w-5 h-5 text-white stroke-[2.5]" />
@@ -39,7 +39,7 @@ export const BottomNav: React.FC<Props> = ({ onFabTap }) => {
         const Icon = tab.icon
         const isActive = tab.path === '/'
           ? (pathname === '/' || pathname.startsWith('/calendar') || pathname.startsWith('/schedule'))
-          : pathname.startsWith(tab.path)
+          : tab.matchPaths.some(p => pathname.startsWith(p))
 
         return (
           <Link

@@ -1,7 +1,7 @@
 import React from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import {
-  Sparkles, Calendar, Clock, CheckSquare, Zap, BarChart3,
+  Sparkles, Calendar, Clock, CheckSquare, BarChart3,
   FolderTree, LogOut, ShieldAlert, Settings
 } from 'lucide-react'
 import { sounds } from '../utils/soundEffects'
@@ -13,12 +13,11 @@ interface Props {
 }
 
 const links = [
-  { path: '/', icon: Calendar, label: 'Calendar' },
-  { path: '/tracking', icon: Clock, label: 'Live Tracking' },
-  { path: '/tasks', icon: CheckSquare, label: 'Tasks' },
-  { path: '/habits', icon: Zap, label: 'Habits' },
-  { path: '/categories', icon: FolderTree, label: 'Categories' },
-  { path: '/analytics', icon: BarChart3, label: 'Analytics' },
+  { path: '/', icon: Calendar, label: 'Lịch biểu', matchPaths: ['/', '/calendar', '/schedule'] },
+  { path: '/tracking', icon: Clock, label: 'Live Tracking', matchPaths: ['/tracking'] },
+  { path: '/tasks', icon: CheckSquare, label: 'Việc & Thói quen', matchPaths: ['/tasks', '/habits'] },
+  { path: '/categories', icon: FolderTree, label: 'Thư mục & Dự án', matchPaths: ['/categories'] },
+  { path: '/analytics', icon: BarChart3, label: 'Thống kê năng suất', matchPaths: ['/analytics'] },
 ]
 
 export const Sidebar: React.FC<Props> = ({ user, onLogout, onOpenSettings }) => {
@@ -42,7 +41,7 @@ export const Sidebar: React.FC<Props> = ({ user, onLogout, onOpenSettings }) => 
           const Icon = link.icon
           const active = link.path === '/'
             ? (pathname === '/' || pathname.startsWith('/calendar') || pathname.startsWith('/schedule'))
-            : pathname.startsWith(link.path)
+            : (link.matchPaths ? link.matchPaths.some(p => pathname.startsWith(p)) : pathname.startsWith(link.path))
           return (
             <Link
               key={link.path}
@@ -50,7 +49,7 @@ export const Sidebar: React.FC<Props> = ({ user, onLogout, onOpenSettings }) => 
               onClick={() => sounds.playTap()}
               className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition ${
                 active
-                  ? 'bg-violet-50 text-violet-700 border border-violet-200'
+                  ? 'bg-violet-50 text-violet-700 border border-violet-200 font-bold shadow-2xs'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50 border border-transparent'
               }`}
             >
@@ -60,58 +59,52 @@ export const Sidebar: React.FC<Props> = ({ user, onLogout, onOpenSettings }) => 
           )
         })}
 
-        {/* Settings button */}
-        {onOpenSettings && (
-          <button
-            onClick={() => { sounds.playTap(); onOpenSettings() }}
-            className="w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-violet-700 hover:bg-violet-50/60 border border-transparent transition"
-          >
-            <Settings className="w-4 h-4 text-slate-500" />
-            <span>Settings</span>
-          </button>
-        )}
-
+        {/* Admin Link if role is admin */}
         {user?.role === 'admin' && (
           <Link
             to="/admin"
             onClick={() => sounds.playTap()}
-            className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition mt-4 ${
-              pathname === '/admin'
-                ? 'bg-rose-50 text-rose-700 border border-rose-200'
-                : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50 border border-transparent'
+            className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition ${
+              pathname.startsWith('/admin')
+                ? 'bg-rose-50 text-rose-700 border border-rose-200 font-bold'
+                : 'text-rose-600 hover:text-rose-700 hover:bg-rose-50/50 border border-transparent'
             }`}
           >
-            <ShieldAlert className="w-4 h-4" />
-            <span>Admin</span>
+            <ShieldAlert className="w-4 h-4 text-rose-600" />
+            <span>Admin Hub</span>
           </Link>
         )}
       </nav>
 
-      {/* User profile + trigger */}
-      <div className="px-3 py-3 border-t border-slate-200 bg-slate-50/50">
-        <div className="flex items-center justify-between px-2">
+      {/* Footer Profile & Settings */}
+      <div className="p-3 border-t border-slate-200 space-y-2">
+        {onOpenSettings && (
           <button
-            onClick={() => { sounds.playTap(); onOpenSettings?.() }}
-            className="flex items-center gap-2 min-w-0 text-left hover:opacity-80 transition"
-            title="User Settings"
+            onClick={() => { sounds.playTap(); onOpenSettings() }}
+            className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-50 border border-slate-200/80 transition"
           >
-            <div className="relative">
-              <div className="w-7 h-7 rounded-full bg-violet-600 flex items-center justify-center text-[10px] font-black text-white shrink-0">
-                {user?.full_name?.charAt(0) || user?.username?.charAt(0) || 'U'}
-              </div>
-              <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white" />
-            </div>
-            <div className="min-w-0">
-              <div className="text-xs font-bold text-slate-800 truncate">{user?.username}</div>
-              <div className="text-[10px] text-slate-400 font-mono truncate">{user?.timezone || 'UTC+7'}</div>
+            <div className="flex items-center gap-2">
+              <Settings className="w-3.5 h-3.5 text-violet-600" />
+              <span>Cài đặt & Telegram</span>
             </div>
           </button>
+        )}
+
+        <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-slate-50 border border-slate-200">
+          <div className="min-w-0 pr-2">
+            <div className="text-xs font-bold text-slate-900 truncate">
+              {user?.full_name || user?.username || 'User'}
+            </div>
+            <div className="text-[10px] text-slate-400 truncate">
+              {user?.email || 'TimeHack Account'}
+            </div>
+          </div>
           <button
-            onClick={() => { sounds.playTap(); onLogout() }}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition active:scale-90"
-            title="Log Out"
+            onClick={onLogout}
+            title="Đăng xuất"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition shrink-0"
           >
-            <LogOut className="w-3.5 h-3.5" />
+            <LogOut className="w-4 h-4" />
           </button>
         </div>
       </div>

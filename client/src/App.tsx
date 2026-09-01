@@ -1,14 +1,13 @@
 import React, { useEffect, useState } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Link } from 'react-router-dom'
-import { Sparkles, BarChart3, Clock } from 'lucide-react'
+import { Sparkles, BarChart3, Clock, CheckSquare, Zap } from 'lucide-react'
 import { Sidebar } from './components/Sidebar'
 import { BottomNav } from './components/BottomNav'
 import { FloatingTimerBar } from './components/FloatingTimerBar'
 import { QuickActionSheet } from './components/QuickActionSheet'
 import { UserSettingsModal } from './components/UserSettingsModal'
 import { LiveTrackingHub } from './pages/LiveTrackingHub'
-import { TasksBoard } from './pages/TasksBoard'
-import { HabitMatrix } from './pages/HabitMatrix'
+import { TasksAndHabitsHub } from './pages/TasksAndHabitsHub'
 import { HabitDetailPage } from './pages/HabitDetailPage'
 import { TimeBlockingSchedule } from './pages/TimeBlockingSchedule'
 import { PomodoroFocus } from './pages/PomodoroFocus'
@@ -43,6 +42,8 @@ const AppShell: React.FC = () => {
   const totalTrackedM = Math.round((totalTrackedSec % 3600) / 60)
   const formattedTracked = totalTrackedH > 0 ? `${totalTrackedH}h ${totalTrackedM > 0 ? `${totalTrackedM}m` : ''}` : `${totalTrackedM}m`
 
+  const isTasksOrHabitsPage = location.pathname.startsWith('/tasks') || (location.pathname === '/habits')
+
   return (
     <div className="h-[100dvh] flex flex-col md:flex-row bg-[#F8FAFC] text-slate-900 overflow-hidden">
       {/* Desktop sidebar */}
@@ -65,10 +66,8 @@ const AppShell: React.FC = () => {
                   ? 'Calendar'
                   : location.pathname === '/tracking'
                   ? 'Tracking'
-                  : location.pathname === '/tasks'
-                  ? 'Tasks'
-                  : location.pathname === '/habits'
-                  ? 'Habits'
+                  : isTasksOrHabitsPage
+                  ? 'Việc & Thói quen'
                   : location.pathname === '/categories'
                   ? 'Categories'
                   : location.pathname === '/analytics'
@@ -84,15 +83,17 @@ const AppShell: React.FC = () => {
                 <span>{formattedTracked}</span>
               </span>
             )}
-            {location.pathname === '/tasks' && (
-              <span className="text-[10px] font-black font-mono text-violet-700 bg-violet-50 px-1.5 py-0.2 rounded border border-violet-200 shrink-0">
-                {doneTasks}/{(tasks || []).length}
-              </span>
-            )}
-            {location.pathname === '/habits' && (
-              <span className="text-[10px] font-black font-mono text-violet-700 bg-violet-50 px-1.5 py-0.2 rounded border border-violet-200 shrink-0">
-                {doneHabits}/{(habits || []).length}
-              </span>
+            {isTasksOrHabitsPage && (
+              <div className="flex items-center gap-1 shrink-0">
+                <span className="text-[9px] font-bold font-mono text-violet-700 bg-violet-50 px-1.5 py-0.2 rounded border border-violet-200 shrink-0 flex items-center gap-0.5">
+                  <CheckSquare className="w-2.5 h-2.5" />
+                  <span>{doneTasks}/{(tasks || []).length}</span>
+                </span>
+                <span className="text-[9px] font-bold font-mono text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200 shrink-0 flex items-center gap-0.5">
+                  <Zap className="w-2.5 h-2.5" />
+                  <span>{doneHabits}/{(habits || []).length}</span>
+                </span>
+              </div>
             )}
           </div>
 
@@ -132,8 +133,8 @@ const AppShell: React.FC = () => {
             <Route path="/calendar" element={<div className="flex-1 flex flex-col min-h-0 px-3 pt-2 md:px-8 md:pt-4 overflow-hidden"><div className="max-w-lg md:max-w-5xl mx-auto w-full flex-1 flex flex-col min-h-0 overflow-hidden"><TimeBlockingSchedule /></div></div>} />
             <Route path="/schedule" element={<div className="flex-1 flex flex-col min-h-0 px-3 pt-2 md:px-8 md:pt-4 overflow-hidden"><div className="max-w-lg md:max-w-5xl mx-auto w-full flex-1 flex flex-col min-h-0 overflow-hidden"><TimeBlockingSchedule /></div></div>} />
             <Route path="/tracking" element={<LiveTrackingHub onOpenFullscreenFocus={() => setFocusOpen(true)} />} />
-            <Route path="/tasks" element={<TasksBoard />} />
-            <Route path="/habits" element={<HabitMatrix />} />
+            <Route path="/tasks" element={<TasksAndHabitsHub />} />
+            <Route path="/habits" element={<TasksAndHabitsHub />} />
             <Route path="/habits/:id" element={<HabitDetailPage />} />
             <Route path="/categories" element={<CategoryManagement />} />
             <Route path="/analytics" element={<div className="flex-1 overflow-y-auto px-4 py-4 md:px-8 md:py-6"><div className="max-w-lg md:max-w-5xl mx-auto"><ProductivityAnalytics /></div></div>} />
@@ -198,7 +199,10 @@ export const App: React.FC = () => {
     return (
       <div className="h-[100dvh] flex items-center justify-center bg-[#F8FAFC]">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-3 border-violet-600 border-t-transparent rounded-full animate-spin" />
+          <div className="w-10 h-10 rounded-2xl bg-violet-600 text-white flex items-center justify-center shadow-lg shadow-violet-600/30 animate-pulse">
+            <Sparkles className="w-5 h-5" />
+          </div>
+          <span className="text-xs font-bold text-slate-500 font-mono tracking-wider">SYNCING TIMEHACK...</span>
         </div>
       </div>
     )
@@ -216,3 +220,4 @@ export const App: React.FC = () => {
 }
 
 export default App
+

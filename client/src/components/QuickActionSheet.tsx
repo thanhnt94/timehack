@@ -312,136 +312,93 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
           </form>
         )}
 
-        {/* ── View 3: Form Habit (With Daily, Weekly, Monthly Presets) ────────── */}
+        {/* ── View 3: Form Habit (Streamlined: Unit Chips, Split Icon & Color) ────────── */}
         {subView === 'habit' && (
           <form onSubmit={handleCreateHabit} className="space-y-3.5">
             <div>
               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                Habit Title
+                Tên Thói Quen
               </label>
               <input
                 type="text"
                 value={habitTitle}
                 onChange={e => setHabitTitle(e.target.value)}
-                placeholder="e.g. Run 3x/week, Read 1 book/month, Morning workout..."
+                placeholder="Ví dụ: Đọc sách, Chạy bộ, Uống nước, Tập gym..."
                 autoFocus
                 required
                 className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
               />
             </div>
 
-            {/* Presets */}
-            <div>
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
-                Popular Goal Presets
-              </label>
-              <div className="grid grid-cols-4 gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => handleApplyHabitPreset('daily', 1, 'times')}
-                  className={`p-2 rounded-xl border text-center transition ${
-                    habitFreqPeriod === 'daily' && habitTargetCount === 1
-                      ? 'bg-violet-50 border-violet-400 text-violet-800 ring-2 ring-violet-500 font-bold'
-                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 text-[11px]'
-                  }`}
-                >
-                  ⚡ 1x / Ngày
-                </button>
+            {/* Chu kỳ & Số lượng */}
+            <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                    Chu kỳ lặp
+                  </label>
+                  <select
+                    value={habitFreqPeriod}
+                    onChange={e => setHabitFreqPeriod(e.target.value as any)}
+                    className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
+                  >
+                    <option value="daily">📅 Hàng Ngày</option>
+                    <option value="weekly_target">🗓️ Hàng Tuần</option>
+                    <option value="monthly_target">📆 Hàng Tháng</option>
+                  </select>
+                </div>
 
-                <button
-                  type="button"
-                  onClick={() => handleApplyHabitPreset('weekly_target', 3, 'times')}
-                  className={`p-2 rounded-xl border text-center transition ${
-                    habitFreqPeriod === 'weekly_target' && habitTargetCount === 3
-                      ? 'bg-violet-50 border-violet-400 text-violet-800 ring-2 ring-violet-500 font-bold'
-                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 text-[11px]'
-                  }`}
-                >
-                  🏃 3x / Tuần
-                </button>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                    Số lượng mục tiêu
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={habitTargetCount}
+                    onChange={e => setHabitTargetCount(Number(e.target.value) || 1)}
+                    className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition text-center"
+                  />
+                </div>
+              </div>
 
-                <button
-                  type="button"
-                  onClick={() => handleApplyHabitPreset('monthly_target', 1, 'times')}
-                  className={`p-2 rounded-xl border text-center transition ${
-                    habitFreqPeriod === 'monthly_target' && habitTargetCount === 1
-                      ? 'bg-violet-50 border-violet-400 text-violet-800 ring-2 ring-violet-500 font-bold'
-                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 text-[11px]'
-                  }`}
-                >
-                  📚 1x / Tháng
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleApplyHabitPreset('daily', 30, 'mins')}
-                  className={`p-2 rounded-xl border text-center transition ${
-                    habitFreqPeriod === 'daily' && habitTargetCount === 30 && habitUnit === 'mins'
-                      ? 'bg-violet-50 border-violet-400 text-violet-800 ring-2 ring-violet-500 font-bold'
-                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 text-[11px]'
-                  }`}
-                >
-                  ⏱️ 30p / Ngày
-                </button>
+              {/* Đơn vị tính Preset Chips */}
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
+                  Đơn vị tính ({habitTargetCount} {habitUnit} / {habitFreqPeriod === 'daily' ? 'ngày' : habitFreqPeriod === 'weekly_target' ? 'tuần' : 'tháng'})
+                </label>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {['lần', 'phút', 'giờ', 'trang', 'ly', 'km', 'bài', 'cuốn'].map(u => (
+                    <button
+                      key={u}
+                      type="button"
+                      onClick={() => { sounds.playTap(); setHabitUnit(u) }}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                        habitUnit === u
+                          ? 'bg-violet-600 text-white shadow-2xs'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200/60'
+                      }`}
+                    >
+                      {u}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
-            {/* Custom Period & Target */}
-            <div className="grid grid-cols-3 gap-2">
-              <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  Chu kỳ
-                </label>
-                <select
-                  value={habitFreqPeriod}
-                  onChange={e => setHabitFreqPeriod(e.target.value as any)}
-                  className="w-full px-2.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
-                >
-                  <option value="daily">Hàng Ngày</option>
-                  <option value="weekly_target">Hàng Tuần</option>
-                  <option value="monthly_target">Hàng Tháng</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  Mục tiêu
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  value={habitTargetCount}
-                  onChange={e => setHabitTargetCount(Number(e.target.value) || 1)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  Đơn vị
-                </label>
-                <input
-                  type="text"
-                  value={habitUnit}
-                  onChange={e => setHabitUnit(e.target.value)}
-                  placeholder="lần, mins..."
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
-                />
-              </div>
-            </div>
-
+            {/* Màu Sắc */}
             <div>
               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
-                Color Tag
+                Màu Sắc
               </label>
               <div className="flex gap-2">
                 {HABIT_COLORS.map(c => (
                   <button
                     key={c}
                     type="button"
-                    onClick={() => setHabitColor(c)}
+                    onClick={() => { sounds.playTap(); setHabitColor(c) }}
                     className={`w-8 h-8 rounded-xl transition active:scale-90 ${
-                      habitColor === c ? 'ring-2 ring-violet-600 ring-offset-2 scale-105' : ''
+                      habitColor === c ? 'ring-2 ring-violet-600 ring-offset-2 scale-105 shadow-xs' : ''
                     }`}
                     style={{ backgroundColor: c }}
                   />
@@ -453,7 +410,7 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
               type="submit"
               className="w-full py-3.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-xs active:scale-[0.98] transition shadow-md shadow-violet-600/20 mt-2"
             >
-              Save Habit
+              Tạo Thói Quen
             </button>
           </form>
         )}

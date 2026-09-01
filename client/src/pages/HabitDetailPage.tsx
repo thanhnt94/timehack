@@ -754,75 +754,97 @@ export const HabitDetailPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Frequency & Target */}
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    Frequency
-                  </label>
-                  <select
-                    value={editFreq}
-                    onChange={e => setEditFreq(e.target.value as any)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
-                  >
-                    <option value="daily">Daily (Every day)</option>
-                    <option value="weekly_days">Specific Days / Week</option>
-                    <option value="weekly_target">Weekly Target</option>
-                    <option value="monthly_target">Monthly Target</option>
-                  </select>
-                </div>
+              {/* Frequency & Target & Unit Chips */}
+              <div className="space-y-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                      Chu kỳ lặp
+                    </label>
+                    <select
+                      value={editFreq}
+                      onChange={e => setEditFreq(e.target.value as any)}
+                      className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
+                    >
+                      <option value="daily">📅 Hàng Ngày</option>
+                      <option value="weekly_target">🗓️ Hàng Tuần</option>
+                      <option value="monthly_target">📆 Hàng Tháng</option>
+                      <option value="weekly_days">Tùy chọn ngày trong tuần</option>
+                    </select>
+                  </div>
 
-                <div>
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    Target & Unit
-                  </label>
-                  <div className="flex gap-1.5">
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                      Số lượng mục tiêu
+                    </label>
                     <input
                       type="number"
                       min="1"
                       value={editTargetCount}
                       onChange={e => setEditTargetCount(Number(e.target.value) || 1)}
-                      className="w-16 px-2.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition text-center"
+                      className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition text-center"
                     />
-                    <input
-                      type="text"
-                      value={editUnit}
-                      onChange={e => setEditUnit(e.target.value)}
-                      placeholder="times, mins, pages..."
-                      className="flex-1 px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
-                    />
+                  </div>
+                </div>
+
+                {/* Đơn vị tính Preset Chips */}
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
+                    Đơn vị tính ({editTargetCount} {editUnit})
+                  </label>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {['lần', 'phút', 'giờ', 'trang', 'ly', 'km', 'bài', 'cuốn'].map(u => (
+                      <button
+                        key={u}
+                        type="button"
+                        onClick={() => { sounds.playTap(); setEditUnit(u) }}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                          editUnit === u
+                            ? 'bg-violet-600 text-white shadow-2xs'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200/60'
+                        }`}
+                      >
+                        {u}
+                      </button>
+                    ))}
                   </div>
                 </div>
               </div>
 
-              {/* Icon & Color */}
+              {/* Biểu Tượng (Icon) */}
               <div>
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
-                  Icon & Color Badge
+                  Biểu Tượng (Icon)
                 </label>
                 <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
                   {ICONS.map(ic => (
                     <button
                       key={ic}
                       type="button"
-                      onClick={() => setEditIcon(ic)}
+                      onClick={() => { sounds.playTap(); setEditIcon(ic) }}
                       className={`w-9 h-9 rounded-xl text-base flex items-center justify-center transition shrink-0 ${
-                        editIcon === ic ? 'bg-violet-100 border-2 border-violet-600 scale-105' : 'bg-slate-100 border border-slate-200'
+                        editIcon === ic ? 'bg-violet-100 border-2 border-violet-600 scale-105 shadow-2xs' : 'bg-slate-100 border border-slate-200 hover:bg-slate-200'
                       }`}
                     >
                       {ic}
                     </button>
                   ))}
                 </div>
+              </div>
 
-                <div className="flex items-center gap-2 mt-2">
+              {/* Màu Sắc (Color) */}
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
+                  Màu Sắc (Color)
+                </label>
+                <div className="flex items-center gap-2">
                   {HABIT_COLORS.map(c => (
                     <button
                       key={c}
                       type="button"
-                      onClick={() => setEditColor(c)}
+                      onClick={() => { sounds.playTap(); setEditColor(c) }}
                       className={`w-8 h-8 rounded-xl transition active:scale-90 shrink-0 ${
-                        editColor === c ? 'ring-2 ring-violet-600 ring-offset-2 scale-105' : ''
+                        editColor === c ? 'ring-2 ring-violet-600 ring-offset-2 scale-105 shadow-xs' : ''
                       }`}
                       style={{ backgroundColor: c }}
                     />

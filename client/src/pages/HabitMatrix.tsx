@@ -15,6 +15,8 @@ const HABIT_COLORS = ['#7C3AED', '#0284C7', '#10B981', '#D97706', '#E11D48', '#6
 
 const ICONS = ['⚡', '💧', '🏃', '📚', '🧘', '💪', '🎯', '💊', '✍️', '🍏', '💤', '🔥', '🏊', '🚴', '🧹']
 
+const COMMON_UNITS = ['lần', 'phút', 'giờ', 'trang', 'ly', 'km', 'bài', 'cuốn']
+
 const FILTER_TABS = [
   { key: 'all', label: 'All Habits', icon: Layers, activeClass: 'bg-violet-600 border-violet-600 text-white shadow-2xs', inactiveClass: 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50' },
   { key: 'morning', label: '🌅 Morning', icon: Sunrise, activeClass: 'bg-amber-600 border-amber-600 text-white shadow-2xs', inactiveClass: 'bg-amber-50/80 border-amber-200 text-amber-800 hover:bg-amber-100' },
@@ -45,17 +47,17 @@ export const HabitMatrix: React.FC = () => {
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
 
-  // Create Habit Sheet State
+  // Create Habit Sheet State (Default: 1 lần / ngày)
   const [createSheetOpen, setCreateSheetOpen] = useState(false)
   const [newTitle, setNewTitle] = useState('')
   const [newFreqPeriod, setNewFreqPeriod] = useState<'daily' | 'weekly_target' | 'monthly_target'>('daily')
   const [newTargetCount, setNewTargetCount] = useState(1)
-  const [newUnit, setNewUnit] = useState('times')
+  const [newUnit, setNewUnit] = useState('lần')
   const [newTimeOfDay, setNewTimeOfDay] = useState<'morning' | 'afternoon' | 'evening' | 'anytime'>('anytime')
   const [newColor, setNewColor] = useState(HABIT_COLORS[0])
   const [newIcon, setNewIcon] = useState('⚡')
 
-  // Quick Progress Adjustment Modal (for exact logging e.g. 12 mins / 30 mins)
+  // Quick Progress Adjustment Modal
   const [progressModalHabit, setProgressModalHabit] = useState<Habit | null>(null)
   const [inputCount, setInputCount] = useState(0)
 
@@ -117,13 +119,6 @@ export const HabitMatrix: React.FC = () => {
     return filteredHabits.slice(start, start + PAGE_SIZE)
   }, [filteredHabits, currentPage])
 
-  const handleApplyPreset = (period: 'daily' | 'weekly_target' | 'monthly_target', count: number, unit: string) => {
-    sounds.playTap()
-    setNewFreqPeriod(period)
-    setNewTargetCount(count)
-    setNewUnit(unit)
-  }
-
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newTitle.trim()) return
@@ -133,12 +128,15 @@ export const HabitMatrix: React.FC = () => {
       frequency_type: newFreqPeriod,
       time_of_day: newTimeOfDay,
       target_count: Math.max(1, Number(newTargetCount) || 1),
-      unit: newUnit.trim() || 'times',
+      unit: newUnit.trim() || 'lần',
       color: newColor,
       icon: newIcon
     })
     sounds.playSuccess()
     setNewTitle('')
+    setNewFreqPeriod('daily')
+    setNewTargetCount(1)
+    setNewUnit('lần')
     setCreateSheetOpen(false)
     if (newId) {
       navigate(`/habits/${newId}`)
@@ -155,7 +153,7 @@ export const HabitMatrix: React.FC = () => {
   const handleStartFocus = (e: React.MouseEvent, h: Habit) => {
     e.stopPropagation()
     sounds.playTap()
-    const duration = h.unit === 'mins' ? h.target_count : 25
+    const duration = (h.unit === 'phút' || h.unit === 'mins') ? h.target_count : 25
     startTimer({
       habitId: h.id,
       title: `Habit: ${h.title}`,
@@ -224,9 +222,9 @@ export const HabitMatrix: React.FC = () => {
   }
 
   const getFrequencyLabel = (h: Habit) => {
-    if (h.frequency_type === 'weekly_target') return `${h.target_count} ${h.unit} / week`
-    if (h.frequency_type === 'monthly_target') return `${h.target_count} ${h.unit} / month`
-    return `${h.target_count} ${h.unit} / day`
+    if (h.frequency_type === 'weekly_target') return `${h.target_count} ${h.unit} / tuần`
+    if (h.frequency_type === 'monthly_target') return `${h.target_count} ${h.unit} / tháng`
+    return `${h.target_count} ${h.unit} / ngày`
   }
 
   return (
@@ -300,7 +298,7 @@ export const HabitMatrix: React.FC = () => {
               const isShieldFrozenToday = !!h.today_frozen
               const targetCount = h.target_count || 1
               const currentPeriodCount = h.current_period_count ?? h.today_count ?? 0
-              const isDuration = h.unit === 'mins'
+              const isDuration = (h.unit === 'phút' || h.unit === 'mins')
               const progressPercent = Math.min(100, Math.round((currentPeriodCount / targetCount) * 100))
               const miniHistory = h.mini_history || []
               const rankMeta = getRankBadge(h.mastery_rank)
@@ -480,7 +478,7 @@ export const HabitMatrix: React.FC = () => {
                     {(targetCount > 1 || h.frequency_type === 'weekly_target' || h.frequency_type === 'monthly_target') && (
                       <div className="mt-2.5 pt-2 border-t border-slate-100/80">
                         <div className="flex items-center justify-between text-[9px] font-bold text-slate-400 mb-1 font-mono">
-                          <span>{h.period_label || 'Progress'}: {currentPeriodCount} of {targetCount} {h.unit}</span>
+                          <span>{h.period_label || 'Tiến độ'}: {currentPeriodCount} of {targetCount} {h.unit}</span>
                           <span className={isPeriodDone ? 'text-emerald-600' : 'text-violet-600'}>{progressPercent}%</span>
                         </div>
                         <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
@@ -511,7 +509,7 @@ export const HabitMatrix: React.FC = () => {
                 <input
                   autoFocus
                   type="text"
-                  placeholder="Search habits..."
+                  placeholder="Tìm kiếm thói quen..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-9 pr-8 py-1.5 rounded-xl bg-slate-100/90 border border-violet-200 text-xs font-bold text-slate-800 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-violet-500 shadow-inner transition"
@@ -532,7 +530,7 @@ export const HabitMatrix: React.FC = () => {
                 }}
                 className="h-8 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold transition shrink-0 active:scale-95 cursor-pointer"
               >
-                Close
+                Đóng
               </button>
             </div>
           ) : (
@@ -554,7 +552,7 @@ export const HabitMatrix: React.FC = () => {
                       ? 'bg-violet-50 border-violet-300 text-violet-700 font-bold'
                       : 'bg-slate-50 hover:bg-slate-100 border-slate-200/80 text-slate-700'
                   }`}
-                  title="Search Habits"
+                  title="Tìm kiếm thói quen"
                 >
                   <Search className="w-4 h-4" />
                 </button>
@@ -563,8 +561,8 @@ export const HabitMatrix: React.FC = () => {
                 <button
                   onClick={() => { sounds.playTap(); setCreateSheetOpen(true) }}
                   className="h-8 w-8 rounded-xl bg-violet-600 hover:bg-violet-700 text-white flex items-center justify-center shadow-xs shadow-violet-500/20 active:scale-95 transition cursor-pointer"
-                  title="Create new habit"
-                  aria-label="Create new habit"
+                  title="Tạo thói quen mới"
+                  aria-label="Tạo thói quen mới"
                 >
                   <Plus className="w-4 h-4 stroke-[3]" />
                 </button>
@@ -582,132 +580,88 @@ export const HabitMatrix: React.FC = () => {
             <div className="sheet-handle" />
             <div className="flex items-center justify-between mb-3.5">
               <div>
-                <h2 className="text-sm font-black text-slate-900">Create New Habit</h2>
-                <p className="text-[11px] text-slate-500 font-medium">Daily, Weekly, or Monthly Consistency</p>
+                <h2 className="text-sm font-black text-slate-900">Tạo Thói Quen Mới</h2>
+                <p className="text-[11px] text-slate-500 font-medium">Thiết lập mục tiêu và duy trì tính nhất quán</p>
               </div>
               <button onClick={() => setCreateSheetOpen(false)} className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleCreate} className="space-y-3.5">
-              {/* Habit Name */}
+            <form onSubmit={handleCreate} className="space-y-4">
+              {/* 1. Habit Name */}
               <div>
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  Habit Name
+                  Tên Thói Quen
                 </label>
                 <input
                   type="text"
                   value={newTitle}
                   onChange={e => setNewTitle(e.target.value)}
-                  placeholder="e.g. Run 3x/week, Read 1 book/month, Drink 2L water..."
+                  placeholder="Ví dụ: Đọc sách, Chạy bộ, Uống nước, Tập gym..."
                   autoFocus
                   required
                   className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
                 />
               </div>
 
-              {/* Quick Presets */}
-              <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
-                  Popular Goal Presets
-                </label>
-                <div className="grid grid-cols-4 gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => handleApplyPreset('daily', 1, 'times')}
-                    className={`p-2 rounded-xl border text-center transition ${
-                      newFreqPeriod === 'daily' && newTargetCount === 1
-                        ? 'bg-violet-50 border-violet-400 text-violet-800 ring-2 ring-violet-500 font-bold'
-                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 text-[11px]'
-                    }`}
-                  >
-                    ⚡ 1x / Ngày
-                  </button>
+              {/* 2. Mục tiêu: Chu kỳ, Số lượng, Đơn vị */}
+              <div className="space-y-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                      Chu kỳ lặp
+                    </label>
+                    <select
+                      value={newFreqPeriod}
+                      onChange={e => setNewFreqPeriod(e.target.value as any)}
+                      className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
+                    >
+                      <option value="daily">📅 Hàng Ngày</option>
+                      <option value="weekly_target">🗓️ Hàng Tuần</option>
+                      <option value="monthly_target">📆 Hàng Tháng</option>
+                    </select>
+                  </div>
 
-                  <button
-                    type="button"
-                    onClick={() => handleApplyPreset('weekly_target', 3, 'times')}
-                    className={`p-2 rounded-xl border text-center transition ${
-                      newFreqPeriod === 'weekly_target' && newTargetCount === 3
-                        ? 'bg-violet-50 border-violet-400 text-violet-800 ring-2 ring-violet-500 font-bold'
-                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 text-[11px]'
-                    }`}
-                  >
-                    🏃 3x / Tuần
-                  </button>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                      Số lượng mục tiêu
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={newTargetCount}
+                      onChange={e => setNewTargetCount(Number(e.target.value) || 1)}
+                      className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition text-center"
+                    />
+                  </div>
+                </div>
 
-                  <button
-                    type="button"
-                    onClick={() => handleApplyPreset('monthly_target', 1, 'times')}
-                    className={`p-2 rounded-xl border text-center transition ${
-                      newFreqPeriod === 'monthly_target' && newTargetCount === 1
-                        ? 'bg-violet-50 border-violet-400 text-violet-800 ring-2 ring-violet-500 font-bold'
-                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 text-[11px]'
-                    }`}
-                  >
-                    📚 1x / Tháng
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleApplyPreset('daily', 30, 'mins')}
-                    className={`p-2 rounded-xl border text-center transition ${
-                      newFreqPeriod === 'daily' && newTargetCount === 30 && newUnit === 'mins'
-                        ? 'bg-violet-50 border-violet-400 text-violet-800 ring-2 ring-violet-500 font-bold'
-                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 text-[11px]'
-                    }`}
-                  >
-                    ⏱️ 30p / Ngày
-                  </button>
+                {/* Đơn vị tính (Preset Chips & Custom) */}
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
+                    Đơn vị tính ({newTargetCount} {newUnit} / {newFreqPeriod === 'daily' ? 'ngày' : newFreqPeriod === 'weekly_target' ? 'tuần' : 'tháng'})
+                  </label>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {COMMON_UNITS.map(u => (
+                      <button
+                        key={u}
+                        type="button"
+                        onClick={() => { sounds.playTap(); setNewUnit(u) }}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                          newUnit === u
+                            ? 'bg-violet-600 text-white shadow-2xs'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200/60'
+                        }`}
+                      >
+                        {u}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 
-              {/* Custom Frequency Period */}
-              <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    Chu kỳ lặp
-                  </label>
-                  <select
-                    value={newFreqPeriod}
-                    onChange={e => setNewFreqPeriod(e.target.value as any)}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
-                  >
-                    <option value="daily">📅 Hàng Ngày</option>
-                    <option value="weekly_target">🗓️ Hàng Tuần</option>
-                    <option value="monthly_target">📆 Hàng Tháng</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    Số lượng
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={newTargetCount}
-                    onChange={e => setNewTargetCount(Number(e.target.value) || 1)}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    Đơn vị
-                  </label>
-                  <input
-                    type="text"
-                    value={newUnit}
-                    onChange={e => setNewUnit(e.target.value)}
-                    placeholder="lần, mins, trang, lít..."
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
-                  />
-                </div>
-              </div>
-
-              {/* Time of Day Routine */}
+              {/* 3. Buổi trong ngày */}
               <div>
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
                   Buổi trong ngày (Routine)
@@ -722,7 +676,7 @@ export const HabitMatrix: React.FC = () => {
                     <button
                       key={t.id}
                       type="button"
-                      onClick={() => setNewTimeOfDay(t.id as any)}
+                      onClick={() => { sounds.playTap(); setNewTimeOfDay(t.id as any) }}
                       className={`py-2 px-1 text-center rounded-xl border text-[11px] font-bold transition ${
                         newTimeOfDay === t.id
                           ? 'bg-violet-50 border-violet-400 text-violet-800 ring-2 ring-violet-500'
@@ -735,34 +689,40 @@ export const HabitMatrix: React.FC = () => {
                 </div>
               </div>
 
-              {/* Icon & Color Badge */}
+              {/* 4. Biểu Tượng (Icon riêng biệt) */}
               <div>
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
-                  Icon & Color
+                  Biểu Tượng (Icon)
                 </label>
                 <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
                   {ICONS.map(ic => (
                     <button
                       key={ic}
                       type="button"
-                      onClick={() => setNewIcon(ic)}
-                      className={`w-8 h-8 rounded-xl text-sm flex items-center justify-center transition shrink-0 ${
-                        newIcon === ic ? 'bg-violet-100 border-2 border-violet-600 scale-105' : 'bg-slate-100 border border-slate-200'
+                      onClick={() => { sounds.playTap(); setNewIcon(ic) }}
+                      className={`w-9 h-9 rounded-xl text-base flex items-center justify-center transition shrink-0 ${
+                        newIcon === ic ? 'bg-violet-100 border-2 border-violet-600 scale-105 shadow-2xs' : 'bg-slate-100 border border-slate-200 hover:bg-slate-200'
                       }`}
                     >
                       {ic}
                     </button>
                   ))}
                 </div>
+              </div>
 
-                <div className="flex items-center gap-1.5 mt-1.5">
+              {/* 5. Màu Sắc (Color riêng biệt) */}
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
+                  Màu Sắc (Color)
+                </label>
+                <div className="flex items-center gap-2">
                   {HABIT_COLORS.map(c => (
                     <button
                       key={c}
                       type="button"
-                      onClick={() => setNewColor(c)}
-                      className={`w-7 h-7 rounded-xl transition active:scale-90 shrink-0 ${
-                        newColor === c ? 'ring-2 ring-violet-600 ring-offset-2 scale-105' : ''
+                      onClick={() => { sounds.playTap(); setNewColor(c) }}
+                      className={`w-8 h-8 rounded-xl transition active:scale-90 shrink-0 ${
+                        newColor === c ? 'ring-2 ring-violet-600 ring-offset-2 scale-105 shadow-xs' : ''
                       }`}
                       style={{ backgroundColor: c }}
                     />
@@ -772,9 +732,9 @@ export const HabitMatrix: React.FC = () => {
 
               <button
                 type="submit"
-                className="w-full py-3.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-xs active:scale-[0.98] transition shadow-md shadow-violet-600/20 mt-2"
+                className="w-full py-3.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-xs active:scale-[0.98] transition shadow-md shadow-violet-600/20 mt-3"
               >
-                Create Habit
+                Tạo Thói Quen
               </button>
             </form>
           </div>
@@ -789,9 +749,9 @@ export const HabitMatrix: React.FC = () => {
             <div className="sheet-handle" />
             <div className="flex items-center justify-between mb-3.5">
               <div>
-                <h2 className="text-sm font-black text-slate-900">Log Progress</h2>
+                <h2 className="text-sm font-black text-slate-900">Cập Nhật Tiến Độ</h2>
                 <p className="text-[11px] text-slate-500 font-medium">
-                  {progressModalHabit.title} (Target: {getFrequencyLabel(progressModalHabit)})
+                  {progressModalHabit.title} ({getFrequencyLabel(progressModalHabit)})
                 </p>
               </div>
               <button onClick={() => setProgressModalHabit(null)} className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700">
@@ -839,14 +799,14 @@ export const HabitMatrix: React.FC = () => {
                   onClick={() => setInputCount(Math.round(progressModalHabit.target_count / 2))}
                   className="px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold hover:bg-slate-200 transition"
                 >
-                  Half (50%)
+                  Nửa chặng (50%)
                 </button>
                 <button
                   type="button"
                   onClick={() => setInputCount(progressModalHabit.target_count)}
                   className="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold hover:bg-emerald-100 transition"
                 >
-                  Full (100%)
+                  Hoàn thành (100%)
                 </button>
               </div>
 
@@ -854,7 +814,7 @@ export const HabitMatrix: React.FC = () => {
                 type="submit"
                 className="w-full py-3.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-xs active:scale-[0.98] transition shadow-md shadow-violet-600/20"
               >
-                Save Progress
+                Lưu Tiến Độ
               </button>
             </form>
           </div>

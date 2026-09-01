@@ -321,11 +321,13 @@ export const TodayPlanner: React.FC<Props> = ({ onOpenFocus }) => {
           <div className="space-y-2">
             {tasks.slice(0, 5).map(task => {
               const isDone = task.status === 'completed'
+              const subtasks = task.subtasks || []
+              const doneSubtasks = subtasks.filter(s => s.is_completed).length
               return (
                 <div
                   key={task.id}
                   className={`glass rounded-2xl px-3.5 py-3 flex items-center gap-3 border border-slate-200 transition ${
-                    isDone ? 'opacity-50 bg-slate-50' : 'hover:border-violet-300'
+                    isDone ? 'opacity-50 bg-slate-50' : 'hover:border-violet-300 shadow-2xs'
                   }`}
                 >
                   <button
@@ -343,17 +345,24 @@ export const TodayPlanner: React.FC<Props> = ({ onOpenFocus }) => {
                     <div className={`text-sm font-semibold truncate ${isDone ? 'line-through text-slate-400' : 'text-slate-900'}`}>
                       {task.title}
                     </div>
-                    {task.eisenhower && (
-                      <span className={`text-[10px] font-bold uppercase tracking-wider ${
-                        task.eisenhower === 'do_first' ? 'text-rose-600' :
-                        task.eisenhower === 'schedule' ? 'text-violet-600' :
-                        task.eisenhower === 'delegate' ? 'text-amber-600' : 'text-slate-400'
-                      }`}>
-                        {task.eisenhower === 'do_first' ? 'Q1 Urgent' :
-                         task.eisenhower === 'schedule' ? 'Q2 Plan' :
-                         task.eisenhower === 'delegate' ? 'Q3 Delegate' : 'Q4 Eliminate'}
-                      </span>
-                    )}
+                    <div className="flex items-center gap-2 mt-1">
+                      {task.eisenhower && (
+                        <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-md border ${
+                          task.eisenhower === 'do_first' ? 'bg-rose-50 text-rose-700 border-rose-200' :
+                          task.eisenhower === 'schedule' ? 'bg-violet-50 text-violet-700 border-violet-200' :
+                          task.eisenhower === 'delegate' ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-slate-100 text-slate-600 border-slate-200'
+                        }`}>
+                          {task.eisenhower === 'do_first' ? '🔥 Urgent' :
+                           task.eisenhower === 'schedule' ? '⭐ Important' :
+                           task.eisenhower === 'delegate' ? '👥 Delegate' : '📥 Backlog'}
+                        </span>
+                      )}
+                      {subtasks.length > 0 && (
+                        <span className="text-[10px] font-bold text-slate-500 font-mono">
+                          {doneSubtasks}/{subtasks.length} subtasks
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   {!isDone && (

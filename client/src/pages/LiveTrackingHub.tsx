@@ -38,11 +38,11 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
 
   const todayIso = useMemo(() => new Date().toISOString().split('T')[0], [])
 
-  // 3 Primary Tabs
+  // 3 Primary Tabs (Docked at Bottom)
   const [activeTab, setActiveTab] = useState<MainTab>('active')
   const [readySubTab, setReadySubTab] = useState<ReadySubTab>('all')
 
-  // Quick Start Input State (Docked at Bottom)
+  // Quick Start Input State (Shown only in 'active' tab)
   const [quickTitle, setQuickTitle] = useState('')
   const [quickCategoryId, setQuickCategoryId] = useState<number | null>(null)
 
@@ -78,13 +78,6 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
     fetchCategories()
     fetchSlots(todayIso)
   }, [])
-
-  // Auto-switch to active tab if tracks exist and on initial load
-  useEffect(() => {
-    if (activeTracks.length > 0 && activeTab === 'ready') {
-      // keep current or let user navigate
-    }
-  }, [activeTracks.length])
 
   // Formatted timer digits (HH:MM:SS)
   const formatClockDigits = (totalSec: number) => {
@@ -314,109 +307,49 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#F8FAFC] text-slate-900">
-      {/* ── 1. CLEAN LIGHT HEADER BAR ── */}
-      <header className="shrink-0 bg-white border-b border-slate-200/90 px-4 py-2.5 sm:px-6 z-20 space-y-2.5">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-violet-600 flex items-center justify-center text-white shadow-xs shadow-violet-600/30">
-              <Clock className="w-4 h-4" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-base font-black tracking-tight text-slate-900">Tracking Hub</h1>
-                <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-md bg-emerald-50 text-emerald-700 font-mono border border-emerald-200">
-                  ACTUAL TIME
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-500 font-medium hidden sm:block">
-                Quản lý bấm giờ thực tế & sổ thu chi thời gian hàng ngày
-              </p>
-            </div>
+      {/* ── 1. CLEAN LIGHT HEADER BAR (COMPACT) ── */}
+      <header className="shrink-0 bg-white border-b border-slate-200/90 px-4 py-3 sm:px-6 z-20 flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-violet-600 flex items-center justify-center text-white shadow-xs shadow-violet-600/30">
+            <Clock className="w-4 h-4" />
           </div>
-
-          {/* Right Summary Pill + Quick Add Button */}
-          <div className="flex items-center gap-2">
-            <div className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1 text-right shadow-2xs">
-              <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 block">Hôm nay</span>
-              <span className="text-xs sm:text-sm font-black text-violet-700 font-mono">
-                {totalLoggedFormatted}
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-base font-black tracking-tight text-slate-900">Tracking Hub</h1>
+              <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-md bg-emerald-50 text-emerald-700 font-mono border border-emerald-200">
+                ACTUAL TIME
               </span>
             </div>
-
-            <button
-              onClick={() => { sounds.playTap(); setShowManualModal(true) }}
-              className="p-2 sm:px-3 sm:py-1.5 rounded-xl bg-violet-50 hover:bg-violet-100 text-violet-700 text-xs font-bold border border-violet-200 flex items-center gap-1.5 transition active:scale-95 shadow-2xs"
-              title="Ghi nhận log thủ công"
-            >
-              <Plus className="w-4 h-4 text-violet-600" />
-              <span className="hidden sm:inline">Ghi sổ</span>
-            </button>
+            <p className="text-[11px] text-slate-500 font-medium hidden sm:block">
+              Quản lý bấm giờ thực tế & sổ thu chi thời gian hàng ngày
+            </p>
           </div>
         </div>
 
-        {/* ── 3 PRIMARY SEGMENTED TABS ── */}
-        <div className="grid grid-cols-3 gap-1 bg-slate-100 p-1 rounded-2xl border border-slate-200 text-xs font-bold">
-          {/* Tab 1: Đang Track */}
-          <button
-            onClick={() => { sounds.playTap(); setActiveTab('active') }}
-            className={`py-1.5 px-2 rounded-xl flex items-center justify-center gap-1.5 transition ${
-              activeTab === 'active'
-                ? 'bg-white text-violet-950 shadow-xs border border-slate-200/80 font-black'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <span className="relative flex h-2 w-2">
-              {activeTracks.length > 0 && (
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              )}
-              <span className={`relative inline-flex rounded-full h-2 w-2 ${activeTracks.length > 0 ? 'bg-emerald-500' : 'bg-slate-400'}`}></span>
+        {/* Right Summary Pill + Quick Add Button */}
+        <div className="flex items-center gap-2">
+          <div className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1 text-right shadow-2xs">
+            <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 block">Hôm nay</span>
+            <span className="text-xs sm:text-sm font-black text-violet-700 font-mono">
+              {totalLoggedFormatted}
             </span>
-            <span>Đang Track</span>
-            {activeTracks.length > 0 && (
-              <span className="text-[10px] font-mono font-bold bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded-full">
-                {activeTracks.length}
-              </span>
-            )}
-          </button>
+          </div>
 
-          {/* Tab 2: Chờ Track */}
           <button
-            onClick={() => { sounds.playTap(); setActiveTab('ready') }}
-            className={`py-1.5 px-2 rounded-xl flex items-center justify-center gap-1.5 transition ${
-              activeTab === 'ready'
-                ? 'bg-white text-violet-950 shadow-xs border border-slate-200/80 font-black'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
+            onClick={() => { sounds.playTap(); setShowManualModal(true) }}
+            className="p-2 sm:px-3 sm:py-1.5 rounded-xl bg-violet-50 hover:bg-violet-100 text-violet-700 text-xs font-bold border border-violet-200 flex items-center gap-1.5 transition active:scale-95 shadow-2xs"
+            title="Ghi nhận log thủ công"
           >
-            <Target className="w-3.5 h-3.5 text-violet-600" />
-            <span>Chờ Track</span>
-            <span className="text-[10px] font-mono font-bold bg-violet-100 text-violet-800 px-1.5 py-0.2 rounded-full">
-              {activeTasks.length + habits.length}
-            </span>
-          </button>
-
-          {/* Tab 3: Sổ Ghi Thời Gian (MISA Style) */}
-          <button
-            onClick={() => { sounds.playTap(); setActiveTab('history') }}
-            className={`py-1.5 px-2 rounded-xl flex items-center justify-center gap-1.5 transition ${
-              activeTab === 'history'
-                ? 'bg-white text-violet-950 shadow-xs border border-slate-200/80 font-black'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <Wallet className="w-3.5 h-3.5 text-indigo-600" />
-            <span>Sổ Nhật Ký</span>
-            {logs.length > 0 && (
-              <span className="text-[10px] font-mono font-bold bg-slate-200 text-slate-700 px-1.5 py-0.2 rounded-full">
-                {logs.length}
-              </span>
-            )}
+            <Plus className="w-4 h-4 text-violet-600" />
+            <span className="hidden sm:inline">Ghi sổ</span>
           </button>
         </div>
       </header>
 
-      {/* ── 2. SCROLLABLE MIDDLE CONTENT AREA (SWITCHED BY TAB) ── */}
-      <main className="flex-1 overflow-y-auto px-3.5 py-3.5 sm:px-6 sm:py-4 max-w-3xl w-full mx-auto pb-44">
+      {/* ── 2. SCROLLABLE MIDDLE CONTENT AREA (SWITCHED BY BOTTOM TAB) ── */}
+      <main className={`flex-1 overflow-y-auto px-3.5 py-3.5 sm:px-6 sm:py-4 max-w-3xl w-full mx-auto ${
+        activeTab === 'active' ? 'pb-44' : 'pb-24'
+      }`}>
 
         {/* ═══════════════════════════════════════════════════════════════ */}
         {/* ── TAB 1: DANH SÁCH CÁC VIỆC ĐANG TRACKING (ACTIVE STOPWATCH) ── */}
@@ -431,7 +364,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                 <div>
                   <h3 className="text-sm font-black text-slate-900">Chưa có hoạt động nào đang chạy</h3>
                   <p className="text-xs text-slate-500 font-medium max-w-xs mx-auto mt-1">
-                    Nhập tên việc ở thanh dưới đáy hoặc sang tab <b>"Chờ Track"</b> để chọn Task/Habit bấm giờ ngay!
+                    Nhập tên việc ở thanh dưới đáy hoặc chuyển sang tab <b>"Chờ Track"</b> để bấm giờ ngay!
                   </p>
                 </div>
                 <div className="pt-2 flex items-center justify-center gap-2 flex-wrap">
@@ -840,63 +773,128 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
         )}
       </main>
 
-      {/* ── 3. FIXED 1-HAND BOTTOM TRACKING CONTROL BAR (TỐI ƯU 1 TAY Ở ĐÁY) ── */}
-      <div className="fixed bottom-[calc(60px+var(--safe-bottom))] left-0 right-0 z-30 bg-white/95 backdrop-blur-md border-t border-slate-200 px-3 py-2 sm:px-6 shadow-lg shadow-slate-300/40">
-        <div className="max-w-3xl mx-auto space-y-1.5">
-          {/* Quick Chip Presets Bar */}
-          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
-            {presets.map((p, idx) => (
-              <button
-                key={idx}
-                onClick={() => {
-                  const matchedCat = categories.find(c => c.name.toLowerCase().includes(p.catName.toLowerCase().slice(0, 5)))
-                  handleStartTrack(p.title, matchedCat?.id)
-                }}
-                className="px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-violet-100 hover:text-violet-700 text-[11px] font-bold text-slate-700 border border-slate-200/90 transition active:scale-95 shrink-0"
-              >
-                {p.title}
-              </button>
-            ))}
-          </div>
+      {/* ── 3. BOTTOM DOCKED AREA (QUICK TRACK BAR ON 'ACTIVE' TAB + 3 TABS BAR) ── */}
+      <div className="fixed bottom-[calc(56px+var(--safe-bottom))] left-0 right-0 z-30 bg-white/95 backdrop-blur-md border-t border-slate-200 px-3 py-2 sm:px-6 shadow-lg shadow-slate-300/40">
+        <div className="max-w-3xl mx-auto space-y-2">
+          {/* Quick Track Launcher Bar: ONLY SHOWN ON 'ACTIVE' TAB */}
+          {activeTab === 'active' && (
+            <div className="space-y-1.5 anim-fade-in border-b border-slate-100 pb-2">
+              {/* Presets Chips */}
+              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+                {presets.map((p, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => {
+                      const matchedCat = categories.find(c => c.name.toLowerCase().includes(p.catName.toLowerCase().slice(0, 5)))
+                      handleStartTrack(p.title, matchedCat?.id)
+                    }}
+                    className="px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-violet-100 hover:text-violet-700 text-[11px] font-bold text-slate-700 border border-slate-200/90 transition active:scale-95 shrink-0"
+                  >
+                    {p.title}
+                  </button>
+                ))}
+              </div>
 
-          {/* Input & Track Button Row */}
-          <div className="flex items-center gap-2">
-            <input
-              type="text"
-              value={quickTitle}
-              onChange={e => setQuickTitle(e.target.value)}
-              placeholder="Nhập việc cần track (Ví dụ: Đi làm, Họp Sprint, Code API...)"
-              className="flex-1 px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 placeholder:text-slate-400 outline-none focus:bg-white focus:border-violet-500 transition shadow-inner"
-              onKeyDown={e => {
-                if (e.key === 'Enter') handleStartTrack()
-              }}
-            />
+              {/* Input & Start Button */}
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={quickTitle}
+                  onChange={e => setQuickTitle(e.target.value)}
+                  placeholder="Nhập việc cần track (Ví dụ: Đi làm, Họp Sprint, Code API...)"
+                  className="flex-1 px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 placeholder:text-slate-400 outline-none focus:bg-white focus:border-violet-500 transition shadow-inner"
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') handleStartTrack()
+                  }}
+                />
 
-            <select
-              value={quickCategoryId || ''}
-              onChange={e => setQuickCategoryId(e.target.value ? Number(e.target.value) : null)}
-              className="px-2.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 outline-none focus:bg-white focus:border-violet-500 transition shrink-0 max-w-[130px]"
-            >
-              <option value="">📁 Danh mục</option>
-              {categories.map(c => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+                <select
+                  value={quickCategoryId || ''}
+                  onChange={e => setQuickCategoryId(e.target.value ? Number(e.target.value) : null)}
+                  className="px-2.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 outline-none focus:bg-white focus:border-violet-500 transition shrink-0 max-w-[130px]"
+                >
+                  <option value="">📁 Danh mục</option>
+                  {categories.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
 
+                <button
+                  onClick={() => handleStartTrack()}
+                  className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-black flex items-center justify-center gap-1.5 shadow-md shadow-violet-600/30 active:scale-95 transition shrink-0"
+                >
+                  <Play className="w-3.5 h-3.5 fill-current" />
+                  <span>Track</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── 3 PRIMARY SEGMENTED TABS DOCKED AT BOTTOM ── */}
+          <div className="grid grid-cols-3 gap-1 bg-slate-100 p-1 rounded-2xl border border-slate-200 text-xs font-bold">
+            {/* Tab 1: Đang Track */}
             <button
-              onClick={() => handleStartTrack()}
-              className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-black flex items-center justify-center gap-1.5 shadow-md shadow-violet-600/30 active:scale-95 transition shrink-0"
+              onClick={() => { sounds.playTap(); setActiveTab('active') }}
+              className={`py-2 px-2 rounded-xl flex items-center justify-center gap-1.5 transition ${
+                activeTab === 'active'
+                  ? 'bg-white text-violet-950 shadow-xs border border-slate-200/80 font-black'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
             >
-              <Play className="w-3.5 h-3.5 fill-current" />
-              <span>Track</span>
+              <span className="relative flex h-2 w-2">
+                {activeTracks.length > 0 && (
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                )}
+                <span className={`relative inline-flex rounded-full h-2 w-2 ${activeTracks.length > 0 ? 'bg-emerald-500' : 'bg-slate-400'}`}></span>
+              </span>
+              <span>Đang Track</span>
+              {activeTracks.length > 0 && (
+                <span className="text-[10px] font-mono font-bold bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded-full">
+                  {activeTracks.length}
+                </span>
+              )}
+            </button>
+
+            {/* Tab 2: Chờ Track */}
+            <button
+              onClick={() => { sounds.playTap(); setActiveTab('ready') }}
+              className={`py-2 px-2 rounded-xl flex items-center justify-center gap-1.5 transition ${
+                activeTab === 'ready'
+                  ? 'bg-white text-violet-950 shadow-xs border border-slate-200/80 font-black'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Target className="w-3.5 h-3.5 text-violet-600" />
+              <span>Chờ Track</span>
+              <span className="text-[10px] font-mono font-bold bg-violet-100 text-violet-800 px-1.5 py-0.2 rounded-full">
+                {activeTasks.length + habits.length}
+              </span>
+            </button>
+
+            {/* Tab 3: Sổ Ghi Thời Gian (MISA Style) */}
+            <button
+              onClick={() => { sounds.playTap(); setActiveTab('history') }}
+              className={`py-2 px-2 rounded-xl flex items-center justify-center gap-1.5 transition ${
+                activeTab === 'history'
+                  ? 'bg-white text-violet-950 shadow-xs border border-slate-200/80 font-black'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Wallet className="w-3.5 h-3.5 text-indigo-600" />
+              <span>Sổ Nhật Ký</span>
+              {logs.length > 0 && (
+                <span className="text-[10px] font-mono font-bold bg-slate-200 text-slate-700 px-1.5 py-0.2 rounded-full">
+                  {logs.length}
+                </span>
+              )}
             </button>
           </div>
         </div>
       </div>
 
-      {/* ── 5. EDIT LOG MODAL / BOTTOM SHEET ── */}
+      {/* ── 4. EDIT LOG MODAL / BOTTOM SHEET ── */}
       {editingLog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs anim-fade-in">
           <div className="bg-white border border-slate-200 rounded-3xl p-5 w-full max-w-md shadow-2xl space-y-4 text-slate-900">
@@ -1004,7 +1002,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
         </div>
       )}
 
-      {/* ── 6. MANUAL QUICK LOG MODAL ── */}
+      {/* ── 5. MANUAL QUICK LOG MODAL ── */}
       {showManualModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs anim-fade-in">
           <div className="bg-white border border-slate-200 rounded-3xl p-5 w-full max-w-md shadow-2xl space-y-4 text-slate-900">

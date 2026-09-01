@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete
+from sqlalchemy.orm import selectinload
 from datetime import date
 from typing import Optional
 from pydantic import BaseModel
@@ -31,18 +32,20 @@ async def get_schedule_slots(date_str: Optional[str] = None, request: Request = 
         except Exception:
             pass
 
-    stmt = select(ScheduleSlot).where(ScheduleSlot.user_id == user_id, ScheduleSlot.date == target_date).order_by(ScheduleSlot.start_time.asc())
+    stmt = (
+        select(ScheduleSlot)
+        .options(selectinload(ScheduleSlot.category))
+        .where(ScheduleSlot.user_id == user_id, ScheduleSlot.date == target_date)
+        .order_by(ScheduleSlot.start_time.asc())
+    )
     res = await db.execute(stmt)
     slots = res.scalars().all()
 
     result = []
     for s in slots:
         cat_info = None
-        if s.category_id:
-            c_res = await db.execute(select(Category).where(Category.id == s.category_id))
-            c_obj = c_res.scalar_one_or_none()
-            if c_obj:
-                cat_info = {"id": c_obj.id, "name": c_obj.name, "color": c_obj.color}
+        if s.category:
+            cat_info = {"id": s.category.id, "name": s.category.name, "color": s.category.color}
 
         result.append({
             "id": s.id,

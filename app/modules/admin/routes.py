@@ -153,11 +153,17 @@ async def list_users(
 ):
     res = await db.execute(select(User).order_by(User.id.asc()))
     users = res.scalars().all()
+
+    # 1. Batch task counts
+    t_counts_res = await db.execute(select(Task.user_id, func.count(Task.id)).group_by(Task.user_id))
+    task_count_map = dict(t_counts_res.all())
+
+    # 2. Batch habit counts
+    h_counts_res = await db.execute(select(Habit.user_id, func.count(Habit.id)).group_by(Habit.user_id))
+    habit_count_map = dict(h_counts_res.all())
     
     result = []
     for u in users:
-        t_count = (await db.execute(select(func.count(Task.id)).where(Task.user_id == u.id))).scalar() or 0
-        h_count = (await db.execute(select(func.count(Habit.id)).where(Habit.user_id == u.id))).scalar() or 0
         result.append({
             "id": u.id,
             "username": u.username,
@@ -166,8 +172,8 @@ async def list_users(
             "role": u.role or "user",
             "central_auth_id": u.central_auth_id,
             "created_at": u.created_at.isoformat() if u.created_at else None,
-            "tasks_count": t_count,
-            "habits_count": h_count
+            "tasks_count": task_count_map.get(u.id, 0),
+            "habits_count": habit_count_map.get(u.id, 0)
         })
     return result
 

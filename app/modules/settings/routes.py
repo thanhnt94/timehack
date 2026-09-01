@@ -1,213 +1,80 @@
-from flask import render_template, request, jsonify, flash, redirect, url_for
-from flask_login import login_required, current_user
+from fastapi import APIRouter, Depends, HTTPException, Request
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from typing import Dict, Any
 
-from . import settings_bp
-from app.extensions import db
-from app.models.category import Category
-from app.models.time_entry import PomodoroSettings
+from app.core.database import get_db
+from app.core.security import get_current_user_id
+from app.modules.auth.models import User
+from app.modules.settings.models import UserSettings
 
+router = APIRouter(prefix="/api/v1/user/settings", tags=["UserSettings"])
 
-@settings_bp.route('/profile')
-@login_required
-def profile():
-    """User profile summary page."""
-    return render_template('settings/profile.html')
+DEFAULT_POMODORO_SETTINGS = {
+    "work_duration": 25,
+    "short_break": 5,
+    "long_break": 15,
+    "sessions_before_long_break": 4,
+    "auto_start_breaks": False,
+    "auto_start_pomodoros": False,
+    "sound_enabled": True,
+    "ambient_sound": "none",
+    "theme": "dark"
+}
 
+@router.get("")
+async def get_user_settings(request: Request, db: AsyncSession = Depends(get_db)):
+    """Fetch user settings (Pomodoro, audio, theme, notifications)."""
+    user_id = get_current_user_id(request)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Unauthenticated")
 
-@settings_bp.route('/preferences')
-@login_required
-def preferences():
-    """Settings page: categories + pomodoro config."""
-    categories = Category.query.filter_by(user_id=current_user.id).all()
-    # Sort by full_path ensures parents come before children
-    categories.sort(key=lambda c: c.get_full_path())
-    pomo = PomodoroSettings.get_or_create(current_user.id)
-    from app.models.tag import Tag
-    tags = Tag.query.filter_by(user_id=current_user.id).all()
-    return render_template('settings/preferences.html', categories=categories, pomo=pomo, tags=tags)
+    res = await db.execute(select(UserSettings).where(UserSettings.user_id == user_id))
+    user_sett = res.scalar_one_or_none()
 
+    settings_dict = dict(DEFAULT_POMODORO_SETTINGS)
+    if user_sett and user_sett.settings:
+        settings_dict.update(user_sett.settings)
 
-# ── Tag CRUD API ──────────────────────────────────────────
+    u_res = await db.execute(select(User).where(User.id == user_id))
+    user = u_res.scalar_one_or_none()
+    if user and user.timezone:
+        settings_dict["timezone"] = user.timezone
 
-@settings_bp.route('/api/tags', methods=['POST'])
-@login_required
-def api_add_tag():
-    data = request.get_json()
-    if not data or not data.get('name'):
-        return jsonify({'status': 'error', 'message': 'Tên tag là bắt buộc.'}), 400
+    return {
+        "status": "ok",
+        "settings": settings_dict
+    }
 
-    tag = Tag(user_id=current_user.id, name=data['name'])
-    
-    # Liên kết với các categories
-    cat_ids = data.get('category_ids', [])
-    if cat_ids:
-        cats = Category.query.filter(Category.id.in_(cat_ids), Category.user_id == current_user.id).all()
-        tag.categories = cats
+@router.post("")
+async def save_user_settings(payload: Dict[str, Any], request: Request, db: AsyncSession = Depends(get_db)):
+    """Save/update user settings (persisted in DB, zero localStorage)."""
+    user_id = get_current_user_id(request)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Unauthenticated")
 
-    db.session.add(tag)
-    db.session.commit()
-    return jsonify({'status': 'ok', 'id': tag.id}), 201
+    res = await db.execute(select(UserSettings).where(UserSettings.user_id == user_id))
+    user_sett = res.scalar_one_or_none()
 
-@settings_bp.route('/api/push/subscribe', methods=['POST'])
-@login_required
-def api_push_subscribe():
-    from app.models.push_subscription import PushSubscription
-    data = request.get_json()
-    if not data or 'endpoint' not in data:
-        return jsonify({'status': 'error'}), 400
+    if not user_sett:
+        user_sett = UserSettings(user_id=user_id, settings=payload)
+        db.add(user_sett)
+    else:
+        existing = dict(user_sett.settings) if user_sett.settings else {}
+        existing.update(payload)
+        user_sett.settings = existing
 
-    # Kiểm tra xem subscription này đã tồn tại chưa
-    exists = PushSubscription.query.filter_by(endpoint=data['endpoint']).first()
-    if not exists:
-        new_sub = PushSubscription(
-            user_id=current_user.id,
-            endpoint=data['endpoint'],
-            p256dh=data['keys']['p256dh'],
-            auth=data['keys']['auth']
-        )
-        db.session.add(new_sub)
-        db.session.commit()
-    
-    return jsonify({'status': 'ok'}), 200
+    # Synchronize User.timezone if present
+    if "timezone" in payload and payload["timezone"]:
+        u_res = await db.execute(select(User).where(User.id == user_id))
+        user = u_res.scalar_one_or_none()
+        if user:
+            user.timezone = str(payload["timezone"]).strip()
 
+    await db.commit()
+    await db.refresh(user_sett)
 
-@settings_bp.route('/')
-@login_required
-def index():
-    return redirect(url_for('settings.profile'))
-
-
-# ── Category CRUD API ──────────────────────────────────────────
-
-@settings_bp.route('/api/categories', methods=['GET'])
-@login_required
-def api_categories():
-    cats = Category.query.filter_by(user_id=current_user.id).all()
-    # Sort by full_path so children appear immediately after parents
-    cats.sort(key=lambda c: c.get_full_path())
-    
-    return jsonify([{
-        'id': c.id, 
-        'name': c.name, 
-        'full_path': c.get_full_path(),
-        'parent_id': c.parent_id,
-        'indent_level': c.get_indent_level(),
-        'color': c.color,
-        'icon': c.icon, 
-        'is_default': c.is_default,
-    } for c in cats]), 200
-
-
-@settings_bp.route('/api/categories', methods=['POST'])
-@login_required
-def api_add_category():
-    data = request.get_json()
-    if not data or not data.get('name'):
-        return jsonify({'status': 'error', 'message': 'Tên là bắt buộc.'}), 400
-
-    parent_id = data.get('parent_id')
-    if parent_id == '': parent_id = None
-    
-    # Check if parent exists
-    if parent_id:
-        parent = Category.query.filter_by(id=int(parent_id), user_id=current_user.id).first()
-        if not parent:
-            return jsonify({'status': 'error', 'message': 'Danh mục cha không tồn tại.'}), 404
-
-    cat = Category(
-        user_id=current_user.id,
-        name=data['name'],
-        parent_id=int(parent_id) if parent_id else None,
-        color=data.get('color', '#6366F1'),
-        icon=data.get('icon', '📌'),
-    )
-    db.session.add(cat)
-    db.session.commit()
-    return jsonify({'status': 'ok', 'id': cat.id}), 201
-
-
-@settings_bp.route('/api/categories/<int:cat_id>', methods=['PUT'])
-@login_required
-def api_update_category(cat_id):
-    cat = Category.query.filter_by(id=cat_id, user_id=current_user.id).first()
-    if not cat:
-        return jsonify({'status': 'error', 'message': 'Không tìm thấy.'}), 404
-
-    data = request.get_json() or {}
-    if 'name' in data:
-        cat.name = data['name']
-    if 'color' in data:
-        cat.color = data['color']
-    if 'icon' in data:
-        cat.icon = data['icon']
-    if 'parent_id' in data:
-        pid = data['parent_id']
-        cat.parent_id = int(pid) if pid else None
-        
-    db.session.commit()
-    return jsonify({'status': 'ok'}), 200
-
-@settings_bp.route('/api/categories/<int:cat_id>', methods=['DELETE'])
-@login_required
-def api_delete_category(cat_id):
-    cat = Category.query.filter_by(id=cat_id, user_id=current_user.id).first()
-    if not cat:
-        return jsonify({'status': 'error', 'message': 'Không tìm thấy.'}), 404
-        
-    db.session.delete(cat)
-    db.session.commit()
-    return jsonify({'status': 'ok'}), 200
-
-
-
-
-# ── Pomodoro Settings API ──────────────────────────────────────
-
-@settings_bp.route('/api/pomodoro', methods=['GET'])
-@login_required
-def api_get_pomodoro():
-    pomo = PomodoroSettings.get_or_create(current_user.id)
-    return jsonify({
-        'work_duration': pomo.work_duration,
-        'short_break': pomo.short_break,
-        'long_break': pomo.long_break,
-        'sessions_before_long_break': pomo.sessions_before_long_break,
-        'auto_start_breaks': pomo.auto_start_breaks,
-        'auto_start_pomodoros': pomo.auto_start_pomodoros,
-        'sound_enabled': pomo.sound_enabled,
-    }), 200
-
-
-@settings_bp.route('/api/pomodoro', methods=['PUT'])
-@login_required
-def api_update_pomodoro():
-    pomo = PomodoroSettings.get_or_create(current_user.id)
-    data = request.get_json() or {}
-
-    for field in ['work_duration', 'short_break', 'long_break', 'sessions_before_long_break']:
-        if field in data:
-            setattr(pomo, field, int(data[field]))
-    for field in ['auto_start_breaks', 'auto_start_pomodoros', 'sound_enabled']:
-        if field in data:
-            setattr(pomo, field, bool(data[field]))
-
-    db.session.commit()
-    return jsonify({'status': 'ok'}), 200
-
-
-# ── User Profile / Timezone API ───────────────────────────────
-
-@settings_bp.route('/api/profile', methods=['PUT'])
-@login_required
-def api_update_profile():
-    """Update user profile (timezone, full_name, etc)."""
-    data = request.get_json() or {}
-    
-    if 'timezone' in data:
-        current_user.timezone = data['timezone']
-    if 'full_name' in data:
-        current_user.full_name = data['full_name']
-    
-    db.session.commit()
-    return jsonify({'status': 'ok'}), 200
-
+    return {
+        "status": "ok",
+        "settings": user_sett.settings
+    }

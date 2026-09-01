@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text, JSON, Date, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text, JSON, Date, UniqueConstraint, Index
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.core.database import Base
@@ -34,12 +34,15 @@ class Habit(Base):
 
 class HabitLog(Base):
     __tablename__ = "habit_logs"
-    __table_args__ = (UniqueConstraint("habit_id", "logged_date", name="uq_habit_date"),)
+    __table_args__ = (
+        UniqueConstraint("habit_id", "logged_date", name="uq_habit_date"),
+        Index("ix_habit_logs_user_logged_date", "user_id", "logged_date"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     habit_id = Column(Integer, ForeignKey("habits.id", ondelete="CASCADE"), index=True, nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
-    logged_date = Column(Date, nullable=False) # YYYY-MM-DD
+    logged_date = Column(Date, nullable=False, index=True) # YYYY-MM-DD
     completed_time = Column(String(10), nullable=True) # e.g. "08:30" or "21:15"
     count = Column(Integer, default=1)
     completed = Column(Boolean, default=True)

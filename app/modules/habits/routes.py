@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, delete
+from sqlalchemy.orm import selectinload
 from datetime import datetime, date, timedelta
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel
@@ -282,7 +283,7 @@ async def get_habits(
     user_tz = user.timezone if user else "Asia/Ho_Chi_Minh"
     today_user_date = get_user_today(user_tz)
 
-    stmt = select(Habit).where(Habit.user_id == user_id)
+    stmt = select(Habit).options(selectinload(Habit.category)).where(Habit.user_id == user_id)
     if not include_archived:
         stmt = stmt.where(Habit.archived == False)
     stmt = stmt.order_by(Habit.archived.asc(), Habit.id.desc())
@@ -290,14 +291,25 @@ async def get_habits(
     res = await db.execute(stmt)
     habits = res.scalars().all()
 
+    # 1 Batch Query for all user habit logs (Eliminate N+1 queries completely)
+    logs_stmt = (
+        select(HabitLog)
+        .where(HabitLog.user_id == user_id)
+        .order_by(HabitLog.logged_date.asc())
+    )
+    logs_res = await db.execute(logs_stmt)
+    all_user_logs = logs_res.scalars().all()
+
+    # Map logs by habit_id in-memory
+    logs_by_habit: Dict[int, List[HabitLog]] = {}
+    for l in all_user_logs:
+        if l.habit_id not in logs_by_habit:
+            logs_by_habit[l.habit_id] = []
+        logs_by_habit[l.habit_id].append(l)
+
     result = []
     for h in habits:
-        log_res = await db.execute(
-            select(HabitLog)
-            .where(HabitLog.habit_id == h.id)
-            .order_by(HabitLog.logged_date.asc())
-        )
-        all_logs = log_res.scalars().all()
+        all_logs = logs_by_habit.get(h.id, [])
         target_count = h.target_count or 1
         target_count_secondary = h.target_count_secondary
         freq = h.frequency_type or "daily"
@@ -339,11 +351,8 @@ async def get_habits(
         today_log = next((l for l in all_logs if l.logged_date == today_user_date), None)
 
         cat_info = None
-        if h.category_id:
-            c_res = await db.execute(select(Category).where(Category.id == h.category_id))
-            c_obj = c_res.scalar_one_or_none()
-            if c_obj:
-                cat_info = {"id": c_obj.id, "name": c_obj.name, "color": c_obj.color, "icon": c_obj.icon}
+        if h.category:
+            cat_info = {"id": h.category.id, "name": h.category.name, "color": h.category.color, "icon": h.category.icon}
 
         # 7-day mini sparkline
         mini_history = []

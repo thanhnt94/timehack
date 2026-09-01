@@ -15,6 +15,7 @@ from app.modules.schedule.routes import router as schedule_router
 from app.modules.time_tracking.routes import router as time_tracking_router
 from app.modules.analytics.routes import router as analytics_router
 from app.modules.notifications.routes import router as notifications_router
+from app.modules.settings.routes import router as settings_router
 from app.modules.admin.routes import router as admin_router
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -90,6 +91,7 @@ app.include_router(schedule_router)
 app.include_router(time_tracking_router)
 app.include_router(analytics_router)
 app.include_router(notifications_router)
+app.include_router(settings_router)
 app.include_router(admin_router)
 
 # Mount Static Assets

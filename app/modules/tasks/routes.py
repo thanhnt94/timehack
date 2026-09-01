@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, delete, func
+from sqlalchemy.orm import selectinload
 from datetime import datetime
 from typing import Optional, List
 from pydantic import BaseModel
@@ -78,7 +79,14 @@ async def get_tasks(
     db: AsyncSession = Depends(get_db)
 ):
     user_id = get_current_user_id(request)
-    stmt = select(Task).where(Task.user_id == user_id)
+    stmt = (
+        select(Task)
+        .options(
+            selectinload(Task.subtasks),
+            selectinload(Task.category)
+        )
+        .where(Task.user_id == user_id)
+    )
 
     if status:
         stmt = stmt.where(Task.status == status)
@@ -93,18 +101,19 @@ async def get_tasks(
     res = await db.execute(stmt)
     tasks = res.scalars().all()
 
-    # Format result with subtasks & category
+    # Format result with eager-loaded subtasks & category (Zero extra SQL roundtrips)
     result = []
     for t in tasks:
-        sub_res = await db.execute(select(Subtask).where(Subtask.task_id == t.id).order_by(Subtask.id.asc()))
-        subtasks = sub_res.scalars().all()
-        
         cat_info = None
-        if t.category_id:
-            c_res = await db.execute(select(Category).where(Category.id == t.category_id))
-            c_obj = c_res.scalar_one_or_none()
-            if c_obj:
-                cat_info = {"id": c_obj.id, "name": c_obj.name, "color": c_obj.color, "icon": c_obj.icon}
+        if t.category:
+            cat_info = {
+                "id": t.category.id,
+                "name": t.category.name,
+                "color": t.category.color,
+                "icon": t.category.icon
+            }
+
+        subtasks = sorted(t.subtasks, key=lambda st: st.id) if t.subtasks else []
 
         result.append({
             "id": t.id,
@@ -121,7 +130,7 @@ async def get_tasks(
             "completed_at": t.completed_at.isoformat() if t.completed_at else None,
             "order_index": t.order_index,
             "subtasks": [{"id": st.id, "title": st.title, "is_completed": st.is_completed} for st in subtasks],
-            "created_at": t.created_at.isoformat()
+            "created_at": t.created_at.isoformat() if t.created_at else ""
         })
 
     return result

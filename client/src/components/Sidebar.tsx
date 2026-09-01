@@ -2,7 +2,7 @@ import React from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import {
   Sparkles, CalendarDays, CheckSquare, Zap, BarChart3,
-  Clock, LogOut, ShieldAlert, Globe
+  Clock, LogOut, ShieldAlert, Settings
 } from 'lucide-react'
 import { sounds } from '../utils/soundEffects'
 
@@ -14,15 +14,14 @@ interface Props {
 
 const links = [
   { path: '/', icon: CalendarDays, label: 'Hôm Nay' },
+  { path: '/schedule', icon: Clock, label: 'Lịch Trình' },
   { path: '/tasks', icon: CheckSquare, label: 'Nhiệm Vụ' },
   { path: '/habits', icon: Zap, label: 'Thói Quen' },
-  { path: '/schedule', icon: Clock, label: 'Lịch Trình' },
   { path: '/analytics', icon: BarChart3, label: 'Thống Kê' },
 ]
 
 export const Sidebar: React.FC<Props> = ({ user, onLogout, onOpenSettings }) => {
   const { pathname } = useLocation()
-  const tzLabel = user?.timezone ? user.timezone.split('/').pop()?.replace('_', ' ') : 'UTC+7'
 
   return (
     <aside className="hidden md:flex w-60 shrink-0 h-[100dvh] flex-col bg-white border-r border-slate-200 fixed left-0 top-0 z-20">
@@ -58,19 +57,14 @@ export const Sidebar: React.FC<Props> = ({ user, onLogout, onOpenSettings }) => 
           )
         })}
 
-        {/* Timezone button */}
+        {/* Settings button */}
         {onOpenSettings && (
           <button
             onClick={() => { sounds.playTap(); onOpenSettings() }}
-            className="w-full flex items-center justify-between px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:text-violet-700 hover:bg-violet-50/60 border border-transparent transition"
+            className="w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-violet-700 hover:bg-violet-50/60 border border-transparent transition"
           >
-            <div className="flex items-center gap-2.5">
-              <Globe className="w-4 h-4 text-violet-600" />
-              <span>Múi Giờ</span>
-            </div>
-            <span className="text-[10px] font-mono font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
-              {tzLabel}
-            </span>
+            <Settings className="w-4 h-4 text-slate-500" />
+            <span>Cài Đặt</span>
           </button>
         )}
 
@@ -90,15 +84,25 @@ export const Sidebar: React.FC<Props> = ({ user, onLogout, onOpenSettings }) => 
         )}
       </nav>
 
-      {/* User + logout */}
+      {/* User profile + trigger */}
       <div className="px-3 py-3 border-t border-slate-200 bg-slate-50/50">
         <div className="flex items-center justify-between px-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="w-7 h-7 rounded-full bg-violet-600 flex items-center justify-center text-[10px] font-black text-white shrink-0">
-              {user?.full_name?.charAt(0) || user?.username?.charAt(0) || 'U'}
+          <button
+            onClick={() => { sounds.playTap(); onOpenSettings?.() }}
+            className="flex items-center gap-2 min-w-0 text-left hover:opacity-80 transition"
+            title="Cài đặt người dùng"
+          >
+            <div className="relative">
+              <div className="w-7 h-7 rounded-full bg-violet-600 flex items-center justify-center text-[10px] font-black text-white shrink-0">
+                {user?.full_name?.charAt(0) || user?.username?.charAt(0) || 'U'}
+              </div>
+              <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white" />
             </div>
-            <span className="text-xs font-semibold text-slate-800 truncate">{user?.username}</span>
-          </div>
+            <div className="min-w-0">
+              <div className="text-xs font-bold text-slate-800 truncate">{user?.username}</div>
+              <div className="text-[10px] text-slate-400 font-mono truncate">{user?.timezone || 'UTC+7'}</div>
+            </div>
+          </button>
           <button
             onClick={() => { sounds.playTap(); onLogout() }}
             className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition active:scale-90"

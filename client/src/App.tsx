@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Link } from 'react-router-dom'
-import { Sparkles, Globe, BarChart3 } from 'lucide-react'
+import { Sparkles, BarChart3 } from 'lucide-react'
 import { Sidebar } from './components/Sidebar'
 import { BottomNav } from './components/BottomNav'
 import { FloatingTimerBar } from './components/FloatingTimerBar'
 import { QuickActionSheet } from './components/QuickActionSheet'
-import { SettingsModal } from './components/SettingsModal'
+import { UserSettingsModal } from './components/UserSettingsModal'
 import { TodayPlanner } from './pages/TodayPlanner'
 import { TasksBoard } from './pages/TasksBoard'
 import { HabitMatrix } from './pages/HabitMatrix'
@@ -27,8 +27,6 @@ const AppShell: React.FC = () => {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const location = useLocation()
 
-  const tzShort = user?.timezone ? user.timezone.split('/').pop()?.replace('_', ' ') : 'UTC+7'
-
   return (
     <div className="h-[100dvh] flex flex-col md:flex-row bg-[#F8FAFC] text-slate-900 overflow-hidden">
       {/* Desktop sidebar */}
@@ -38,8 +36,9 @@ const AppShell: React.FC = () => {
       <div className="flex-1 flex flex-col min-h-0 md:ml-60">
         {/* Mobile top bar */}
         <header className="md:hidden shrink-0 flex items-center justify-between px-4 h-13 bg-white border-b border-slate-200 z-20">
+          {/* Brand Logo */}
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-xl bg-violet-600 flex items-center justify-center shadow-sm">
+            <div className="w-7 h-7 rounded-xl bg-violet-600 flex items-center justify-center shadow-xs">
               <Sparkles className="w-3.5 h-3.5 text-white" />
             </div>
             <span className="font-black text-sm tracking-wider font-mono text-slate-900">
@@ -47,33 +46,31 @@ const AppShell: React.FC = () => {
             </span>
           </div>
 
-          <div className="flex items-center gap-1.5">
-            {/* Analytics button */}
+          {/* Right Header Actions: Analytics & User Profile Avatar */}
+          <div className="flex items-center gap-2">
+            {/* Analytics Shortcut */}
             <Link
               to="/analytics"
               onClick={() => sounds.playTap()}
-              className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:text-violet-700 hover:bg-violet-50 active:scale-95 transition"
+              className={`p-2 rounded-xl border transition active:scale-95 ${
+                location.pathname === '/analytics'
+                  ? 'bg-violet-50 text-violet-700 border-violet-200 shadow-xs'
+                  : 'bg-white border-slate-200 text-slate-600 hover:text-violet-700 hover:bg-slate-50'
+              }`}
               title="Thống kê"
             >
-              <BarChart3 className="w-3.5 h-3.5" />
+              <BarChart3 className="w-4 h-4" />
             </Link>
 
-            {/* Timezone button */}
+            {/* User Profile Avatar (1-Tap opens Settings Modal) */}
             <button
               onClick={() => { sounds.playTap(); setSettingsOpen(true) }}
-              className="flex items-center gap-1 text-[11px] font-bold text-violet-700 bg-violet-50 hover:bg-violet-100 px-2 py-1 rounded-lg border border-violet-200 active:scale-95 transition"
-              title="Cài đặt múi giờ"
+              className="relative flex items-center justify-center w-8 h-8 rounded-full bg-violet-600 text-white font-black text-xs shadow-xs hover:ring-2 hover:ring-violet-400 active:scale-90 transition-transform"
+              title="Cài đặt tài khoản & Múi giờ, Telegram"
+              aria-label="Cài đặt người dùng"
             >
-              <Globe className="w-3 h-3 text-violet-600" />
-              <span className="truncate max-w-[70px]">{tzShort}</span>
-            </button>
-
-            {/* Logout button */}
-            <button
-              onClick={() => logout()}
-              className="text-[11px] font-bold text-slate-600 hover:text-rose-600 px-2 py-1 rounded-lg border border-slate-200 bg-slate-50 active:scale-95 transition"
-            >
-              Đăng xuất
+              <span>{user?.full_name?.charAt(0) || user?.username?.charAt(0) || 'U'}</span>
+              <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white" />
             </button>
           </div>
         </header>
@@ -109,8 +106,8 @@ const AppShell: React.FC = () => {
         onStartFocus={() => { setSheetOpen(false); setFocusOpen(true) }}
       />
 
-      {/* Settings modal */}
-      <SettingsModal
+      {/* User Settings & Timezone & Telegram modal */}
+      <UserSettingsModal
         isOpen={settingsOpen}
         onClose={() => setSettingsOpen(false)}
       />

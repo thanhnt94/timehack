@@ -8,11 +8,11 @@ interface Props {
 }
 
 const tabs = [
-  { path: '/', icon: Calendar, label: 'Lịch', matchPaths: ['/', '/calendar', '/schedule'] },
+  { path: '/', icon: Calendar, label: 'Calendar', matchPaths: ['/', '/calendar', '/schedule'] },
   { path: '/tracking', icon: Clock, label: 'Tracking', matchPaths: ['/tracking'] },
-  { path: '__fab__', icon: Plus, label: 'Tạo', matchPaths: [] },
-  { path: '/tasks', icon: CheckSquare, label: 'Nhiệm vụ', matchPaths: ['/tasks', '/habits'] },
-  { path: '/analytics', icon: BarChart3, label: 'Thống kê', matchPaths: ['/analytics'] },
+  { path: '__fab__', icon: Plus, label: 'Create', matchPaths: [] },
+  { path: '/tasks', icon: CheckSquare, label: 'Tasks', matchPaths: ['/tasks', '/habits'] },
+  { path: '/analytics', icon: BarChart3, label: 'Analytics', matchPaths: ['/analytics'] },
 ]
 
 export const BottomNav: React.FC<Props> = ({ onFabTap }) => {
@@ -27,7 +27,7 @@ export const BottomNav: React.FC<Props> = ({ onFabTap }) => {
               key="fab"
               onClick={() => { sounds.playTap(); onFabTap() }}
               className="flex flex-col items-center justify-center w-14 py-1 active:scale-90 transition-transform"
-              aria-label="Tạo nhanh"
+              aria-label="Quick Create"
             >
               <div className="w-9 h-9 rounded-xl bg-violet-600 hover:bg-violet-700 flex items-center justify-center shadow-md shadow-violet-600/25">
                 <Plus className="w-5 h-5 text-white stroke-[2.5]" />
@@ -64,3 +64,4 @@ export const BottomNav: React.FC<Props> = ({ onFabTap }) => {
     </nav>
   )
 }
+export default BottomNav

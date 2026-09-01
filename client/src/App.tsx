@@ -67,7 +67,7 @@ const AppShell: React.FC = () => {
                   : location.pathname === '/tracking'
                   ? 'Tracking'
                   : isTasksOrHabitsPage
-                  ? 'Việc & Thói quen'
+                  ? 'Tasks & Habits'
                   : location.pathname === '/categories'
                   ? 'Categories'
                   : location.pathname === '/analytics'

@@ -13,11 +13,11 @@ interface Props {
 }
 
 const links = [
-  { path: '/', icon: Calendar, label: 'Lịch biểu', matchPaths: ['/', '/calendar', '/schedule'] },
+  { path: '/', icon: Calendar, label: 'Calendar', matchPaths: ['/', '/calendar', '/schedule'] },
   { path: '/tracking', icon: Clock, label: 'Live Tracking', matchPaths: ['/tracking'] },
-  { path: '/tasks', icon: CheckSquare, label: 'Việc & Thói quen', matchPaths: ['/tasks', '/habits'] },
-  { path: '/categories', icon: FolderTree, label: 'Thư mục & Dự án', matchPaths: ['/categories'] },
-  { path: '/analytics', icon: BarChart3, label: 'Thống kê năng suất', matchPaths: ['/analytics'] },
+  { path: '/tasks', icon: CheckSquare, label: 'Tasks & Habits', matchPaths: ['/tasks', '/habits'] },
+  { path: '/categories', icon: FolderTree, label: 'Categories', matchPaths: ['/categories'] },
+  { path: '/analytics', icon: BarChart3, label: 'Analytics', matchPaths: ['/analytics'] },
 ]
 
 export const Sidebar: React.FC<Props> = ({ user, onLogout, onOpenSettings }) => {
@@ -85,7 +85,7 @@ export const Sidebar: React.FC<Props> = ({ user, onLogout, onOpenSettings }) => 
           >
             <div className="flex items-center gap-2">
               <Settings className="w-3.5 h-3.5 text-violet-600" />
-              <span>Cài đặt & Telegram</span>
+              <span>Settings & Telegram</span>
             </div>
           </button>
         )}
@@ -101,7 +101,7 @@ export const Sidebar: React.FC<Props> = ({ user, onLogout, onOpenSettings }) => 
           </div>
           <button
             onClick={onLogout}
-            title="Đăng xuất"
+            title="Log Out"
             className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition shrink-0"
           >
             <LogOut className="w-4 h-4" />
@@ -111,3 +111,4 @@ export const Sidebar: React.FC<Props> = ({ user, onLogout, onOpenSettings }) => 
     </aside>
   )
 }
+export default Sidebar

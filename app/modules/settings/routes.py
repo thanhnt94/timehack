@@ -181,51 +181,87 @@ async def reset_user_sample_data(request: Request, db: AsyncSession = Depends(ge
     db.add_all([habit1, habit2, habit3, habit4, habit5])
     await db.flush()
 
-    # 4. Create Tasks with deadlines for today
+    # Past 4 days streak logs for habits
+    for i in range(1, 5):
+        past_day = today_date - timedelta(days=i)
+        db.add(HabitLog(habit_id=habit1.id, user_id=user_id, logged_date=past_day, completed=True, count=1))
+        db.add(HabitLog(habit_id=habit2.id, user_id=user_id, logged_date=past_day, completed=True, count=30))
+        db.add(HabitLog(habit_id=habit3.id, user_id=user_id, logged_date=past_day, completed=True, count=1))
+        db.add(HabitLog(habit_id=habit4.id, user_id=user_id, logged_date=past_day, completed=True, count=1))
+        db.add(HabitLog(habit_id=habit5.id, user_id=user_id, logged_date=past_day, completed=True, count=20))
+
+    # Today habit completions for morning habits
+    db.add(HabitLog(habit_id=habit1.id, user_id=user_id, logged_date=today_date, completed=True, count=1))
+    db.add(HabitLog(habit_id=habit2.id, user_id=user_id, logged_date=today_date, completed=True, count=30))
+    db.add(HabitLog(habit_id=habit3.id, user_id=user_id, logged_date=today_date, completed=True, count=1))
+
+    # 4. Create Tasks with Deadlines & Subtasks
     task1 = Task(
         user_id=user_id,
         category_id=cat_coding.id,
-        title="Review Pull Request & Tối ưu Database Indexing",
-        description="Tối ưu truy vấn schedule slots và đánh index",
-        priority="high",
-        due_date=f"{today_iso} 11:30",
-        status="pending",
-        estimated_seconds=3600
+        title="Hoàn thiện tính năng Calendar TimeHack v2",
+        description="Tối ưu timeline kế hoạch, dọn sạch actual logs và tích hợp nhắc nhở thói quen",
+        priority="urgent",
+        due_date=datetime.combine(today_date, datetime.strptime("17:00", "%H:%M").time()),
+        status="in_progress",
+        estimated_minutes=120,
+        spent_seconds=5400
     )
     task2 = Task(
         user_id=user_id,
-        category_id=cat_work.id,
-        title="Họp đồng bộ tiến độ Sprint với Team",
-        description="Trình bày roadmap và chốt deadline các module",
+        category_id=cat_coding.id,
+        title="Review Pull Request & Tối ưu Database Indexing",
+        description="Đánh index trường date và user_id cho schedule_slots",
         priority="high",
-        due_date=f"{today_iso} 14:00",
-        status="pending",
-        estimated_seconds=3600
+        due_date=datetime.combine(today_date, datetime.strptime("11:30", "%H:%M").time()),
+        status="completed",
+        estimated_minutes=60,
+        spent_seconds=3600
     )
     task3 = Task(
         user_id=user_id,
-        category_id=cat_coding.id,
-        title="Hoàn thiện tính năng Calendar TimeHack v2",
-        description="Tích hợp habit reminder và giao diện kế hoạch chuẩn",
-        priority="urgent",
-        due_date=f"{today_iso} 17:00",
-        status="pending",
-        estimated_seconds=5400
+        category_id=cat_work.id,
+        title="Họp đồng bộ tiến độ Sprint với Team",
+        description="Báo cáo milestone tuần và chốt deadline phát hành",
+        priority="high",
+        due_date=datetime.combine(today_date, datetime.strptime("14:00", "%H:%M").time()),
+        status="completed",
+        estimated_minutes=60,
+        spent_seconds=3600
     )
     task4 = Task(
         user_id=user_id,
         category_id=cat_study.id,
         title="Ôn tập 30 từ vựng Vocaburn & Đọc System Design",
-        description="Duy trì chuỗi học tập đều đặn mỗi tối",
+        description="Duy trì chuỗi học ngoại ngữ và củng cố kiến thức kiến trúc hệ thống",
         priority="medium",
-        due_date=f"{today_iso} 22:00",
-        status="pending",
-        estimated_seconds=1800
+        due_date=datetime.combine(today_date, datetime.strptime("22:00", "%H:%M").time()),
+        status="todo",
+        estimated_minutes=45,
+        spent_seconds=0
     )
-    db.add_all([task1, task2, task3, task4])
+    task5 = Task(
+        user_id=user_id,
+        category_id=cat_work.id,
+        title="Thiết kế Dashboard Thống kê Hiệu suất Tuần",
+        description="Tích hợp biểu đồ phân bố thời gian theo Value Category",
+        priority="medium",
+        due_date=datetime.combine(today_date + timedelta(days=1), datetime.strptime("16:00", "%H:%M").time()),
+        status="todo",
+        estimated_minutes=90,
+        spent_seconds=0
+    )
+
+    db.add_all([task1, task2, task3, task4, task5])
     await db.flush()
 
-    # 5. Create realistic Schedule Plan Slots for today
+    # Subtasks for Task 1
+    sub1 = Subtask(task_id=task1.id, title="Loại bỏ actual logs khỏi timeline calendar", is_completed=True)
+    sub2 = Subtask(task_id=task1.id, title="Tích hợp habit reminders hiển thị theo giờ", is_completed=True)
+    sub3 = Subtask(task_id=task1.id, title="Kiểm thử kéo thả và nạp dữ liệu mẫu", is_completed=False)
+    db.add_all([sub1, sub2, sub3])
+
+    # 5. Schedule Plan Slots for Today
     slot1 = ScheduleSlot(
         user_id=user_id,
         date=today_date,
@@ -244,7 +280,7 @@ async def reset_user_sample_data(request: Request, db: AsyncSession = Depends(ge
         title="💻 Deep Work: Phát triển Core Engine TimeHack",
         notes="Tập trung cao độ 2.5h không ngắt quãng",
         category_id=cat_coding.id,
-        is_done=False
+        is_done=True
     )
     slot3 = ScheduleSlot(
         user_id=user_id,
@@ -254,7 +290,7 @@ async def reset_user_sample_data(request: Request, db: AsyncSession = Depends(ge
         title="💼 Họp Sprint Review & Kế hoạch tuần",
         notes="Trình bày roadmap tính năng mới",
         category_id=cat_work.id,
-        is_done=False
+        is_done=True
     )
     slot4 = ScheduleSlot(
         user_id=user_id,
@@ -277,6 +313,57 @@ async def reset_user_sample_data(request: Request, db: AsyncSession = Depends(ge
         is_done=False
     )
     db.add_all([slot1, slot2, slot3, slot4, slot5])
+
+    # 6. Actual TimeLogs
+    yesterday = today_date - timedelta(days=1)
+    log1 = TimeLog(
+        user_id=user_id,
+        category_id=cat_health.id,
+        start_time=datetime.combine(today_date, datetime.strptime("07:05", "%H:%M").time()),
+        end_time=datetime.combine(today_date, datetime.strptime("07:50", "%H:%M").time()),
+        duration_seconds=2700,
+        timer_type="stopwatch",
+        notes="🏃 Chạy 5km công viên buổi sáng"
+    )
+    log2 = TimeLog(
+        user_id=user_id,
+        task_id=task1.id,
+        category_id=cat_coding.id,
+        start_time=datetime.combine(today_date, datetime.strptime("09:05", "%H:%M").time()),
+        end_time=datetime.combine(today_date, datetime.strptime("11:35", "%H:%M").time()),
+        duration_seconds=9000,
+        timer_type="pomodoro",
+        notes="💻 Deep work: Thiết kế Calendar & Habit Reminders"
+    )
+    log3 = TimeLog(
+        user_id=user_id,
+        task_id=task3.id,
+        category_id=cat_work.id,
+        start_time=datetime.combine(today_date, datetime.strptime("14:00", "%H:%M").time()),
+        end_time=datetime.combine(today_date, datetime.strptime("15:00", "%H:%M").time()),
+        duration_seconds=3600,
+        timer_type="manual",
+        notes="💼 Họp sprint demo tính năng với team"
+    )
+    log4 = TimeLog(
+        user_id=user_id,
+        category_id=cat_coding.id,
+        start_time=datetime.combine(yesterday, datetime.strptime("10:00", "%H:%M").time()),
+        end_time=datetime.combine(yesterday, datetime.strptime("12:00", "%H:%M").time()),
+        duration_seconds=7200,
+        timer_type="pomodoro",
+        notes="💻 Refactor database schema & backend API"
+    )
+    log5 = TimeLog(
+        user_id=user_id,
+        category_id=cat_study.id,
+        start_time=datetime.combine(yesterday, datetime.strptime("20:00", "%H:%M").time()),
+        end_time=datetime.combine(yesterday, datetime.strptime("21:30", "%H:%M").time()),
+        duration_seconds=5400,
+        timer_type="pomodoro",
+        notes="📚 Học 50 từ vựng Vocaburn & Đọc System Design"
+    )
+    db.add_all([log1, log2, log3, log4, log5])
 
     await db.commit()
 

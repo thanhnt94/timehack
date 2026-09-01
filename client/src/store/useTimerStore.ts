@@ -35,7 +35,7 @@ interface TimerState {
   // Timer interval reference (internal)
   intervalId: any | null
 
-  startTimer: (target?: { taskId?: number; habitId?: number; categoryId?: number; categoryName?: string; categoryColor?: string; categoryIcon?: string; categoryType?: string; title?: string; durationMinutes?: number }) => void
+  startTimer: (target?: { taskId?: number; habitId?: number; categoryId?: number; categoryName?: string; categoryColor?: string; categoryIcon?: string; categoryType?: string; title?: string; durationMinutes?: number; mode?: TimerMode }) => void
   setCategory: (cat: { id: number; name: string; color: string; icon?: string; category_type?: string } | null) => void
   pauseTimer: () => void
   resumeTimer: () => void
@@ -45,7 +45,7 @@ interface TimerState {
 }
 
 export const useTimerStore = create<TimerState>((set, get) => ({
-  mode: 'pomodoro',
+  mode: 'stopwatch',
   isRunning: false,
   isPaused: false,
 
@@ -114,7 +114,7 @@ export const useTimerStore = create<TimerState>((set, get) => ({
     if (existing) clearInterval(existing)
 
     const now = new Date()
-    const mode = get().mode
+    const chosenMode = target?.mode || get().mode || 'stopwatch'
     const customDurationSec = target?.durationMinutes ? target.durationMinutes * 60 : get().workDuration
 
     // Infer category from task or target if provided
@@ -135,6 +135,7 @@ export const useTimerStore = create<TimerState>((set, get) => ({
     }
 
     set({
+      mode: chosenMode,
       isRunning: true,
       isPaused: false,
       startTime: now,
@@ -146,8 +147,8 @@ export const useTimerStore = create<TimerState>((set, get) => ({
       activeCategoryColor: catColor || null,
       activeCategoryIcon: catIcon || null,
       activeCategoryType: catType || 'productive',
-      activeTitle: target?.title || (target?.taskId ? 'Task' : target?.habitId ? 'Habit' : 'Phiên tập trung'),
-      secondsRemaining: mode === 'pomodoro' ? customDurationSec : 0,
+      activeTitle: target?.title || (target?.taskId ? 'Task' : target?.habitId ? 'Habit' : 'Hoạt động thực tế'),
+      secondsRemaining: chosenMode === 'pomodoro' ? customDurationSec : 0,
       elapsedSeconds: 0
     })
 

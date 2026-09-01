@@ -238,13 +238,13 @@ export const HabitMatrix: React.FC = () => {
   const getRankBadge = (rank?: string) => {
     switch (rank) {
       case 'S':
-        return { label: '👑 Rank S · Mastered', color: 'bg-amber-100 text-amber-900 border-amber-300 font-black ring-1 ring-amber-400' }
+        return { label: '👑 Mastered', color: 'bg-amber-50 text-amber-900 border-amber-300 font-black' }
       case 'A':
-        return { label: '💎 Rank A · Consistent', color: 'bg-violet-100 text-violet-800 border-violet-300 font-bold' }
+        return { label: '💎 Consistent', color: 'bg-violet-50 text-violet-800 border-violet-300 font-bold' }
       case 'B':
-        return { label: '⚡ Rank B · Building', color: 'bg-emerald-100 text-emerald-800 border-emerald-300 font-bold' }
+        return { label: '⚡ Building', color: 'bg-emerald-50 text-emerald-800 border-emerald-300 font-bold' }
       default:
-        return { label: '🌱 Rank C · Starting', color: 'bg-slate-100 text-slate-600 border-slate-200' }
+        return { label: '🌱 Starting', color: 'bg-slate-100 text-slate-600 border-slate-200' }
     }
   }
 
@@ -335,58 +335,62 @@ export const HabitMatrix: React.FC = () => {
               const miniHistory = h.mini_history || []
               const rankMeta = getRankBadge(h.mastery_rank)
               const streakUnitStr = h.streak_unit === 'weeks' ? 'w' : h.streak_unit === 'months' ? 'm' : 'd'
+              const displayUnit = h.unit === 'lần' ? 'time(s)' : h.unit
+              const displayUnitSec = h.unit_secondary === 'phút' ? 'mins' : h.unit_secondary
 
               return (
                 <div
                   key={h.id}
                   onClick={() => handleCardClick(h.id)}
-                  className={`bg-white rounded-2xl border transition shadow-2xs overflow-hidden cursor-pointer group hover:border-violet-300 ${
+                  className={`bg-white rounded-2xl border transition shadow-2xs overflow-hidden cursor-pointer group hover:border-violet-300 hover:shadow-xs ${
                     isFrozen
                       ? 'opacity-65 bg-slate-50/80 border-slate-200'
                       : isShieldFrozenToday
-                      ? 'bg-blue-50/40 border-blue-200'
+                      ? 'bg-blue-50/30 border-blue-200'
                       : isPeriodDone
-                      ? 'border-emerald-200/90 bg-emerald-50/20'
-                      : 'border-slate-200'
+                      ? 'border-emerald-200/90 bg-emerald-50/15'
+                      : 'border-slate-200/90'
                   }`}
                 >
                   <div className="p-3.5">
-                    {/* Main Row */}
-                    <div className="flex items-center gap-3.5">
-                      {/* Check-in Target Button */}
+                    {/* Main Flex Row */}
+                    <div className="flex items-center gap-3">
+                      {/* Check-in Target Button (Solid & Clean, No Dashed Borders) */}
                       <button
                         type="button"
                         onClick={(e) => handleQuickCheckin(e, h)}
-                        className={`w-12 h-12 rounded-2xl flex flex-col items-center justify-center shrink-0 transition active:scale-90 shadow-2xs relative ${
+                        className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 transition active:scale-90 shadow-2xs ${
                           isPeriodDone
-                            ? 'bg-emerald-500 text-white shadow-emerald-500/20'
+                            ? 'bg-emerald-500 text-white shadow-emerald-500/25'
                             : isShieldFrozenToday
-                            ? 'bg-blue-500 text-white shadow-blue-500/20'
+                            ? 'bg-blue-500 text-white shadow-blue-500/25'
                             : currentPeriodCount > 0
                             ? 'bg-violet-50 border-2 border-violet-500 text-violet-700 font-bold'
-                            : 'border-2 border-dashed border-slate-300 hover:border-violet-500 bg-white'
+                            : 'bg-slate-100/90 hover:bg-violet-50 border border-slate-200/80'
                         }`}
-                        title={`Progress: ${currentPeriodCount}/${targetCount} ${h.unit}`}
+                        style={!isPeriodDone && !isShieldFrozenToday && currentPeriodCount === 0 ? { backgroundColor: `${h.color || '#7C3AED'}15` } : {}}
+                        title={`Check-in: ${currentPeriodCount}/${targetCount} ${displayUnit}`}
                       >
                         {isPeriodDone ? (
-                          <Check className="w-6 h-6 text-white stroke-[3]" />
+                          <Check className="w-5 h-5 text-white stroke-[3]" />
                         ) : isShieldFrozenToday ? (
-                          <Shield className="w-6 h-6 text-white" />
+                          <Shield className="w-5 h-5 text-white" />
                         ) : currentPeriodCount > 0 ? (
                           <span className="text-[11px] font-black font-mono leading-none">
                             {currentPeriodCount}/{targetCount}
                           </span>
                         ) : (
-                          <span className="text-lg">{h.icon || '⚡'}</span>
+                          <span className="text-xl leading-none">{h.icon || '⚡'}</span>
                         )}
                       </button>
 
-                      {/* Habit Info & Metrics */}
+                      {/* Habit Info */}
                       <div className="flex-1 min-w-0">
+                        {/* Top Line: Title + Routine Badge + Status Badges */}
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-1.5 min-w-0">
-                            <h4 className={`text-sm font-bold truncate group-hover:text-violet-700 transition ${
-                              isPeriodDone ? 'text-emerald-950' : 'text-slate-900'
+                            <h4 className={`text-sm font-black truncate transition ${
+                              isPeriodDone ? 'text-emerald-950 line-through opacity-75' : 'text-slate-900 group-hover:text-violet-700'
                             }`}>
                               {h.title}
                             </h4>
@@ -397,68 +401,62 @@ export const HabitMatrix: React.FC = () => {
                             )}
                           </div>
 
-                          {/* Top Badges: Streak & Rank */}
+                          {/* Right Badges: Status + Streak */}
                           <div className="flex items-center gap-1 shrink-0">
-                            {h.mastery_rank && (
-                              <span className={`text-[9px] px-1.5 py-0.2 rounded-md border ${rankMeta.color}`} title={`Strength: ${h.strength_percent}%`}>
-                                {rankMeta.label}
-                              </span>
-                            )}
+                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md border ${rankMeta.color}`}>
+                              {rankMeta.label}
+                            </span>
 
                             {h.current_streak > 0 && (
-                              <span className="text-[10px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200 font-bold flex items-center gap-0.5 shrink-0">
-                                <Flame className="w-3 h-3 text-amber-500" /> {h.current_streak}{streakUnitStr}
+                              <span className="text-[10px] text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-md border border-amber-200 font-black flex items-center gap-0.5 shrink-0">
+                                <Flame className="w-3 h-3 text-amber-500 fill-amber-400" /> {h.current_streak}{streakUnitStr}
                               </span>
                             )}
                           </div>
                         </div>
 
-                        {/* Middle Controls & Stepper */}
-                        <div className="flex items-center justify-between mt-2 gap-2">
-                          {/* Mini 7-Day Sparkline Dots */}
-                          <div className="flex items-center gap-1">
-                            {miniHistory.map((day, idx) => (
-                              <div
-                                key={idx}
-                                className={`w-2.5 h-2.5 rounded-full transition ${
-                                  day.completed
-                                    ? 'bg-emerald-500 ring-1 ring-emerald-300'
-                                    : day.is_frozen_day
-                                    ? 'bg-blue-400 ring-1 ring-blue-200'
-                                    : 'bg-slate-200'
-                                }`}
-                                title={day.date}
-                              />
-                            ))}
+                        {/* Bottom Line: Goal / Frequency / Focus / Stepper */}
+                        <div className="flex items-center justify-between mt-1.5 gap-2">
+                          {/* Goal & Frequency */}
+                          <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium truncate">
+                            <span className="font-semibold text-slate-700">
+                              {targetCount} {displayUnit}
+                              {h.target_count_secondary ? ` or ${h.target_count_secondary} ${displayUnitSec}` : ''}
+                            </span>
+                            <span className="text-slate-300">•</span>
+                            <span className="capitalize text-slate-400 text-[11px]">
+                              {h.frequency_type === 'weekly_target' ? 'Weekly' : h.frequency_type === 'monthly_target' ? 'Monthly' : 'Daily'}
+                            </span>
+                            {h.time_of_day !== 'anytime' && (
+                              <>
+                                <span className="text-slate-300">•</span>
+                                <span className="text-[11px] text-slate-400 capitalize">{h.time_of_day}</span>
+                              </>
+                            )}
                           </div>
 
-                          {/* Frequency & Stepper Controls */}
-                          <div className="flex items-center gap-1.5">
-                            {/* Frequency Badge with OR Goal representation */}
-                            <span className="text-[9px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md truncate max-w-[170px]" title={getFrequencyLabel(h)}>
-                              {getFrequencyLabel(h)}
-                            </span>
-
-                            {/* 1-Tap Pomodoro Focus Button */}
+                          {/* Action Buttons */}
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {/* Focus Button */}
                             {canFocus && !isPeriodDone && (
                               <button
                                 type="button"
                                 onClick={(e) => handleStartFocus(e, h)}
-                                className="h-6 px-2 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-[10px] font-bold flex items-center gap-1 shadow-2xs active:scale-95 transition shrink-0"
-                                title={`Start Focus Session`}
+                                className="h-6 px-2.5 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-[10px] font-bold flex items-center gap-1 shadow-xs active:scale-95 transition"
+                                title="Start Focus Session"
                               >
                                 <Play className="w-2.5 h-2.5 fill-current" />
                                 <span>Focus</span>
                               </button>
                             )}
 
-                            {/* Multi-step Stepper for Count Progress */}
+                            {/* Stepper for Multi-count */}
                             {(targetCount > 1 || h.frequency_type === 'weekly_target' || h.frequency_type === 'monthly_target') && !isPrimaryDuration ? (
-                              <div className="flex items-center gap-1 bg-slate-100/90 px-1.5 py-0.5 rounded-lg border border-slate-200">
+                              <div className="flex items-center gap-1 bg-slate-100 px-1 py-0.5 rounded-lg border border-slate-200">
                                 <button
                                   type="button"
                                   onClick={(e) => handleStepIncrement(e, h, -1)}
-                                  className="w-5 h-5 rounded-md bg-white hover:bg-slate-200 text-slate-600 flex items-center justify-center text-[10px] font-bold active:scale-90 transition shadow-2xs"
+                                  className="w-5 h-5 rounded bg-white hover:bg-slate-200 text-slate-600 flex items-center justify-center text-[10px] font-bold active:scale-90 transition shadow-2xs"
                                   title="Decrease"
                                 >
                                   <Minus className="w-3 h-3" />
@@ -468,7 +466,7 @@ export const HabitMatrix: React.FC = () => {
                                   type="button"
                                   onClick={(e) => handleOpenProgressModal(e, h)}
                                   className="text-[10px] font-black font-mono px-1 hover:text-violet-700 transition"
-                                  title="Click to set exact progress"
+                                  title="Set exact progress"
                                 >
                                   {currentPeriodCount}/{targetCount}
                                 </button>
@@ -476,7 +474,7 @@ export const HabitMatrix: React.FC = () => {
                                 <button
                                   type="button"
                                   onClick={(e) => handleStepIncrement(e, h, 1)}
-                                  className="w-5 h-5 rounded-md bg-white hover:bg-violet-100 hover:text-violet-700 text-slate-700 flex items-center justify-center text-[10px] font-bold active:scale-90 transition shadow-2xs"
+                                  className="w-5 h-5 rounded bg-white hover:bg-violet-100 hover:text-violet-700 text-slate-700 flex items-center justify-center text-[10px] font-bold active:scale-90 transition shadow-2xs"
                                   title="Increase +1"
                                 >
                                   <Plus className="w-3 h-3" />
@@ -484,50 +482,63 @@ export const HabitMatrix: React.FC = () => {
                               </div>
                             ) : null}
 
-                            {/* Streak Freeze Shield */}
+                            {/* Shield Protection */}
                             {!isPeriodDone && (
                               <button
                                 type="button"
                                 onClick={(e) => handleFreezeShield(e, h)}
-                                className={`h-6 w-6 rounded-lg border flex items-center justify-center text-[10px] transition active:scale-90 shrink-0 ${
+                                className={`h-6 w-6 rounded-lg border flex items-center justify-center text-[10px] transition active:scale-90 ${
                                   isShieldFrozenToday
                                     ? 'bg-blue-100 border-blue-300 text-blue-700'
                                     : 'bg-white border-slate-200 text-slate-400 hover:text-blue-600 hover:bg-blue-50'
                                 }`}
-                                title={isShieldFrozenToday ? 'Shield active' : 'Freeze Shield'}
+                                title={isShieldFrozenToday ? 'Shield active' : 'Apply Freeze Shield'}
                               >
                                 <Shield className="w-3 h-3" />
                               </button>
                             )}
 
-                            <ChevronRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-violet-500 transition shrink-0" />
+                            <ChevronRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-violet-500 transition" />
                           </div>
                         </div>
                       </div>
                     </div>
 
-                    {/* Visual Progress Bar */}
-                    {(targetCount > 1 || h.frequency_type === 'weekly_target' || h.frequency_type === 'monthly_target' || h.target_count_secondary) && (
-                      <div className="mt-2.5 pt-2 border-t border-slate-100/80">
-                        <div className="flex items-center justify-between text-[9px] font-bold text-slate-400 mb-1 font-mono">
-                          <span>
-                            {h.period_label || 'Progress'}: {currentPeriodCount} of {targetCount} {h.unit}
-                            {h.target_count_secondary ? ` (OR ${h.today_time_spent || 0}/${h.target_count_secondary} ${h.unit_secondary})` : ''}
-                          </span>
-                          <span className={isPeriodDone ? 'text-emerald-600 font-black' : 'text-violet-600'}>
+                    {/* Compact 7-Day Mini Sparkline Row & Progress Bar */}
+                    <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1">
+                        {miniHistory.map((day, idx) => (
+                          <div
+                            key={idx}
+                            className={`w-2.5 h-2.5 rounded-full transition ${
+                              day.completed
+                                ? 'bg-emerald-500 ring-1 ring-emerald-300'
+                                : day.is_frozen_day
+                                ? 'bg-blue-400 ring-1 ring-blue-200'
+                                : 'bg-slate-200'
+                            }`}
+                            title={day.date}
+                          />
+                        ))}
+                      </div>
+
+                      {/* Mini Progress Ratio */}
+                      {(targetCount > 1 || h.frequency_type === 'weekly_target' || h.frequency_type === 'monthly_target' || h.target_count_secondary) && (
+                        <div className="flex items-center gap-2 flex-1 max-w-[180px]">
+                          <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full transition-all duration-300 rounded-full ${
+                                isPeriodDone ? 'bg-emerald-500' : 'bg-violet-600'
+                              }`}
+                              style={{ width: `${progressPercent}%` }}
+                            />
+                          </div>
+                          <span className={`text-[10px] font-mono font-bold shrink-0 ${isPeriodDone ? 'text-emerald-600' : 'text-violet-600'}`}>
                             {progressPercent}%
                           </span>
                         </div>
-                        <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                          <div
-                            className={`h-full transition-all duration-300 rounded-full ${
-                              isPeriodDone ? 'bg-emerald-500' : 'bg-violet-600'
-                            }`}
-                            style={{ width: `${progressPercent}%` }}
-                          />
-                        </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
                 </div>
               )

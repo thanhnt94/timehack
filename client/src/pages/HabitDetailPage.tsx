@@ -242,13 +242,13 @@ export const HabitDetailPage: React.FC = () => {
   const getRankBadge = (rank?: string) => {
     switch (rank) {
       case 'S':
-        return { label: '👑 Rank S · Mastered', color: 'bg-amber-100 text-amber-900 border-amber-300 ring-2 ring-amber-400 font-black' }
+        return { label: '👑 Mastered', color: 'bg-amber-100 text-amber-900 border-amber-300 font-black' }
       case 'A':
-        return { label: '💎 Rank A · Consistent', color: 'bg-violet-100 text-violet-800 border-violet-300 ring-2 ring-violet-400 font-bold' }
+        return { label: '💎 Consistent', color: 'bg-violet-100 text-violet-800 border-violet-300 font-bold' }
       case 'B':
-        return { label: '⚡ Rank B · Building', color: 'bg-emerald-100 text-emerald-800 border-emerald-300 ring-2 ring-emerald-400 font-bold' }
+        return { label: '⚡ Building', color: 'bg-emerald-100 text-emerald-800 border-emerald-300 font-bold' }
       default:
-        return { label: '🌱 Rank C · Starting', color: 'bg-slate-100 text-slate-600 border-slate-200' }
+        return { label: '🌱 Starting', color: 'bg-slate-100 text-slate-600 border-slate-200' }
     }
   }
 

@@ -11,7 +11,7 @@ interface Props {
 const tabs = [
   { path: '/', icon: Home, label: 'Home' },
   { path: '/tasks', icon: CheckSquare, label: 'Task' },
-  { path: '__fab__', icon: Plus, label: '' },
+  { path: '__fab__', icon: Plus, label: 'Create' },
   { path: '/habits', icon: Zap, label: 'Habit' },
   { path: '/calendar', icon: Calendar, label: 'Calendar' },
 ]
@@ -20,17 +20,19 @@ export const BottomNav: React.FC<Props> = ({ onFabTap }) => {
   const { pathname } = useLocation()
 
   return (
-    <nav className="md:hidden shrink-0 flex items-end justify-around px-2 pb-[calc(8px+var(--safe-bottom))] pt-2 bg-white border-t border-slate-200 z-20">
+    <nav className="md:hidden shrink-0 flex items-center justify-around px-2 pb-[calc(8px+var(--safe-bottom))] pt-1.5 bg-white border-t border-slate-200 z-20">
       {tabs.map((tab) => {
         if (tab.path === '__fab__') {
           return (
             <button
               key="fab"
               onClick={() => { sounds.playTap(); onFabTap() }}
-              className="relative -top-3 w-12 h-12 rounded-2xl bg-violet-600 hover:bg-violet-700 flex items-center justify-center shadow-lg shadow-violet-600/30 active:scale-90 transition-transform"
-              aria-label="Tạo mới nhanh"
+              className="flex flex-col items-center justify-center w-14 py-1 active:scale-90 transition-transform"
+              aria-label="Quick Create"
             >
-              <Plus className="w-6 h-6 text-white stroke-[2.5]" />
+              <div className="w-9 h-9 rounded-xl bg-violet-600 hover:bg-violet-700 flex items-center justify-center shadow-md shadow-violet-600/25">
+                <Plus className="w-5 h-5 text-white stroke-[2.5]" />
+              </div>
             </button>
           )
         }

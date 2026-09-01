@@ -8,7 +8,7 @@ import {
 import { useScheduleStore, type ScheduleSlot } from '../store/useScheduleStore'
 import { useTimeLogStore, type TimeLogItem } from '../store/useTimeLogStore'
 import { useTimerStore } from '../store/useTimerStore'
-import { useTaskStore } from '../store/useTaskStore'
+import { useTaskStore, type Task } from '../store/useTaskStore'
 import { sounds } from '../utils/soundEffects'
 
 type ViewMode = 'timeline' | 'blocks'
@@ -20,7 +20,7 @@ const END_HOUR = 23
 const HOUR_HEIGHT = 64 // pixels per hour block
 
 interface CombinedBlockItem {
-  type: 'slot' | 'log'
+  type: 'slot' | 'log' | 'deadline'
   id: number
   startTimeStr: string
   endTimeStr: string
@@ -33,13 +33,14 @@ interface CombinedBlockItem {
   category?: { id: number; name: string; color: string; category_type?: string }
   rawSlot?: ScheduleSlot
   rawLog?: TimeLogItem
+  rawTask?: Task
 }
 
 export const TimeBlockingSchedule: React.FC = () => {
   const { slots, selectedDate, setSelectedDate, fetchSlots, createSlot, toggleSlotDone, deleteSlot } = useScheduleStore()
   const { logs, fetchLogs, createLog, deleteLog } = useTimeLogStore()
   const { startTimer } = useTimerStore()
-  const { categories, fetchCategories } = useTaskStore()
+  const { categories, tasks, fetchTasks, fetchCategories, toggleTaskStatus } = useTaskStore()
 
   // 1. Primary View Mode Switcher: Timeline vs Blocks (No empty hours)
   const [viewMode, setViewMode] = useState<ViewMode>('blocks')
@@ -78,8 +79,17 @@ export const TimeBlockingSchedule: React.FC = () => {
   useEffect(() => {
     fetchSlots(selectedDate)
     fetchLogs(selectedDate)
+    fetchTasks()
     fetchCategories()
   }, [selectedDate])
+
+  // Tasks with deadline on the selected date
+  const deadlineTasks = useMemo(() => {
+    return tasks.filter(t => {
+      if (!t.due_date) return false
+      return t.due_date.startsWith(selectedDate)
+    })
+  }, [tasks, selectedDate])
 
   // Update current time tick every minute
   useEffect(() => {
@@ -194,9 +204,33 @@ export const TimeBlockingSchedule: React.FC = () => {
       })
     })
 
+    // 3. Add Deadlines for this date
+    deadlineTasks.forEach(task => {
+      let dueTime = '23:59'
+      if (task.due_date && task.due_date.includes('T')) {
+        const timePart = task.due_date.split('T')[1]?.slice(0, 5)
+        if (timePart && timePart !== '23:59') {
+          dueTime = timePart
+        }
+      }
+      list.push({
+        type: 'deadline',
+        id: task.id,
+        startTimeStr: dueTime,
+        endTimeStr: dueTime,
+        title: task.title,
+        notes: task.description,
+        durationMinutes: 0,
+        isDone: task.status === 'completed',
+        category_id: task.category?.id,
+        category: task.category,
+        rawTask: task
+      })
+    })
+
     // Sort chronologically by start time
     return list.sort((a, b) => a.startTimeStr.localeCompare(b.startTimeStr))
-  }, [slots, logs])
+  }, [slots, logs, deadlineTasks])
 
   // Filtered blocks based on blockFilter, searchQuery and selectedCategoryType
   const filteredBlocks = useMemo(() => {
@@ -324,6 +358,18 @@ export const TimeBlockingSchedule: React.FC = () => {
       categoryName: slot.category?.name,
       categoryColor: slot.category?.color,
       durationMinutes: durMins
+    })
+  }
+
+  const handleStartTaskFocus = (task: Task) => {
+    sounds.playTap()
+    startTimer({
+      taskId: task.id,
+      title: task.title,
+      categoryId: task.category?.id,
+      categoryName: task.category?.name,
+      categoryColor: task.category?.color,
+      durationMinutes: 25
     })
   }
 
@@ -583,6 +629,72 @@ export const TimeBlockingSchedule: React.FC = () => {
           ) : (
             <div className="space-y-2.5">
               {filteredBlocks.map(item => {
+                // 1. Deadline Task Block
+                if (item.type === 'deadline' && item.rawTask) {
+                  const task = item.rawTask
+                  const isDone = task.status === 'completed'
+                  return (
+                    <div
+                      key={`deadline-card-${task.id}`}
+                      className={`rounded-2xl p-3.5 border transition shadow-2xs ${
+                        isDone
+                          ? 'opacity-65 bg-slate-50 border-slate-200'
+                          : 'bg-gradient-to-r from-rose-50/90 to-amber-50/50 border-rose-300 hover:border-rose-400'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <button
+                          onClick={() => { sounds.playTap(); toggleTaskStatus(task.id); if (!isDone) sounds.playSuccess() }}
+                          className={`w-6 h-6 rounded-xl border flex items-center justify-center shrink-0 transition active:scale-90 ${
+                            isDone
+                              ? 'bg-emerald-500 border-emerald-500 text-white'
+                              : 'border-rose-400 hover:border-rose-600 bg-white'
+                          }`}
+                          title={isDone ? 'Mark Pending' : 'Mark Completed'}
+                        >
+                          {isDone && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                        </button>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-[10px] font-mono font-bold text-rose-800 bg-rose-100/90 px-2 py-0.5 rounded-md border border-rose-200">
+                              🚩 Deadline {item.startTimeStr !== '23:59' ? `(${item.startTimeStr})` : ''}
+                            </span>
+                            {task.category && (
+                              <span
+                                className="text-[9px] font-bold px-1.5 py-0.2 rounded text-white shadow-2xs"
+                                style={{ backgroundColor: task.category.color }}
+                              >
+                                {task.category.name}
+                              </span>
+                            )}
+                          </div>
+                          <h4 className={`text-xs font-bold mt-1.5 truncate ${isDone ? 'line-through text-slate-400' : 'text-slate-900'}`}>
+                            {task.title}
+                          </h4>
+                          {task.description && (
+                            <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-1 italic">{task.description}</p>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-1 shrink-0">
+                          {!isDone && (
+                            <button
+                              onClick={() => handleStartTaskFocus(task)}
+                              className="h-7 px-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold flex items-center gap-1 shadow-2xs active:scale-95 transition"
+                              title="Focus on Deadline Task"
+                            >
+                              <Play className="w-2.5 h-2.5 fill-current" />
+                              <span>Focus</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                }
+
+                // 2. Planned Slot Block
                 if (item.type === 'slot' && item.rawSlot) {
                   const slot = item.rawSlot
                   const isDone = !!slot.is_done
@@ -660,7 +772,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                   )
                 }
 
-                // If Actual Time Log
+                // 3. Actual Time Log
                 if (item.type === 'log' && item.rawLog) {
                   const log = item.rawLog
                   return (
@@ -725,12 +837,18 @@ export const TimeBlockingSchedule: React.FC = () => {
             <div className="flex items-center gap-3">
               <span className="flex items-center gap-1.5 text-sky-700">
                 <span className="w-2.5 h-2.5 rounded-full bg-sky-500" />
-                <span>Planned Time Block</span>
+                <span>Plan</span>
               </span>
               <span className="flex items-center gap-1.5 text-violet-700">
                 <span className="w-2.5 h-2.5 rounded-full bg-violet-500" />
-                <span>Actual Focus Log</span>
+                <span>Actual</span>
               </span>
+              {deadlineTasks.length > 0 && (
+                <span className="flex items-center gap-1.5 text-rose-700 font-bold">
+                  <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse" />
+                  <span>{deadlineTasks.length} Deadline{deadlineTasks.length > 1 ? 's' : ''}</span>
+                </span>
+              )}
             </div>
             <span className="text-[10px] text-slate-400">Click any hour to plan</span>
           </div>
@@ -769,6 +887,86 @@ export const TimeBlockingSchedule: React.FC = () => {
                   <span className="text-[9px] font-bold font-mono text-white bg-rose-500 px-1 rounded ml-1">Now</span>
                 </div>
               )}
+
+              {/* Render Deadline Strip Markers across the Timeline */}
+              {deadlineTasks.map(task => {
+                let dueHour = 17 // default standard 5 PM deadline if not specified
+                let dueMins = 0
+                let dueTime = '17:00'
+                if (task.due_date && task.due_date.includes('T')) {
+                  const timePart = task.due_date.split('T')[1]?.slice(0, 5)
+                  if (timePart && timePart !== '23:59') {
+                    const [h, m] = timePart.split(':').map(Number)
+                    dueHour = h
+                    dueMins = m
+                    dueTime = timePart
+                  }
+                }
+                const totalMinutes = dueHour * 60 + dueMins
+                const top = Math.max(0, ((totalMinutes - START_HOUR * 60) / 60) * HOUR_HEIGHT)
+                const isDone = task.status === 'completed'
+
+                return (
+                  <div
+                    key={`dl-marker-${task.id}`}
+                    className="absolute left-12 right-2 z-25 pointer-events-auto flex items-center transition"
+                    style={{ top: `${top}px` }}
+                  >
+                    <div className={`w-full flex items-center justify-between gap-2 px-2.5 py-1 rounded-xl border shadow-xs ${
+                      isDone
+                        ? 'bg-slate-50/90 border-slate-300 opacity-60'
+                        : 'bg-rose-50/95 border-rose-400 text-rose-950 ring-1 ring-rose-400/30'
+                    }`}>
+                      <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                        <span className="text-[10px] font-black text-rose-700 uppercase tracking-wider shrink-0 flex items-center gap-0.5">
+                          🚩 Due {dueTime}:
+                        </span>
+                        <span className={`text-xs font-bold truncate ${isDone ? 'line-through text-slate-400' : 'text-slate-900'}`}>
+                          {task.title}
+                        </span>
+                        {task.category && (
+                          <span
+                            className="text-[9px] font-bold px-1.5 py-0.2 rounded text-white shrink-0 hidden sm:inline"
+                            style={{ backgroundColor: task.category.color }}
+                          >
+                            {task.category.name}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-1 shrink-0">
+                        {!isDone && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleStartTaskFocus(task)
+                            }}
+                            className="px-2 py-0.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-bold flex items-center gap-0.5 shadow-2xs active:scale-95 transition"
+                            title="Focus on Deadline"
+                          >
+                            <Play className="w-2.5 h-2.5 fill-current" />
+                            <span>Focus</span>
+                          </button>
+                        )}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            sounds.playTap()
+                            toggleTaskStatus(task.id)
+                            if (!isDone) sounds.playSuccess()
+                          }}
+                          className={`w-5 h-5 rounded-lg border flex items-center justify-center shrink-0 transition active:scale-90 ${
+                            isDone ? 'bg-emerald-500 border-emerald-600 text-white' : 'bg-white border-rose-300 hover:border-rose-500'
+                          }`}
+                          title={isDone ? 'Mark task pending' : 'Mark task completed'}
+                        >
+                          {isDone && <Check className="w-3 h-3 stroke-[3]" />}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
 
               {/* Render Planned Slots as Sky Blue Blocks */}
               {slots.map(slot => {

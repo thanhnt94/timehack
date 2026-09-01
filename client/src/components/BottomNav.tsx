@@ -1,7 +1,7 @@
 import React from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Home, CheckSquare, Zap, Calendar, Plus } from 'lucide-react'
+import { Calendar, Clock, CheckSquare, Zap, Plus } from 'lucide-react'
 import { sounds } from '../utils/soundEffects'
 
 interface Props {
@@ -9,11 +9,11 @@ interface Props {
 }
 
 const tabs = [
-  { path: '/', icon: Home, label: 'Home' },
-  { path: '/tasks', icon: CheckSquare, label: 'Task' },
+  { path: '/', icon: Calendar, label: 'Calendar' },
+  { path: '/tracking', icon: Clock, label: 'Tracking' },
   { path: '__fab__', icon: Plus, label: 'Create' },
-  { path: '/habits', icon: Zap, label: 'Habit' },
-  { path: '/calendar', icon: Calendar, label: 'Calendar' },
+  { path: '/tasks', icon: CheckSquare, label: 'Tasks' },
+  { path: '/habits', icon: Zap, label: 'Habits' },
 ]
 
 export const BottomNav: React.FC<Props> = ({ onFabTap }) => {
@@ -39,9 +39,7 @@ export const BottomNav: React.FC<Props> = ({ onFabTap }) => {
 
         const Icon = tab.icon
         const isActive = tab.path === '/'
-          ? pathname === '/'
-          : tab.path === '/calendar'
-          ? (pathname.startsWith('/calendar') || pathname.startsWith('/schedule'))
+          ? (pathname === '/' || pathname.startsWith('/calendar') || pathname.startsWith('/schedule'))
           : pathname.startsWith(tab.path)
 
         return (

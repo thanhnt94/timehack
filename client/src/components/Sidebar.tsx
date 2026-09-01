@@ -1,7 +1,7 @@
 import React from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import {
-  Sparkles, Home, CheckSquare, Zap, Calendar, BarChart3,
+  Sparkles, Calendar, Clock, CheckSquare, Zap, BarChart3,
   FolderTree, LogOut, ShieldAlert, Settings
 } from 'lucide-react'
 import { sounds } from '../utils/soundEffects'
@@ -13,10 +13,10 @@ interface Props {
 }
 
 const links = [
-  { path: '/', icon: Home, label: 'Home' },
+  { path: '/', icon: Calendar, label: 'Calendar' },
+  { path: '/tracking', icon: Clock, label: 'Live Tracking' },
   { path: '/tasks', icon: CheckSquare, label: 'Tasks' },
   { path: '/habits', icon: Zap, label: 'Habits' },
-  { path: '/calendar', icon: Calendar, label: 'Calendar' },
   { path: '/categories', icon: FolderTree, label: 'Categories' },
   { path: '/analytics', icon: BarChart3, label: 'Analytics' },
 ]
@@ -41,9 +41,7 @@ export const Sidebar: React.FC<Props> = ({ user, onLogout, onOpenSettings }) => 
         {links.map(link => {
           const Icon = link.icon
           const active = link.path === '/'
-            ? pathname === '/'
-            : link.path === '/calendar'
-            ? (pathname.startsWith('/calendar') || pathname.startsWith('/schedule'))
+            ? (pathname === '/' || pathname.startsWith('/calendar') || pathname.startsWith('/schedule'))
             : pathname.startsWith(link.path)
           return (
             <Link

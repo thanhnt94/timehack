@@ -183,200 +183,205 @@ export const CategoryManagement: React.FC = () => {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto px-3.5 py-3 sm:px-6 sm:py-4 bg-[#F8FAFC]">
-      <div className="max-w-3xl mx-auto space-y-3.5 pb-24">
-        {/* ── Compact Top Action Header ─────── */}
-        <div className="bg-white rounded-2xl p-3 sm:p-4 border border-slate-200/90 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <div className="flex items-center gap-1.5">
-              <FolderTree className="w-4 h-4 text-violet-600" />
-              <h1 className="text-sm sm:text-base font-black text-slate-900 tracking-tight">
-                Categories & Hierarchy
-              </h1>
-            </div>
-            <p className="text-[11px] text-slate-500 font-medium mt-0.5">
-              Organize tasks, habits & time logs with value tags
-            </p>
-          </div>
-
-          {/* Header Action Buttons */}
-          <div className="flex items-center gap-1.5 shrink-0">
-            <button
-              onClick={() => { sounds.playTap(); setPresetConfirmOpen(true) }}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition active:scale-95 cursor-pointer"
-              title="Load standard preset categories"
-            >
-              <RotateCcw className="w-3.5 h-3.5 text-violet-600" />
-              <span>Load Presets</span>
-            </button>
-
-            <button
-              onClick={() => handleOpenAddModal(null)}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-black bg-violet-600 text-white hover:bg-violet-700 shadow-sm shadow-violet-600/25 transition active:scale-95 cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>New Category</span>
-            </button>
-          </div>
-        </div>
-
-        {/* ── Filter Tabs Bar ─────── */}
-        <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
-          {[
-            { id: 'all', label: `All (${parentCategories.length})` },
-            { id: 'productive', label: `🟢 Productive (${productiveCount})` },
-            { id: 'neutral', label: `🔵 Neutral (${neutralCount})` },
-            { id: 'wasted', label: `🔴 Wasted (${wastedCount})` }
-          ].map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => { sounds.playTap(); setFilterType(tab.id as any) }}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer ${
-                filterType === tab.id
-                  ? 'bg-slate-900 text-white shadow-xs font-black'
-                  : 'bg-white border border-slate-200/90 text-slate-600 hover:bg-slate-50 shadow-2xs'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {/* ── Hierarchical Category Tree Cards ─────── */}
-        {filteredParents.length === 0 ? (
-          <div className="bg-white rounded-3xl p-8 text-center border border-slate-200 shadow-2xs space-y-3">
-            <div className="w-12 h-12 rounded-2xl bg-violet-50 text-violet-600 flex items-center justify-center mx-auto">
-              <FolderTree className="w-6 h-6" />
-            </div>
-            <h3 className="text-sm font-bold text-slate-800">No categories found</h3>
-            <p className="text-xs text-slate-500 max-w-sm mx-auto">
-              Create a new category or load standard presets to organize your activities.
-            </p>
-            <button
-              onClick={() => handleSeedPresets()}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-violet-600 text-white hover:bg-violet-700 shadow-sm transition active:scale-95 cursor-pointer"
-            >
-              <Sparkles className="w-4 h-4" />
-              <span>Load Preset Categories</span>
-            </button>
-          </div>
-        ) : (
-          <div className="space-y-2.5">
-            {filteredParents.map(parent => (
-              <div
-                key={parent.id}
-                className="bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-2xs hover:border-slate-300 transition"
-              >
-                {/* Parent Category Header Card */}
-                <div className="p-3 sm:p-3.5 flex items-center justify-between gap-2.5 border-b border-slate-100">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div
-                      className="w-8 h-8 rounded-xl flex items-center justify-center text-white shrink-0 shadow-2xs"
-                      style={{ backgroundColor: parent.color }}
-                    >
-                      {renderAppIcon(parent.icon, 'w-4 h-4 text-white')}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-xs sm:text-sm font-black text-slate-900 truncate">
-                          {parent.name}
-                        </span>
-                        {getTypeBadge(parent.category_type)}
-                      </div>
-                      <div className="flex items-center gap-2 text-[10px] text-slate-400 font-mono mt-0.5">
-                        <span>{parent.subcategories?.length || 0} sub-categories</span>
-                        <span>•</span>
-                        <span>{parent.tasks_count || 0} tasks</span>
-                        <span>•</span>
-                        <span>{Math.round(parent.focus_minutes || 0)}m focus</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Parent Actions */}
-                  <div className="flex items-center gap-1 shrink-0">
-                    <button
-                      onClick={() => handleOpenAddModal(parent.id)}
-                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 transition cursor-pointer active:scale-95"
-                      title="Add sub-category"
-                    >
-                      <Plus className="w-3 h-3" />
-                      <span>Add Sub</span>
-                    </button>
-                    <button
-                      onClick={() => handleOpenEditModal(parent)}
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition cursor-pointer active:scale-90"
-                      title="Edit Category"
-                    >
-                      <Edit2 className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteCategory(parent.id, parent.name)}
-                      className="p-1.5 rounded-lg text-slate-300 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer active:scale-90"
-                      title="Delete Category"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Subcategories List */}
-                {parent.subcategories && parent.subcategories.length > 0 ? (
-                  <div className="p-2.5 bg-slate-50/50 space-y-1.5">
-                    {parent.subcategories.map(sub => (
-                      <div
-                        key={sub.id}
-                        className="flex items-center justify-between p-2 rounded-xl bg-white border border-slate-200/80 hover:border-violet-200 transition shadow-2xs group"
-                      >
-                        <div className="flex items-center gap-2 min-w-0 pl-1">
-                          <CornerDownRight className="w-3 h-3 text-slate-300 shrink-0" />
-                          <div
-                            className="w-6 h-6 rounded-lg flex items-center justify-center text-white shrink-0 shadow-2xs"
-                            style={{ backgroundColor: sub.color || parent.color }}
-                          >
-                            {renderAppIcon(sub.icon, 'w-3 h-3 text-white')}
-                          </div>
-                          <div className="min-w-0">
-                            <span className="text-xs font-bold text-slate-800 truncate block">
-                              {sub.name}
-                            </span>
-                            <div className="flex items-center gap-1.5 text-[9px] text-slate-400 font-mono">
-                              <span>{sub.tasks_count || 0} tasks</span>
-                              <span>•</span>
-                              <span>{Math.round(sub.focus_minutes || 0)}m</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Subcategory Actions */}
-                        <div className="flex items-center gap-1 shrink-0 opacity-80 group-hover:opacity-100 transition">
-                          <button
-                            onClick={() => handleOpenEditModal(sub)}
-                            className="p-1 rounded-lg text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition cursor-pointer active:scale-90"
-                            title="Edit Subcategory"
-                          >
-                            <Edit2 className="w-3 h-3" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteCategory(sub.id, sub.name)}
-                            className="p-1 rounded-lg text-slate-300 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer active:scale-90"
-                            title="Delete Subcategory"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="px-4 py-2 bg-slate-50/40 text-[10px] text-slate-400 italic flex items-center gap-1.5">
-                    <span>No sub-categories yet. Click "+ Add Sub" to organize deeper.</span>
-                  </div>
-                )}
+    <div className="flex-1 flex flex-col h-full min-h-0 overflow-hidden bg-[#F8FAFC]">
+      {/* ── 1. SCROLLABLE CATEGORIES LIST ── */}
+      <div className="flex-1 overflow-y-auto px-3.5 py-3 sm:px-6 sm:py-4">
+        <div className="max-w-3xl mx-auto space-y-3 pb-4">
+          {/* Header Info */}
+          <div className="flex items-center justify-between gap-2 px-1">
+            <div>
+              <div className="flex items-center gap-1.5">
+                <FolderTree className="w-4 h-4 text-violet-600" />
+                <h1 className="text-sm sm:text-base font-black text-slate-900 tracking-tight">
+                  Categories & Hierarchy
+                </h1>
               </div>
+              <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                Organize tasks, habits & time logs with value tags
+              </p>
+            </div>
+          </div>
+
+          {/* Filter Tabs Bar */}
+          <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
+            {[
+              { id: 'all', label: `All (${parentCategories.length})` },
+              { id: 'productive', label: `🟢 Productive (${productiveCount})` },
+              { id: 'neutral', label: `🔵 Neutral (${neutralCount})` },
+              { id: 'wasted', label: `🔴 Wasted (${wastedCount})` }
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => { sounds.playTap(); setFilterType(tab.id as any) }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer ${
+                  filterType === tab.id
+                    ? 'bg-slate-900 text-white shadow-xs font-black'
+                    : 'bg-white border border-slate-200/90 text-slate-600 hover:bg-slate-50 shadow-2xs'
+                }`}
+              >
+                {tab.label}
+              </button>
             ))}
           </div>
-        )}
+
+          {/* Hierarchical Category Tree Cards */}
+          {filteredParents.length === 0 ? (
+            <div className="bg-white rounded-3xl p-8 text-center border border-slate-200 shadow-2xs space-y-3">
+              <div className="w-12 h-12 rounded-2xl bg-violet-50 text-violet-600 flex items-center justify-center mx-auto">
+                <FolderTree className="w-6 h-6" />
+              </div>
+              <h3 className="text-sm font-bold text-slate-800">No categories found</h3>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                Create a new category or load standard presets to organize your activities.
+              </p>
+              <button
+                onClick={() => handleSeedPresets()}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-violet-600 text-white hover:bg-violet-700 shadow-sm transition active:scale-95 cursor-pointer"
+              >
+                <Sparkles className="w-4 h-4" />
+                <span>Load Preset Categories</span>
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-2.5">
+              {filteredParents.map(parent => (
+                <div
+                  key={parent.id}
+                  className="bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-2xs hover:border-slate-300 transition"
+                >
+                  {/* Parent Category Header Card */}
+                  <div className="p-3 sm:p-3.5 flex items-center justify-between gap-2.5 border-b border-slate-100">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div
+                        className="w-8 h-8 rounded-xl flex items-center justify-center text-white shrink-0 shadow-2xs"
+                        style={{ backgroundColor: parent.color }}
+                      >
+                        {renderAppIcon(parent.icon, 'w-4 h-4 text-white')}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-xs sm:text-sm font-black text-slate-900 truncate">
+                            {parent.name}
+                          </span>
+                          {getTypeBadge(parent.category_type)}
+                        </div>
+                        <div className="flex items-center gap-2 text-[10px] text-slate-400 font-mono mt-0.5">
+                          <span>{parent.subcategories?.length || 0} sub-categories</span>
+                          <span>•</span>
+                          <span>{parent.tasks_count || 0} tasks</span>
+                          <span>•</span>
+                          <span>{Math.round(parent.focus_minutes || 0)}m focus</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Parent Actions */}
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={() => handleOpenAddModal(parent.id)}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 transition cursor-pointer active:scale-95"
+                        title="Add sub-category"
+                      >
+                        <Plus className="w-3 h-3" />
+                        <span>Add Sub</span>
+                      </button>
+                      <button
+                        onClick={() => handleOpenEditModal(parent)}
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition cursor-pointer active:scale-90"
+                        title="Edit Category"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteCategory(parent.id, parent.name)}
+                        className="p-1.5 rounded-lg text-slate-300 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer active:scale-90"
+                        title="Delete Category"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Subcategories List */}
+                  {parent.subcategories && parent.subcategories.length > 0 ? (
+                    <div className="p-2.5 bg-slate-50/50 space-y-1.5">
+                      {parent.subcategories.map(sub => (
+                        <div
+                          key={sub.id}
+                          className="flex items-center justify-between p-2 rounded-xl bg-white border border-slate-200/80 hover:border-violet-200 transition shadow-2xs group"
+                        >
+                          <div className="flex items-center gap-2 min-w-0 pl-1">
+                            <CornerDownRight className="w-3 h-3 text-slate-300 shrink-0" />
+                            <div
+                              className="w-6 h-6 rounded-lg flex items-center justify-center text-white shrink-0 shadow-2xs"
+                              style={{ backgroundColor: sub.color || parent.color }}
+                            >
+                              {renderAppIcon(sub.icon, 'w-3 h-3 text-white')}
+                            </div>
+                            <div className="min-w-0">
+                              <span className="text-xs font-bold text-slate-800 truncate block">
+                                {sub.name}
+                              </span>
+                              <div className="flex items-center gap-1.5 text-[9px] text-slate-400 font-mono">
+                                <span>{sub.tasks_count || 0} tasks</span>
+                                <span>•</span>
+                                <span>{Math.round(sub.focus_minutes || 0)}m</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Subcategory Actions */}
+                          <div className="flex items-center gap-1 shrink-0 opacity-80 group-hover:opacity-100 transition">
+                            <button
+                              onClick={() => handleOpenEditModal(sub)}
+                              className="p-1 rounded-lg text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition cursor-pointer active:scale-90"
+                              title="Edit Subcategory"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteCategory(sub.id, sub.name)}
+                              className="p-1 rounded-lg text-slate-300 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer active:scale-90"
+                              title="Delete Subcategory"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="px-4 py-2 bg-slate-50/40 text-[10px] text-slate-400 italic flex items-center gap-1.5">
+                      <span>No sub-categories yet. Click "+ Add Sub" to organize deeper.</span>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── 2. DOCKED BOTTOM ACTION BAR (1-Hand Reachability right above Settings dock) ── */}
+      <div className="shrink-0 bg-white/95 backdrop-blur-md border-t border-slate-200/80 px-3 py-2 z-10 shadow-sm">
+        <div className="max-w-3xl mx-auto flex items-center gap-2">
+          <button
+            onClick={() => { sounds.playTap(); setPresetConfirmOpen(true) }}
+            className="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition active:scale-95 cursor-pointer shrink-0"
+            title="Load standard preset categories"
+          >
+            <RotateCcw className="w-3.5 h-3.5 text-violet-600" />
+            <span>Presets</span>
+          </button>
+
+          <button
+            onClick={() => handleOpenAddModal(null)}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl text-xs font-black bg-violet-600 hover:bg-violet-700 text-white shadow-md shadow-violet-600/25 transition active:scale-[0.98] cursor-pointer"
+          >
+            <Plus className="w-4 h-4 stroke-[2.5]" />
+            <span>New Category</span>
+          </button>
+        </div>
       </div>
 
       {/* ── MODAL: CREATE / EDIT CATEGORY ── */}

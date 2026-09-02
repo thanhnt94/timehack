@@ -210,14 +210,20 @@ const TimelineItemPopover: React.FC<TimelineItemPopoverProps> = ({
               e.stopPropagation()
               onToggleDone()
             }}
-            className={`w-6 h-6 rounded-lg border flex items-center justify-center transition active:scale-90 cursor-pointer shadow-2xs ${
+            className={`w-6 h-6 rounded-lg border flex items-center justify-center transition active:scale-90 cursor-pointer shadow-2xs group ${
               isDone
-                ? 'bg-emerald-500 border-emerald-600 text-white shadow-2xs'
-                : 'bg-white dark:bg-slate-800 border-slate-300 hover:border-emerald-500 text-slate-400 hover:text-emerald-600'
+                ? 'bg-emerald-500 border-emerald-600 text-white shadow-xs'
+                : 'bg-white/90 dark:bg-slate-800/90 border-slate-300 dark:border-slate-600 hover:border-emerald-500 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/30'
             }`}
-            title={isDone ? 'Mark incomplete' : 'Mark done'}
+            title={isDone ? 'Completed! Click to mark incomplete' : 'Click to mark as completed'}
           >
-            {isDone ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : <div className="w-2 h-2 rounded-xs border border-slate-400" />}
+            <Check
+              className={`w-3.5 h-3.5 transition ${
+                isDone
+                  ? 'text-white stroke-[3]'
+                  : 'text-slate-300 dark:text-slate-500 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 stroke-[2.5]'
+              }`}
+            />
           </button>
         </div>
 
@@ -326,6 +332,31 @@ export const TimeBlockingSchedule: React.FC = () => {
   const [editHabitTargetCount, setEditHabitTargetCount] = useState(1)
   const [editHabitUnit, setEditHabitUnit] = useState('times')
   const [editHabitCategoryId, setEditHabitCategoryId] = useState<number | null>(null)
+
+  // 11. Delete confirmation modal state
+  const [deleteConfirmState, setDeleteConfirmState] = useState<{
+    isOpen: boolean
+    type: 'habit' | 'deadline' | 'slot'
+    id: number
+    title: string
+  } | null>(null)
+
+  const handleConfirmDelete = async () => {
+    if (!deleteConfirmState) return
+    sounds.playTap()
+    const { type, id } = deleteConfirmState
+    if (type === 'habit') {
+      await deleteHabit(id)
+    } else if (type === 'deadline') {
+      await deleteTask(id)
+    } else if (type === 'slot') {
+      await deleteSlot(id)
+    }
+    sounds.playSuccess()
+    setDeleteConfirmState(null)
+    setPinnedPopoverId(null)
+    setHoveredPopoverId(null)
+  }
 
   // Current time marker for live Timeline
   const [currentTimeMinutes, setCurrentTimeMinutes] = useState(() => {
@@ -1793,9 +1824,12 @@ export const TimeBlockingSchedule: React.FC = () => {
                         }}
                         onDelete={() => {
                           sounds.playTap()
-                          deleteHabit(habit.id)
-                          setPinnedPopoverId(null)
-                          setHoveredPopoverId(null)
+                          setDeleteConfirmState({
+                            isOpen: true,
+                            type: 'habit',
+                            id: habit.id,
+                            title: habit.title
+                          })
                         }}
                       />
                     )}
@@ -1884,9 +1918,12 @@ export const TimeBlockingSchedule: React.FC = () => {
                         }}
                         onDelete={() => {
                           sounds.playTap()
-                          deleteTask(task.id)
-                          setPinnedPopoverId(null)
-                          setHoveredPopoverId(null)
+                          setDeleteConfirmState({
+                            isOpen: true,
+                            type: 'deadline',
+                            id: task.id,
+                            title: task.title
+                          })
                         }}
                       />
                     )}
@@ -1984,9 +2021,12 @@ export const TimeBlockingSchedule: React.FC = () => {
                         }}
                         onDelete={() => {
                           sounds.playTap()
-                          deleteSlot(slot.id)
-                          setPinnedPopoverId(null)
-                          setHoveredPopoverId(null)
+                          setDeleteConfirmState({
+                            isOpen: true,
+                            type: 'slot',
+                            id: slot.id,
+                            title: slot.title
+                          })
                         }}
                       />
                     )}
@@ -2653,8 +2693,13 @@ export const TimeBlockingSchedule: React.FC = () => {
                   type="button"
                   onClick={() => {
                     sounds.playTap()
-                    deleteHabit(editingHabit.id)
                     setEditHabitModalOpen(false)
+                    setDeleteConfirmState({
+                      isOpen: true,
+                      type: 'habit',
+                      id: editingHabit.id,
+                      title: editingHabit.title
+                    })
                   }}
                   className="px-4 py-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 text-xs font-bold active:scale-95 transition flex items-center justify-center gap-1.5 cursor-pointer"
                 >
@@ -2671,6 +2716,55 @@ export const TimeBlockingSchedule: React.FC = () => {
             </form>
           </div>
         </>
+      )}
+
+      {/* ── Modal 5: Delete Confirmation Modal ────── */}
+      {deleteConfirmState?.isOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-3xl p-5 max-w-sm w-full shadow-2xl border border-slate-200 space-y-4 animate-in zoom-in-95 duration-150 text-left"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 border border-rose-200">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h3 className="text-sm font-black text-slate-900">
+                  Delete {deleteConfirmState.type === 'habit' ? 'Habit' : deleteConfirmState.type === 'deadline' ? 'Task' : 'Plan'}?
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5 truncate font-medium">
+                  "{deleteConfirmState.title}"
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Are you sure you want to delete this {deleteConfirmState.type === 'habit' ? 'habit' : deleteConfirmState.type === 'deadline' ? 'task' : 'scheduled plan'}? This action cannot be undone.
+            </p>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => {
+                  sounds.playTap()
+                  setDeleteConfirmState(null)
+                }}
+                className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition active:scale-95 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition active:scale-95 cursor-pointer shadow-sm shadow-rose-600/30 flex items-center gap-1.5"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Delete</span>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

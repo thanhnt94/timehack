@@ -890,29 +890,7 @@ export const TimeBlockingSchedule: React.FC = () => {
       {/* ── 2. BLOCKS VIEW (Compact Flow of Today's Plan, Habits & Deadlines) ── */}
       {/* ══════════════════════════════════════════════════════════════════════ */}
       {viewMode === 'blocks' && (
-        <div className="flex-1 min-h-0 overflow-y-auto pr-1 space-y-3 pb-16">
-          {/* Sub-Filter Tabs */}
-          <div className="flex items-center gap-1 p-0.5 bg-slate-200/80 rounded-xl border border-slate-200 text-xs font-bold shrink-0">
-            {[
-              { id: 'all', label: 'Tất cả' },
-              { id: 'plan', label: '📅 Kế hoạch' },
-              { id: 'habit', label: '⚡ Thói quen' },
-              { id: 'deadline', label: '🚩 Deadlines' },
-            ].map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => { sounds.playTap(); setBlockFilter(tab.id as BlockFilter) }}
-                className={`flex-1 py-1 rounded-lg text-center transition ${
-                  blockFilter === tab.id
-                    ? 'bg-white text-violet-700 shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
+        <div className="flex-1 min-h-0 overflow-y-auto pr-1 space-y-2 pb-16">
           {/* Blocks List */}
           {filteredBlocks.length === 0 ? (
             <div className="bg-white rounded-3xl p-8 border border-slate-200 text-center space-y-3 shadow-2xs">

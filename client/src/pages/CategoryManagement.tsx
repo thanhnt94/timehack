@@ -4,7 +4,7 @@ import {
   Code, Book, BookOpen, Activity, Dumbbell, Heart, Wallet,
   PieChart, TrendingUp, Coffee, Tv, Smile, AlertTriangle,
   Smartphone, Clock, Target, Zap, ChevronRight, CornerDownRight,
-  ShieldCheck, HelpCircle, Check, X, RotateCcw
+  ShieldCheck, HelpCircle, Check, X, RotateCcw, Search
 } from 'lucide-react'
 import { useTaskStore, type Category } from '../store/useTaskStore'
 import { sounds } from '../utils/soundEffects'
@@ -30,6 +30,8 @@ export const CategoryManagement: React.FC = () => {
   const { categories, fetchCategories, createCategory, updateCategory, deleteCategory, seedPresetCategories } = useTaskStore()
   
   const [filterType, setFilterType] = useState<'all' | 'productive' | 'neutral' | 'wasted'>('all')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
   const [presetConfirmOpen, setPresetConfirmOpen] = useState(false)
@@ -52,9 +54,21 @@ export const CategoryManagement: React.FC = () => {
   }, [categories])
 
   const filteredParents = useMemo(() => {
-    if (filterType === 'all') return parentCategories
-    return parentCategories.filter(c => (c.category_type || 'productive') === filterType)
-  }, [parentCategories, filterType])
+    return parentCategories.filter(c => {
+      // 1. Type Filter
+      if (filterType !== 'all' && (c.category_type || 'productive') !== filterType) {
+        return false
+      }
+      // 2. Search Query Filter
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim()
+        const matchParent = c.name.toLowerCase().includes(q)
+        const matchSub = (c.subcategories || []).some(sub => sub.name.toLowerCase().includes(q))
+        return matchParent || matchSub
+      }
+      return true
+    })
+  }, [parentCategories, filterType, searchQuery])
 
   const productiveCount = useMemo(() => {
     return parentCategories.filter(c => (c.category_type || 'productive') === 'productive').length
@@ -230,17 +244,23 @@ export const CategoryManagement: React.FC = () => {
               <div className="w-12 h-12 rounded-2xl bg-violet-50 text-violet-600 flex items-center justify-center mx-auto">
                 <FolderTree className="w-6 h-6" />
               </div>
-              <h3 className="text-sm font-bold text-slate-800">No categories found</h3>
+              <h3 className="text-sm font-bold text-slate-800">
+                {searchQuery ? 'No matching categories' : 'No categories found'}
+              </h3>
               <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                Create a new category or load standard presets to organize your activities.
+                {searchQuery
+                  ? 'Try searching with another keyword.'
+                  : 'Create a new category or load standard presets to organize your activities.'}
               </p>
-              <button
-                onClick={() => handleSeedPresets()}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-violet-600 text-white hover:bg-violet-700 shadow-sm transition active:scale-95 cursor-pointer"
-              >
-                <Sparkles className="w-4 h-4" />
-                <span>Load Preset Categories</span>
-              </button>
+              {!searchQuery && (
+                <button
+                  onClick={() => handleSeedPresets()}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-violet-600 text-white hover:bg-violet-700 shadow-sm transition active:scale-95 cursor-pointer"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  <span>Load Preset Categories</span>
+                </button>
+              )}
             </div>
           ) : (
             <div className="space-y-2.5">
@@ -362,25 +382,80 @@ export const CategoryManagement: React.FC = () => {
         </div>
       </div>
 
-      {/* ── 2. DOCKED BOTTOM ACTION BAR (1-Hand Reachability right above Settings dock) ── */}
-      <div className="shrink-0 bg-white/95 backdrop-blur-md border-t border-slate-200/80 px-3 py-2 z-10 shadow-sm">
-        <div className="max-w-3xl mx-auto flex items-center gap-2">
-          <button
-            onClick={() => { sounds.playTap(); setPresetConfirmOpen(true) }}
-            className="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition active:scale-95 cursor-pointer shrink-0"
-            title="Load standard preset categories"
-          >
-            <RotateCcw className="w-3.5 h-3.5 text-violet-600" />
-            <span>Presets</span>
-          </button>
+      {/* ── 2. COMPACT DOCKED BOTTOM ACTION BAR (Standardized Mobile 1-Hand Design) ── */}
+      <div className="shrink-0 bg-white/95 backdrop-blur-md border-t border-slate-200/80 px-3 py-1.5 z-10 shadow-sm">
+        <div className="max-w-3xl mx-auto flex items-center justify-between gap-2 h-9">
+          {isSearchOpen ? (
+            /* Inline Search Bar */
+            <div className="flex items-center gap-2 flex-1 anim-fade-in">
+              <div className="relative flex-1">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  placeholder="Search categories..."
+                  className="w-full pl-8 pr-7 py-1.5 rounded-xl bg-slate-100 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:bg-white focus:border-violet-500 transition"
+                  autoFocus
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+              <button
+                onClick={() => {
+                  setSearchQuery('')
+                  setIsSearchOpen(false)
+                }}
+                className="h-8 px-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold transition shrink-0 active:scale-95 cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          ) : (
+            <>
+              {/* Left: Load Presets Button */}
+              <button
+                onClick={() => { sounds.playTap(); setPresetConfirmOpen(true) }}
+                className="h-8 px-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200/90 text-xs font-bold flex items-center gap-1.5 transition active:scale-95 cursor-pointer shadow-2xs"
+                title="Load standard preset categories"
+              >
+                <RotateCcw className="w-3.5 h-3.5 text-violet-600" />
+                <span>Presets</span>
+              </button>
 
-          <button
-            onClick={() => handleOpenAddModal(null)}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl text-xs font-black bg-violet-600 hover:bg-violet-700 text-white shadow-md shadow-violet-600/25 transition active:scale-[0.98] cursor-pointer"
-          >
-            <Plus className="w-4 h-4 stroke-[2.5]" />
-            <span>New Category</span>
-          </button>
+              {/* Right: Quick Action Buttons (Search & Add Category) */}
+              <div className="flex items-center gap-1.5">
+                {/* Search Toggle Button */}
+                <button
+                  onClick={() => { sounds.playTap(); setIsSearchOpen(true) }}
+                  className={`h-8 w-8 rounded-xl border flex items-center justify-center transition active:scale-95 cursor-pointer shadow-2xs ${
+                    searchQuery
+                      ? 'bg-violet-50 border-violet-300 text-violet-700 font-bold'
+                      : 'bg-slate-50 hover:bg-slate-100 border-slate-200/80 text-slate-700'
+                  }`}
+                  title="Search Categories"
+                >
+                  <Search className="w-3.5 h-3.5" />
+                </button>
+
+                {/* Add Category Button (Icon Only) */}
+                <button
+                  onClick={() => handleOpenAddModal(null)}
+                  className="h-8 w-8 rounded-xl bg-violet-600 hover:bg-violet-700 text-white flex items-center justify-center shadow-xs shadow-violet-500/20 active:scale-95 transition cursor-pointer"
+                  title="Create new category"
+                  aria-label="Create new category"
+                >
+                  <Plus className="w-4 h-4 stroke-[3]" />
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
 

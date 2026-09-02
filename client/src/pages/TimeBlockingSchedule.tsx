@@ -111,7 +111,7 @@ const TimelineItemPopover: React.FC<TimelineItemPopoverProps> = ({
       onClick={(e) => e.stopPropagation()}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
-      className={`absolute z-50 min-w-[200px] max-w-[270px] bg-white/98 dark:bg-slate-900/98 text-slate-900 dark:text-slate-100 rounded-xl shadow-xl shadow-slate-300/40 dark:shadow-slate-950/70 p-2.5 border border-slate-200/90 dark:border-slate-700/90 backdrop-blur-md pointer-events-auto transition-all animate-in fade-in zoom-in-95 duration-150 text-left cursor-default select-text ${
+      className={`absolute z-50 min-w-[170px] max-w-[240px] bg-white/98 dark:bg-slate-900/98 text-slate-900 dark:text-slate-100 rounded-xl shadow-xl shadow-slate-300/40 dark:shadow-slate-950/70 p-2 border border-slate-200/90 dark:border-slate-700/90 backdrop-blur-md pointer-events-auto transition-all animate-in fade-in zoom-in-95 duration-150 text-left cursor-default select-text ${
         placeBelow
           ? 'top-[calc(100%+6px)] before:content-[\'\'] before:absolute before:bottom-full before:left-0 before:right-0 before:h-3 before:bg-transparent'
           : 'bottom-[calc(100%+6px)] after:content-[\'\'] after:absolute after:top-full after:left-0 after:right-0 after:h-3 after:bg-transparent'
@@ -137,40 +137,40 @@ const TimelineItemPopover: React.FC<TimelineItemPopoverProps> = ({
       )}
 
       {/* Header Info */}
-      <div className="flex items-center justify-between gap-1.5 mb-1">
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <span className={`text-[8.5px] font-black uppercase px-1.5 py-0.5 rounded ${
-            type === 'habit' ? 'bg-emerald-100/90 text-emerald-800 border border-emerald-300/80 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30' :
-            type === 'deadline' ? 'bg-rose-100/90 text-rose-800 border border-rose-300/80 dark:bg-rose-500/20 dark:text-rose-300 dark:border-rose-500/30' :
-            'bg-sky-100/90 text-sky-800 border border-sky-300/80 dark:bg-sky-500/20 dark:text-sky-300 dark:border-sky-500/30'
+      <div className="flex items-center justify-between gap-1 mb-1">
+        <div className="flex items-center gap-1 flex-wrap">
+          <span className={`text-[8px] font-black uppercase px-1.5 py-0.2 rounded ${
+            type === 'habit' ? 'bg-emerald-100/90 text-emerald-800 border border-emerald-300/80 dark:bg-emerald-500/20 dark:text-emerald-300' :
+            type === 'deadline' ? 'bg-rose-100/90 text-rose-800 border border-rose-300/80 dark:bg-rose-500/20 dark:text-rose-300' :
+            'bg-sky-100/90 text-sky-800 border border-sky-300/80 dark:bg-sky-500/20 dark:text-sky-300'
           }`}>
             {type === 'habit' ? '⚡ Habit' : type === 'deadline' ? '🎯 Deadline' : '📅 Plan'}
           </span>
-          <span className="text-[9.5px] font-mono font-bold text-slate-500 dark:text-slate-400">
+          <span className="text-[9px] font-mono font-bold text-slate-500 dark:text-slate-400">
             {timeStr}
           </span>
         </div>
 
         {category && (
-          <span className="text-[8.5px] font-bold px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 truncate max-w-[85px]">
+          <span className="text-[8px] font-bold px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 truncate max-w-[75px]">
             {category.name}
           </span>
         )}
       </div>
 
       {/* Full Title */}
-      <div className="text-[11.5px] font-bold text-slate-900 dark:text-white leading-tight break-words mb-1">
+      <div className="text-[11px] font-bold text-slate-900 dark:text-white leading-tight break-words mb-1">
         {title}
       </div>
 
       {/* Notes / Description */}
       {notes && (
-        <div className="text-[10px] text-slate-500 dark:text-slate-400 font-medium mb-1.5 leading-tight break-words line-clamp-2">
+        <div className="text-[9.5px] text-slate-500 dark:text-slate-400 font-medium mb-1 leading-tight break-words line-clamp-2">
           {notes}
         </div>
       )}
 
-      {/* Action Buttons Toolbar */}
+      {/* Streamlined Icon-Only Action Buttons Toolbar */}
       <div className="flex items-center justify-between gap-1 pt-1.5 border-t border-slate-100 dark:border-slate-800">
         <div className="flex items-center gap-1">
           {/* Edit Button */}
@@ -180,11 +180,10 @@ const TimelineItemPopover: React.FC<TimelineItemPopoverProps> = ({
               e.stopPropagation()
               onEdit()
             }}
-            className="px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-[10px] font-bold flex items-center gap-1 border border-slate-200/80 dark:border-slate-700 transition active:scale-95 cursor-pointer shadow-2xs"
+            className="w-6 h-6 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center justify-center border border-slate-200/80 dark:border-slate-700 transition active:scale-90 cursor-pointer shadow-2xs"
             title="Edit"
           >
-            <Edit3 className="w-2.5 h-2.5 text-violet-600 dark:text-violet-400" />
-            <span>Edit</span>
+            <Edit3 className="w-3 h-3 text-violet-600 dark:text-violet-400" />
           </button>
 
           {/* Play / Focus Timer */}
@@ -194,11 +193,14 @@ const TimelineItemPopover: React.FC<TimelineItemPopoverProps> = ({
               e.stopPropagation()
               onPlay()
             }}
-            className="px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold flex items-center gap-1 transition active:scale-95 cursor-pointer shadow-2xs"
+            className={`w-6 h-6 rounded-lg ${
+              type === 'habit' ? 'bg-emerald-600 hover:bg-emerald-700' :
+              type === 'deadline' ? 'bg-rose-600 hover:bg-rose-700' :
+              'bg-violet-600 hover:bg-violet-700'
+            } text-white flex items-center justify-center transition active:scale-90 cursor-pointer shadow-2xs`}
             title="Start focus timer"
           >
-            <Play className="w-2.5 h-2.5 fill-current" />
-            <span>Focus</span>
+            <Play className="w-2.5 h-2.5 fill-current ml-0.5" />
           </button>
 
           {/* Check / Done */}
@@ -208,15 +210,14 @@ const TimelineItemPopover: React.FC<TimelineItemPopoverProps> = ({
               e.stopPropagation()
               onToggleDone()
             }}
-            className={`px-2 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 transition active:scale-95 cursor-pointer shadow-2xs border ${
+            className={`w-6 h-6 rounded-lg border flex items-center justify-center transition active:scale-90 cursor-pointer shadow-2xs ${
               isDone
-                ? 'bg-emerald-100/90 border-emerald-300 text-emerald-800 dark:bg-emerald-950/60 dark:border-emerald-700 dark:text-emerald-300'
-                : 'bg-slate-100 hover:bg-slate-200 border-slate-200/80 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 dark:text-slate-300'
+                ? 'bg-emerald-500 border-emerald-600 text-white shadow-2xs'
+                : 'bg-white dark:bg-slate-800 border-slate-300 hover:border-emerald-500 text-slate-400 hover:text-emerald-600'
             }`}
-            title={isDone ? 'Mark Incomplete' : 'Mark Done'}
+            title={isDone ? 'Mark incomplete' : 'Mark done'}
           >
-            <Check className="w-2.5 h-2.5" />
-            <span>{isDone ? 'Done' : 'Check'}</span>
+            {isDone ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : <div className="w-2 h-2 rounded-xs border border-slate-400" />}
           </button>
         </div>
 
@@ -227,7 +228,7 @@ const TimelineItemPopover: React.FC<TimelineItemPopoverProps> = ({
             e.stopPropagation()
             onDelete()
           }}
-          className="p-1 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/50 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition active:scale-95 cursor-pointer"
+          className="w-6 h-6 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/50 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 flex items-center justify-center transition active:scale-90 cursor-pointer"
           title="Delete"
         >
           <Trash2 className="w-3 h-3" />
@@ -1808,7 +1809,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                           {displayReminderTime}
                         </span>
                       )}
-                      <span className={`text-xs font-bold truncate ${isDone ? 'opacity-80 text-slate-800' : 'text-slate-900'}`}>
+                      <span className={`text-xs font-bold truncate ${isDone ? 'opacity-70 line-through text-slate-600' : 'text-slate-900'}`}>
                         {habit.title}
                       </span>
                       {habit.target_count && (
@@ -1816,35 +1817,9 @@ export const TimeBlockingSchedule: React.FC = () => {
                           ({habit.target_count} {habit.unit})
                         </span>
                       )}
-                    </div>
-
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleStartHabitFocus(habit)
-                        }}
-                        className="w-6 h-6 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center shrink-0 shadow-2xs active:scale-90 transition cursor-pointer"
-                        title="Start focus timer"
-                      >
-                        <Play className="w-2.5 h-2.5 fill-current ml-0.5" />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          sounds.playTap()
-                          checkinHabit(habit.id, { logged_date: selectedDate, completed: !isDone })
-                          if (!isDone) sounds.playSuccess()
-                        }}
-                        className={`w-6 h-6 rounded-lg border flex items-center justify-center shrink-0 transition active:scale-90 cursor-pointer ${
-                          isDone
-                            ? 'bg-emerald-500 border-emerald-600 text-white shadow-2xs'
-                            : 'bg-white border-emerald-300 hover:border-emerald-500'
-                        }`}
-                        title={isDone ? 'Habit checked-in' : 'Check-in'}
-                      >
-                        {isDone && <Check className="w-3.5 h-3.5 stroke-[3]" />}
-                      </button>
+                      {isDone && (
+                        <span className="text-[10px] font-black text-emerald-600 shrink-0">✓</span>
+                      )}
                     </div>
                   </div>
                 )
@@ -1925,38 +1900,12 @@ export const TimeBlockingSchedule: React.FC = () => {
                           {displayDueTime}
                         </span>
                       )}
-                      <span className={`text-xs font-bold truncate ${isDone ? 'opacity-80 text-slate-800' : 'text-slate-900'}`}>
+                      <span className={`text-xs font-bold truncate ${isDone ? 'opacity-70 line-through text-slate-600' : 'text-slate-900'}`}>
                         {task.title}
                       </span>
-                    </div>
-
-                    <div className="flex items-center gap-1 shrink-0">
-                      {!isDone && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleStartTaskFocus(task)
-                          }}
-                          className="w-6 h-6 rounded-lg bg-rose-600 hover:bg-rose-700 text-white flex items-center justify-center shrink-0 shadow-2xs active:scale-90 transition cursor-pointer"
-                          title="Start focus timer"
-                        >
-                          <Play className="w-2.5 h-2.5 fill-current ml-0.5" />
-                        </button>
+                      {isDone && (
+                        <span className="text-[10px] font-black text-emerald-600 shrink-0">✓</span>
                       )}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          sounds.playTap()
-                          toggleTaskStatus(task.id)
-                          if (!isDone) sounds.playSuccess()
-                        }}
-                        className={`w-6 h-6 rounded-lg border flex items-center justify-center shrink-0 transition active:scale-90 cursor-pointer ${
-                          isDone ? 'bg-emerald-500 border-emerald-600 text-white' : 'bg-white border-rose-300 hover:border-rose-500'
-                        }`}
-                        title={isDone ? 'Mark incomplete' : 'Mark completed'}
-                      >
-                        {isDone && <Check className="w-3.5 h-3.5 stroke-[3]" />}
-                      </button>
                     </div>
                   </div>
                 )
@@ -2061,46 +2010,12 @@ export const TimeBlockingSchedule: React.FC = () => {
                               {displayStartTime} - {displayEndTime}
                             </span>
                           )}
-                          <span className={`text-xs font-bold truncate ${slot.is_done ? 'opacity-80 text-slate-800' : 'text-slate-900'}`}>
+                          <span className={`text-xs font-bold truncate ${slot.is_done ? 'opacity-70 line-through text-slate-600' : 'text-slate-900'}`}>
                             {slot.title}
                           </span>
-                        </div>
-
-                        <div className="flex items-center gap-1 shrink-0">
-                          {!slot.is_done && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleStartSlotFocus(slot)
-                              }}
-                              className="w-6 h-6 rounded-lg bg-violet-600 hover:bg-violet-700 text-white flex items-center justify-center shrink-0 shadow-2xs active:scale-90 transition cursor-pointer"
-                              title="Start focus timer"
-                            >
-                              <Play className="w-2.5 h-2.5 fill-current ml-0.5" />
-                            </button>
+                          {slot.is_done && (
+                            <span className="text-[10px] font-black text-emerald-600 shrink-0">✓</span>
                           )}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleOpenEditSlot(slot)
-                            }}
-                            className="w-6 h-6 rounded-lg bg-white/80 border border-sky-200 hover:bg-white text-slate-600 flex items-center justify-center shrink-0 shadow-2xs active:scale-90 transition cursor-pointer"
-                            title="Edit plan"
-                          >
-                            <Edit3 className="w-3 h-3" />
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleConvertSlotToActual(slot)
-                            }}
-                            className={`w-6 h-6 rounded-lg border flex items-center justify-center shrink-0 transition active:scale-90 cursor-pointer ${
-                              slot.is_done ? 'bg-emerald-500 border-emerald-600 text-white' : 'bg-white border-sky-300 hover:border-sky-500'
-                            }`}
-                            title={slot.is_done ? '✓ Completed' : 'Convert to Actual'}
-                          >
-                            {slot.is_done && <Check className="w-3.5 h-3.5 stroke-[3]" />}
-                          </button>
                         </div>
                       </div>
                     ) : (
@@ -2139,7 +2054,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                                 </span>
                               )}
                             </div>
-                            <h4 className={`text-xs font-bold mt-1 truncate ${slot.is_done ? 'opacity-80 text-slate-800' : 'text-slate-900'}`}>
+                            <h4 className={`text-xs font-bold mt-1 truncate ${slot.is_done ? 'opacity-70 line-through text-slate-600' : 'text-slate-900'}`}>
                               {slot.title}
                             </h4>
                             {slot.category && (
@@ -2156,44 +2071,6 @@ export const TimeBlockingSchedule: React.FC = () => {
                             {slot.notes && (
                               <p className="text-[10px] text-slate-500 mt-0.5 line-clamp-1 italic">{slot.notes}</p>
                             )}
-                          </div>
-
-                          {/* Quick Actions: Play Focus, Edit & Done Checkbox */}
-                          <div className="flex items-center gap-1 shrink-0">
-                            {!slot.is_done && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleStartSlotFocus(slot)
-                                }}
-                                className="w-6 h-6 rounded-lg bg-violet-600 hover:bg-violet-700 text-white flex items-center justify-center shrink-0 shadow-2xs active:scale-90 transition cursor-pointer"
-                                title="Start focus timer"
-                              >
-                                <Play className="w-2.5 h-2.5 fill-current ml-0.5" />
-                              </button>
-                            )}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleOpenEditSlot(slot)
-                              }}
-                              className="w-6 h-6 rounded-lg bg-white/90 border border-sky-200 hover:bg-white text-slate-600 flex items-center justify-center shrink-0 shadow-2xs active:scale-90 transition cursor-pointer"
-                              title="Edit plan"
-                            >
-                              <Edit3 className="w-3 h-3" />
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleConvertSlotToActual(slot)
-                              }}
-                              className={`w-6 h-6 rounded-lg border flex items-center justify-center shrink-0 transition active:scale-90 cursor-pointer ${
-                                slot.is_done ? 'bg-emerald-500 border-emerald-600 text-white' : 'bg-white border-sky-300 hover:border-sky-500'
-                              }`}
-                              title={slot.is_done ? '✓ Completed' : 'Convert to Actual'}
-                            >
-                              {slot.is_done && <Check className="w-3.5 h-3.5 stroke-[3]" />}
-                            </button>
                           </div>
                         </div>
                       </>

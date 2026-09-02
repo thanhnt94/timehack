@@ -656,6 +656,18 @@ export const TimeBlockingSchedule: React.FC = () => {
     })
   }
 
+  const handleStartHabitFocus = (habit: Habit) => {
+    sounds.playTap()
+    startTimer({
+      habitId: habit.id,
+      title: habit.title,
+      categoryId: habit.category?.id,
+      categoryName: habit.category?.name,
+      categoryColor: habit.category?.color || habit.color,
+      durationMinutes: 15
+    })
+  }
+
   const isViewingToday = selectedDate === new Date().toISOString().split('T')[0]
 
   return (
@@ -955,8 +967,9 @@ export const TimeBlockingSchedule: React.FC = () => {
 
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-[10px] font-mono font-bold text-rose-800 bg-rose-100/90 px-2 py-0.5 rounded-md border border-rose-200">
-                              🚩 Deadline {item.startTimeStr !== '23:59' ? `(${item.startTimeStr})` : ''}
+                            <span className="text-[10px] font-mono font-bold text-rose-800 bg-rose-100/90 px-2 py-0.5 rounded-md border border-rose-200 flex items-center gap-1">
+                              <Target className="w-3 h-3 text-rose-600" />
+                              <span>Deadline {item.startTimeStr !== '23:59' ? `(${item.startTimeStr})` : ''}</span>
                             </span>
                             {task.category && (
                               <span
@@ -967,7 +980,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                               </span>
                             )}
                           </div>
-                          <h4 className={`text-xs font-bold mt-1 truncate ${isDone ? 'line-through text-slate-400' : 'text-slate-900'}`}>
+                          <h4 className={`text-xs font-bold mt-1 truncate ${isDone ? 'opacity-75 text-slate-800' : 'text-slate-900'}`}>
                             {task.title}
                           </h4>
                           {task.description && (
@@ -1041,7 +1054,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                               </span>
                             )}
                           </div>
-                          <h4 className={`text-xs font-bold mt-1 truncate ${isDone ? 'line-through text-slate-400' : 'text-slate-900'}`}>
+                          <h4 className={`text-xs font-bold mt-1 truncate ${isDone ? 'opacity-75 text-slate-800' : 'text-slate-900'}`}>
                             {habit.title}
                           </h4>
                           {habit.description && (
@@ -1049,8 +1062,15 @@ export const TimeBlockingSchedule: React.FC = () => {
                           )}
                         </div>
 
-                        <div className="flex items-center gap-1 shrink-0">
-                          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-lg border border-emerald-200/60 font-mono">
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            onClick={() => handleStartHabitFocus(habit)}
+                            className="h-7 w-7 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center shrink-0 shadow-2xs active:scale-95 transition cursor-pointer"
+                            title="Start timer for this habit"
+                          >
+                            <Play className="w-2.5 h-2.5 fill-current ml-0.5" />
+                          </button>
+                          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100/80 px-2 py-1 rounded-lg border border-emerald-200/60 font-mono">
                             🔥 {habit.current_streak || 0}d
                           </span>
                         </div>
@@ -1068,7 +1088,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                       key={`slot-${slot.id}`}
                       className={`bg-white rounded-2xl p-3 border transition shadow-2xs ${
                         isDone
-                          ? 'opacity-65 bg-emerald-50/20 border-emerald-200'
+                          ? 'opacity-75 bg-sky-50/50 border-sky-200'
                           : 'border-slate-200 hover:border-violet-300'
                       }`}
                     >
@@ -1107,7 +1127,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                               </span>
                             )}
                           </div>
-                          <h4 className={`text-xs font-bold mt-1 truncate ${isDone ? 'line-through text-slate-400' : 'text-slate-900'}`}>
+                          <h4 className={`text-xs font-bold mt-1 truncate ${isDone ? 'opacity-75 text-slate-800' : 'text-slate-900'}`}>
                             {slot.title}
                           </h4>
                           {slot.notes && (
@@ -1218,7 +1238,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                       <span className="text-[9px] font-mono font-black px-1.5 py-0.5 rounded bg-white border border-emerald-200 shrink-0 text-emerald-700">
                         ⚡ {habit.reminder_time}
                       </span>
-                      <span className={`text-xs font-bold truncate ${isDone ? 'line-through text-slate-400' : 'text-slate-900'}`}>
+                      <span className={`text-xs font-bold truncate ${isDone ? 'opacity-80 text-slate-800' : 'text-slate-900'}`}>
                         {habit.title}
                       </span>
                       {habit.target_count && (
@@ -1228,22 +1248,34 @@ export const TimeBlockingSchedule: React.FC = () => {
                       )}
                     </div>
 
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        sounds.playTap()
-                        checkinHabit(habit.id, { logged_date: selectedDate, completed: !isDone })
-                        if (!isDone) sounds.playSuccess()
-                      }}
-                      className={`h-6 px-2 rounded-lg border text-[10px] font-bold flex items-center gap-1 shrink-0 transition active:scale-90 ${
-                        isDone
-                          ? 'bg-emerald-500 border-emerald-600 text-white shadow-2xs'
-                          : 'bg-white border-emerald-300 text-emerald-700 hover:bg-emerald-100'
-                      }`}
-                      title={isDone ? 'Habit checked-in' : 'Check-in habit'}
-                    >
-                      {isDone ? <Check className="w-3 h-3 stroke-[3]" /> : 'Check-in'}
-                    </button>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleStartHabitFocus(habit)
+                        }}
+                        className="w-6 h-6 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center shrink-0 shadow-2xs active:scale-90 transition cursor-pointer"
+                        title="Start focus timer"
+                      >
+                        <Play className="w-2.5 h-2.5 fill-current ml-0.5" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          sounds.playTap()
+                          checkinHabit(habit.id, { logged_date: selectedDate, completed: !isDone })
+                          if (!isDone) sounds.playSuccess()
+                        }}
+                        className={`w-6 h-6 rounded-lg border flex items-center justify-center shrink-0 transition active:scale-90 cursor-pointer ${
+                          isDone
+                            ? 'bg-emerald-500 border-emerald-600 text-white shadow-2xs'
+                            : 'bg-white border-emerald-300 hover:border-emerald-500'
+                        }`}
+                        title={isDone ? 'Habit checked-in' : 'Check-in'}
+                      >
+                        {isDone && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                      </button>
+                    </div>
                   </div>
                 )
               })}
@@ -1267,16 +1299,17 @@ export const TimeBlockingSchedule: React.FC = () => {
                     key={`deadline-line-${task.id}`}
                     className={`absolute left-14 right-2 sm:right-3 rounded-xl px-2.5 py-1.5 border flex items-center justify-between gap-2 shadow-2xs transition z-20 ${
                       isDone
-                        ? 'bg-slate-50/90 border-slate-300 opacity-60'
+                        ? 'bg-rose-50/70 border-rose-200 text-rose-950 opacity-75'
                         : 'bg-rose-50/95 border-rose-300 text-rose-950 hover:border-rose-500'
                     }`}
                     style={{ top: `${top}px`, height: '36px' }}
                   >
                     <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                      <span className="text-[9px] font-mono font-black px-1.5 py-0.5 rounded bg-white border border-rose-200 text-rose-700 shrink-0">
-                        🚩 {dueTime !== '23:59' ? dueTime : 'EOD'}
+                      <span className="text-[9px] font-mono font-black px-1.5 py-0.5 rounded bg-white border border-rose-200 text-rose-700 shrink-0 flex items-center gap-0.5">
+                        <Target className="w-2.5 h-2.5 text-rose-600" />
+                        <span>{dueTime !== '23:59' ? dueTime : 'EOD'}</span>
                       </span>
-                      <span className={`text-xs font-bold truncate ${isDone ? 'line-through text-slate-400' : 'text-slate-900'}`}>
+                      <span className={`text-xs font-bold truncate ${isDone ? 'opacity-80 text-slate-800' : 'text-slate-900'}`}>
                         {task.title}
                       </span>
                     </div>
@@ -1288,7 +1321,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                             e.stopPropagation()
                             handleStartTaskFocus(task)
                           }}
-                          className="h-6 px-2 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-bold flex items-center gap-1 shadow-2xs active:scale-90 transition"
+                          className="h-6 px-2 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-bold flex items-center gap-1 shadow-2xs active:scale-90 transition cursor-pointer"
                           title="Start focus timer"
                         >
                           <Play className="w-2 h-2 fill-current" />
@@ -1302,10 +1335,10 @@ export const TimeBlockingSchedule: React.FC = () => {
                           toggleTaskStatus(task.id)
                           if (!isDone) sounds.playSuccess()
                         }}
-                        className={`w-6 h-6 rounded-lg border flex items-center justify-center shrink-0 transition active:scale-90 ${
+                        className={`w-6 h-6 rounded-lg border flex items-center justify-center shrink-0 transition active:scale-90 cursor-pointer ${
                           isDone ? 'bg-emerald-500 border-emerald-600 text-white' : 'bg-white border-rose-300 hover:border-rose-500'
                         }`}
-                        title={isDone ? 'Mark uncompleted' : 'Mark completed'}
+                        title={isDone ? 'Mark incomplete' : 'Mark completed'}
                       >
                         {isDone && <Check className="w-3 h-3 stroke-[3]" />}
                       </button>
@@ -1347,7 +1380,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                       isBeingDragged
                         ? 'ring-2 ring-violet-500 shadow-2xl z-30 scale-[1.01] bg-sky-100/95 border-sky-400 text-sky-950'
                         : slot.is_done
-                        ? 'bg-emerald-50/90 border-emerald-300 text-emerald-950 opacity-80 z-10'
+                        ? 'bg-sky-50/90 border-sky-300 text-sky-950 opacity-80 z-10'
                         : 'bg-sky-50/95 border-sky-300 text-sky-950 hover:border-sky-500 hover:shadow-md z-10'
                     }`}
                     style={{ top: `${top}px`, height: `${height}px` }}
@@ -1367,7 +1400,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                           <span className="text-[9px] font-mono font-black px-1.5 py-0.5 rounded bg-white/90 border border-sky-200 shrink-0 shadow-2xs">
                             {displayStartTime} - {displayEndTime}
                           </span>
-                          <span className={`text-xs font-bold truncate ${slot.is_done ? 'line-through text-slate-400' : 'text-slate-900'}`}>
+                          <span className={`text-xs font-bold truncate ${slot.is_done ? 'opacity-80 text-slate-800' : 'text-slate-900'}`}>
                             {slot.title}
                           </span>
                         </div>
@@ -1379,8 +1412,8 @@ export const TimeBlockingSchedule: React.FC = () => {
                                 e.stopPropagation()
                                 handleStartSlotFocus(slot)
                               }}
-                              className="w-6 h-6 rounded-lg bg-violet-600 hover:bg-violet-700 text-white flex items-center justify-center shrink-0 shadow-2xs active:scale-90 transition"
-                              title="Bắt đầu bấm giờ"
+                              className="w-6 h-6 rounded-lg bg-violet-600 hover:bg-violet-700 text-white flex items-center justify-center shrink-0 shadow-2xs active:scale-90 transition cursor-pointer"
+                              title="Start focus timer"
                             >
                               <Play className="w-2.5 h-2.5 fill-current ml-0.5" />
                             </button>
@@ -1390,8 +1423,8 @@ export const TimeBlockingSchedule: React.FC = () => {
                               e.stopPropagation()
                               handleOpenEditSlot(slot)
                             }}
-                            className="w-6 h-6 rounded-lg bg-white/80 border border-sky-200 hover:bg-white text-slate-600 flex items-center justify-center shrink-0 shadow-2xs active:scale-90 transition"
-                            title="Sửa kế hoạch"
+                            className="w-6 h-6 rounded-lg bg-white/80 border border-sky-200 hover:bg-white text-slate-600 flex items-center justify-center shrink-0 shadow-2xs active:scale-90 transition cursor-pointer"
+                            title="Edit plan"
                           >
                             <Edit3 className="w-3 h-3" />
                           </button>
@@ -1400,10 +1433,10 @@ export const TimeBlockingSchedule: React.FC = () => {
                               e.stopPropagation()
                               handleConvertSlotToActual(slot)
                             }}
-                            className={`w-6 h-6 rounded-lg border flex items-center justify-center shrink-0 transition active:scale-90 ${
+                            className={`w-6 h-6 rounded-lg border flex items-center justify-center shrink-0 transition active:scale-90 cursor-pointer ${
                               slot.is_done ? 'bg-emerald-500 border-emerald-600 text-white' : 'bg-white border-sky-300 hover:border-sky-500'
                             }`}
-                            title={slot.is_done ? '✓ Đã hoàn thành' : 'Chuyển thành Actual'}
+                            title={slot.is_done ? '✓ Completed' : 'Convert to Actual'}
                           >
                             {slot.is_done && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                           </button>
@@ -1440,7 +1473,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                                 </span>
                               )}
                             </div>
-                            <h4 className={`text-xs font-bold mt-1 truncate ${slot.is_done ? 'line-through text-slate-400' : 'text-slate-900'}`}>
+                            <h4 className={`text-xs font-bold mt-1 truncate ${slot.is_done ? 'opacity-80 text-slate-800' : 'text-slate-900'}`}>
                               {slot.title}
                             </h4>
                             {slot.category && (
@@ -1467,8 +1500,8 @@ export const TimeBlockingSchedule: React.FC = () => {
                                   e.stopPropagation()
                                   handleStartSlotFocus(slot)
                                 }}
-                                className="w-6 h-6 rounded-lg bg-violet-600 hover:bg-violet-700 text-white flex items-center justify-center shrink-0 shadow-2xs active:scale-90 transition"
-                                title="Bắt đầu bấm giờ"
+                                className="w-6 h-6 rounded-lg bg-violet-600 hover:bg-violet-700 text-white flex items-center justify-center shrink-0 shadow-2xs active:scale-90 transition cursor-pointer"
+                                title="Start focus timer"
                               >
                                 <Play className="w-2.5 h-2.5 fill-current ml-0.5" />
                               </button>
@@ -1478,8 +1511,8 @@ export const TimeBlockingSchedule: React.FC = () => {
                                 e.stopPropagation()
                                 handleOpenEditSlot(slot)
                               }}
-                              className="w-6 h-6 rounded-lg bg-white/90 border border-sky-200 hover:bg-white text-slate-600 flex items-center justify-center shrink-0 shadow-2xs active:scale-90 transition"
-                              title="Sửa kế hoạch"
+                              className="w-6 h-6 rounded-lg bg-white/90 border border-sky-200 hover:bg-white text-slate-600 flex items-center justify-center shrink-0 shadow-2xs active:scale-90 transition cursor-pointer"
+                              title="Edit plan"
                             >
                               <Edit3 className="w-3 h-3" />
                             </button>
@@ -1488,10 +1521,10 @@ export const TimeBlockingSchedule: React.FC = () => {
                                 e.stopPropagation()
                                 handleConvertSlotToActual(slot)
                               }}
-                              className={`w-6 h-6 rounded-lg border flex items-center justify-center shrink-0 transition active:scale-90 ${
+                              className={`w-6 h-6 rounded-lg border flex items-center justify-center shrink-0 transition active:scale-90 cursor-pointer ${
                                 slot.is_done ? 'bg-emerald-500 border-emerald-600 text-white' : 'bg-white border-sky-300 hover:border-sky-500'
                               }`}
-                              title={slot.is_done ? '✓ Đã hoàn thành' : 'Chuyển thành Actual'}
+                              title={slot.is_done ? '✓ Completed' : 'Convert to Actual'}
                             >
                               {slot.is_done && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                             </button>
@@ -1504,7 +1537,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                     <div
                       onPointerDown={(e) => handleStartResize(e, slot)}
                       className="absolute bottom-0 left-0 right-0 h-3 cursor-ns-resize flex items-center justify-center hover:bg-sky-400/20 group/resize transition rounded-b-2xl z-20"
-                      title="Kéo cạnh dưới để thay đổi thời lượng"
+                      title="Drag to resize duration"
                     >
                       <div className="w-8 h-1 rounded-full bg-sky-300 group-hover/resize:bg-sky-600 transition" />
                     </div>

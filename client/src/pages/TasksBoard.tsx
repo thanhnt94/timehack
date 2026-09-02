@@ -361,7 +361,7 @@ export const TasksBoard: React.FC = () => {
                           className="cursor-pointer group flex-1 min-w-0"
                         >
                           <h4 className={`text-sm font-bold truncate group-hover:text-violet-700 transition ${
-                            done ? 'line-through text-slate-400' : 'text-slate-900'
+                            done ? 'opacity-75 text-slate-800' : 'text-slate-900'
                           }`}>
                             {task.title}
                           </h4>
@@ -499,7 +499,7 @@ export const TasksBoard: React.FC = () => {
                                     <span
                                       onClick={() => handleStartEditSubtask(st)}
                                       className={`text-xs font-semibold cursor-text block truncate ${
-                                        st.is_completed ? 'line-through text-slate-400' : 'text-slate-800'
+                                        st.is_completed ? 'opacity-75 text-slate-800' : 'text-slate-800'
                                       }`}
                                       title="Click to edit subtask"
                                     >
@@ -972,7 +972,7 @@ export const TasksBoard: React.FC = () => {
                   <div className="space-y-1.5 mb-2 max-h-36 overflow-y-auto">
                     {editTaskData.subtasks.map(st => (
                       <div key={st.id} className="flex items-center justify-between text-xs py-1.5 px-2.5 rounded-xl bg-slate-50 border border-slate-200">
-                        <span className={`truncate font-semibold ${st.is_completed ? 'line-through text-slate-400' : 'text-slate-800'}`}>
+                        <span className={`truncate font-semibold ${st.is_completed ? 'opacity-75 text-slate-800' : 'text-slate-800'}`}>
                           {st.title}
                         </span>
                         <button

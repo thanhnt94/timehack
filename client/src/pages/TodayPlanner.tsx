@@ -465,7 +465,7 @@ export const TodayPlanner: React.FC<Props> = ({ onOpenFocus }) => {
                   </button>
 
                   <div className="min-w-0 flex-1">
-                    <div className={`text-xs font-bold truncate ${checked ? 'line-through text-emerald-950 opacity-70' : 'text-slate-900'}`}>
+                    <div className={`text-xs font-bold truncate ${checked ? 'opacity-75 text-slate-800' : 'text-slate-900'}`}>
                       {h.title}
                     </div>
                     <div className="flex items-center justify-between text-[10px] text-slate-400 mt-0.5 font-medium">
@@ -668,7 +668,7 @@ export const TodayPlanner: React.FC<Props> = ({ onOpenFocus }) => {
                           </span>
                         )}
                       </div>
-                      <div className={`text-xs font-bold mt-1 truncate ${isDone ? 'line-through text-slate-400' : 'text-slate-900'}`}>
+                      <div className={`text-xs font-bold mt-1 truncate ${isDone ? 'opacity-75 text-slate-800' : 'text-slate-900'}`}>
                         {slot.title}
                       </div>
                     </div>

@@ -363,7 +363,7 @@ export const DayPlanSimplified: React.FC = () => {
                         </span>
                       )}
                     </div>
-                    <h4 className={`text-xs font-bold mt-1 truncate ${isDone ? 'line-through text-slate-400' : 'text-slate-900'}`}>
+                    <h4 className={`text-xs font-bold mt-1 truncate ${isDone ? 'opacity-75 text-slate-800' : 'text-slate-900'}`}>
                       {slot.title}
                     </h4>
                     {slot.notes && (

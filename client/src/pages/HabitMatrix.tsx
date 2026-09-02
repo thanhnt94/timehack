@@ -405,7 +405,7 @@ export const HabitMatrix: React.FC = () => {
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
                             <h4 className={`text-sm font-black truncate transition ${
-                              isPeriodDone ? 'text-emerald-950 line-through opacity-75' : 'text-slate-900 group-hover:text-violet-700'
+                              isPeriodDone ? 'opacity-75 text-slate-800' : 'text-slate-900 group-hover:text-violet-700'
                             }`}>
                               {h.title}
                             </h4>

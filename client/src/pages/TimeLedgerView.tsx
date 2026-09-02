@@ -405,58 +405,63 @@ export const TimeLedgerView: React.FC = () => {
           </button>
         </div>
 
-        {/* Daily Summary Card */}
-        <div className="bg-gradient-to-br from-violet-900 via-indigo-900 to-slate-900 rounded-3xl p-4 text-white shadow-xl shadow-indigo-950/20 space-y-2.5 border border-indigo-700/40">
-          <div className="flex items-center justify-between border-b border-white/10 pb-2">
+        {/* Daily Summary Card (Clean Modern White Design) */}
+        <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200/90 shadow-2xs space-y-3.5">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-violet-300 block font-mono">
-                Daily Time Ledger • {ledgerDate === todayIso ? 'Today' : ledgerDate}
+              <span className="text-[10px] font-black uppercase tracking-wider text-violet-600 font-mono flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-violet-600 animate-pulse" />
+                DAILY TIME LEDGER • {ledgerDate === todayIso ? 'Today' : ledgerDate}
               </span>
-              <div className="text-2xl font-black font-mono tracking-tight text-white mt-0.5">
+              <div className="text-2xl sm:text-3xl font-black font-mono tracking-tight text-slate-900 mt-1">
                 {totalLoggedFormatted}
               </div>
             </div>
+            
             <div className="flex items-center gap-2">
               <div className="text-right">
-                <span className="text-[10px] font-bold text-slate-400 block font-mono">Total</span>
-                <span className="text-sm font-black text-emerald-400 font-mono">
+                <span className="text-[10px] font-bold text-slate-400 block font-mono uppercase">Logged</span>
+                <span className="text-xs font-black text-slate-700 font-mono bg-slate-100 px-2 py-0.5 rounded-lg border border-slate-200">
                   {logs.length} logs
                 </span>
               </div>
               <button
                 onClick={() => { sounds.playTap(); setShowManualModal(true) }}
-                className="p-1.5 rounded-xl bg-white/15 hover:bg-white/25 text-white border border-white/20 transition active:scale-95 cursor-pointer"
+                className="w-8 h-8 rounded-xl bg-violet-600 hover:bg-violet-700 text-white flex items-center justify-center shadow-sm shadow-violet-600/30 transition active:scale-95 cursor-pointer"
                 title="Add Manual Time Entry"
               >
-                <Plus className="w-4 h-4" />
+                <Plus className="w-4 h-4 stroke-[2.5]" />
               </button>
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-2">
-            <div className="bg-white/10 rounded-2xl p-2 border border-white/10 text-center">
-              <span className="text-[9px] font-bold uppercase tracking-wider text-emerald-300 block">
+          <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
+            {/* Productive Card */}
+            <div className="bg-emerald-50/60 rounded-2xl p-2.5 border border-emerald-200/70 text-center transition hover:border-emerald-300">
+              <span className="text-[9px] font-bold uppercase tracking-wider text-emerald-800 block font-mono">
                 🟢 Productive
               </span>
-              <span className="text-xs font-black font-mono text-white mt-0.5 block">
+              <span className="text-xs sm:text-sm font-black font-mono text-emerald-950 mt-0.5 block">
                 {ledgerBreakdown.productive}
               </span>
             </div>
 
-            <div className="bg-white/10 rounded-2xl p-2 border border-white/10 text-center">
-              <span className="text-[9px] font-bold uppercase tracking-wider text-sky-300 block">
+            {/* Neutral Card */}
+            <div className="bg-sky-50/60 rounded-2xl p-2.5 border border-sky-200/70 text-center transition hover:border-sky-300">
+              <span className="text-[9px] font-bold uppercase tracking-wider text-sky-800 block font-mono">
                 🔵 Neutral
               </span>
-              <span className="text-xs font-black font-mono text-white mt-0.5 block">
+              <span className="text-xs sm:text-sm font-black font-mono text-sky-950 mt-0.5 block">
                 {ledgerBreakdown.neutral}
               </span>
             </div>
 
-            <div className="bg-white/10 rounded-2xl p-2 border border-white/10 text-center">
-              <span className="text-[9px] font-bold uppercase tracking-wider text-rose-300 block">
+            {/* Wasted Card */}
+            <div className="bg-rose-50/60 rounded-2xl p-2.5 border border-rose-200/70 text-center transition hover:border-rose-300">
+              <span className="text-[9px] font-bold uppercase tracking-wider text-rose-800 block font-mono">
                 🔴 Wasted
               </span>
-              <span className="text-xs font-black font-mono text-white mt-0.5 block">
+              <span className="text-xs sm:text-sm font-black font-mono text-rose-950 mt-0.5 block">
                 {ledgerBreakdown.wasted}
               </span>
             </div>

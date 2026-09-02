@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import {
   Clock, Calendar as CalendarIcon, ChevronLeft, ChevronRight,
+  ChevronDown, ChevronUp, Target,
   Folder, ArrowUpDown, Plus, Edit3, Trash2, X, Play, CheckCircle2,
   Wallet, Sparkles, Filter, Tag, Zap
 } from 'lucide-react'
@@ -9,7 +10,7 @@ import { useTaskStore, type Category } from '../store/useTaskStore'
 import { sounds } from '../utils/soundEffects'
 import { renderAppIcon } from '../utils/iconHelper'
 
-type LedgerGroupMode = 'time' | 'category'
+type LedgerGroupMode = 'time' | 'category' | 'task'
 type LedgerSortOrder = 'desc' | 'asc'
 
 export const TimeLedgerView: React.FC = () => {
@@ -20,6 +21,17 @@ export const TimeLedgerView: React.FC = () => {
   const [ledgerDate, setLedgerDate] = useState<string>(todayIso)
   const [ledgerGroupMode, setLedgerGroupMode] = useState<LedgerGroupMode>('time')
   const [ledgerSortOrder, setLedgerSortOrder] = useState<LedgerSortOrder>('desc')
+  const [expandedTaskKeys, setExpandedTaskKeys] = useState<Set<string>>(new Set())
+
+  const toggleTaskExpanded = (key: string) => {
+    sounds.playTap()
+    setExpandedTaskKeys(prev => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
 
   // Manual Log Creation Modal
   const [showManualModal, setShowManualModal] = useState(false)
@@ -205,6 +217,72 @@ export const TimeLedgerView: React.FC = () => {
     return Array.from(groupsMap.values()).sort(
       (a, b) => b.totalDurationSeconds - a.totalDurationSeconds
     )
+  }, [logs, categories])
+
+  // Task / Activity grouped logs list (aggregates multiple sessions of the same task into 1 total)
+  const taskGroupedLogs = useMemo(() => {
+    const groupsMap = new Map<
+      string,
+      {
+        key: string
+        title: string
+        type: 'task' | 'habit' | 'custom'
+        categoryName: string
+        categoryColor: string
+        totalDurationSeconds: number
+        logs: TimeLogItem[]
+      }
+    >()
+
+    ;(logs || []).forEach(log => {
+      const isHabit = Boolean(log.habit_id || log.habit_title)
+      const isTask = Boolean(log.task_id || log.task_title)
+      const rawTitle = (log.task_title || log.habit_title || log.notes || 'Focus Session').trim()
+
+      let groupKey: string
+      let itemType: 'task' | 'habit' | 'custom' = 'custom'
+
+      if (log.task_id) {
+        groupKey = `task-${log.task_id}`
+        itemType = 'task'
+      } else if (log.habit_id) {
+        groupKey = `habit-${log.habit_id}`
+        itemType = 'habit'
+      } else if (isHabit) {
+        groupKey = `habit-title-${rawTitle.toLowerCase()}`
+        itemType = 'habit'
+      } else if (isTask) {
+        groupKey = `task-title-${rawTitle.toLowerCase()}`
+        itemType = 'task'
+      } else {
+        groupKey = `custom-${rawTitle.toLowerCase()}`
+        itemType = 'custom'
+      }
+
+      const cat = (categories || []).find(c => c?.id === log?.category_id)
+      const catName = log.category_name || cat?.name || 'General'
+      const catColor = log.category_color || cat?.color || '#8B5CF6'
+
+      if (!groupsMap.has(groupKey)) {
+        groupsMap.set(groupKey, {
+          key: groupKey,
+          title: rawTitle,
+          type: itemType,
+          categoryName: catName,
+          categoryColor: catColor,
+          totalDurationSeconds: 0,
+          logs: []
+        })
+      }
+
+      const grp = groupsMap.get(groupKey)!
+      grp.totalDurationSeconds += log.duration_seconds || 0
+      grp.logs.push(log)
+    })
+
+    return Array.from(groupsMap.values()).sort((a, b) => {
+      return b.totalDurationSeconds - a.totalDurationSeconds
+    })
   }, [logs, categories])
 
   // Open Edit Modal
@@ -470,11 +548,11 @@ export const TimeLedgerView: React.FC = () => {
 
         {/* ── SORT & GROUPING CONTROLS ── */}
         <div className="flex items-center justify-between gap-2 px-1">
-          {/* Group By Mode: Time vs Category */}
+          {/* Group By Mode: Time vs Category vs Task */}
           <div className="inline-flex p-0.5 bg-slate-200/80 rounded-xl text-xs font-bold">
             <button
               onClick={() => { sounds.playTap(); setLedgerGroupMode('time') }}
-              className={`px-3 py-1 rounded-lg flex items-center gap-1.5 transition cursor-pointer ${
+              className={`px-2.5 sm:px-3 py-1 rounded-lg flex items-center gap-1 sm:gap-1.5 transition cursor-pointer text-[11px] sm:text-xs ${
                 ledgerGroupMode === 'time'
                   ? 'bg-white text-violet-900 shadow-2xs font-black'
                   : 'text-slate-600 hover:text-slate-900'
@@ -485,7 +563,7 @@ export const TimeLedgerView: React.FC = () => {
             </button>
             <button
               onClick={() => { sounds.playTap(); setLedgerGroupMode('category') }}
-              className={`px-3 py-1 rounded-lg flex items-center gap-1.5 transition cursor-pointer ${
+              className={`px-2.5 sm:px-3 py-1 rounded-lg flex items-center gap-1 sm:gap-1.5 transition cursor-pointer text-[11px] sm:text-xs ${
                 ledgerGroupMode === 'category'
                   ? 'bg-white text-violet-900 shadow-2xs font-black'
                   : 'text-slate-600 hover:text-slate-900'
@@ -493,6 +571,17 @@ export const TimeLedgerView: React.FC = () => {
             >
               <Folder className="w-3.5 h-3.5 text-amber-500" />
               <span>By Category</span>
+            </button>
+            <button
+              onClick={() => { sounds.playTap(); setLedgerGroupMode('task') }}
+              className={`px-2.5 sm:px-3 py-1 rounded-lg flex items-center gap-1 sm:gap-1.5 transition cursor-pointer text-[11px] sm:text-xs ${
+                ledgerGroupMode === 'task'
+                  ? 'bg-white text-violet-900 shadow-2xs font-black'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Target className="w-3.5 h-3.5 text-rose-500" />
+              <span>By Task</span>
             </button>
           </div>
 
@@ -534,7 +623,7 @@ export const TimeLedgerView: React.FC = () => {
               {sortedLogs.map(log => renderLogCard(log))}
             </div>
           </div>
-        ) : (
+        ) : ledgerGroupMode === 'category' ? (
           /* Category Folder Grouped View */
           <div className="space-y-3">
             {categoryGroupedLogs.map(group => {
@@ -575,6 +664,111 @@ export const TimeLedgerView: React.FC = () => {
                   <div className="p-1 sm:p-2 divide-y divide-slate-100">
                     {group.logs.map(log => renderLogCard(log))}
                   </div>
+                </div>
+              )
+            })}
+          </div>
+        ) : (
+          /* Task / Activity Grouped View (Aggregates multiple sessions of the same task into 1 total) */
+          <div className="space-y-3">
+            {taskGroupedLogs.map(group => {
+              const durStr = formatDurationDisplay(group.totalDurationSeconds)
+              const percentOfDay = totalLoggedSeconds > 0
+                ? Math.round((group.totalDurationSeconds / totalLoggedSeconds) * 100)
+                : 0
+              const isExpanded = expandedTaskKeys.has(group.key)
+
+              return (
+                <div
+                  key={`task_group_${group.key}`}
+                  className="bg-white rounded-3xl border border-slate-200/90 shadow-2xs overflow-hidden transition hover:border-violet-300"
+                >
+                  {/* Aggregated Task Header Card */}
+                  <div
+                    onClick={() => toggleTaskExpanded(group.key)}
+                    className="p-3.5 sm:p-4 flex items-center justify-between gap-3 cursor-pointer hover:bg-slate-50/70 transition select-none"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                      {/* Icon Badge */}
+                      <div className={`w-8 h-8 rounded-xl shrink-0 flex items-center justify-center shadow-2xs ${
+                        group.type === 'habit'
+                          ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
+                          : group.type === 'task'
+                          ? 'bg-rose-50 text-rose-600 border border-rose-200'
+                          : 'bg-violet-50 text-violet-600 border border-violet-200'
+                      }`}>
+                        {group.type === 'habit' ? (
+                          <Zap className="w-4 h-4" />
+                        ) : group.type === 'task' ? (
+                          <Target className="w-4 h-4" />
+                        ) : (
+                          <Clock className="w-4 h-4" />
+                        )}
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <h4 className="text-xs sm:text-sm font-black text-slate-900 truncate">
+                            {group.title}
+                          </h4>
+                          <span
+                            className="text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-1 shrink-0"
+                            style={{ backgroundColor: `${group.categoryColor}18`, color: group.categoryColor }}
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: group.categoryColor }} />
+                            <span>{group.categoryName}</span>
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2 text-[10px] text-slate-400 font-mono mt-0.5">
+                          <span className="font-bold text-violet-700 bg-violet-50 border border-violet-100 px-1.5 py-0.2 rounded-md">
+                            {group.logs.length} {group.logs.length === 1 ? 'session' : 'sessions'}
+                          </span>
+                          <span>•</span>
+                          <span>{percentOfDay}% of day</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Total Aggregated Duration & Chevron */}
+                    <div className="flex items-center gap-2 shrink-0 text-right">
+                      <div>
+                        <div className="text-xs sm:text-sm font-black font-mono text-violet-700">
+                          +{durStr}
+                        </div>
+                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block font-mono">
+                          Total
+                        </span>
+                      </div>
+
+                      <div className="w-6 h-6 rounded-lg bg-slate-100 text-slate-400 flex items-center justify-center">
+                        {isExpanded ? (
+                          <ChevronUp className="w-3.5 h-3.5 text-slate-600" />
+                        ) : (
+                          <ChevronDown className="w-3.5 h-3.5 text-slate-600" />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Day Share Progress Bar */}
+                  <div className="w-full bg-slate-100 h-1">
+                    <div
+                      className="h-full bg-violet-600 rounded-r-full transition-all duration-300"
+                      style={{ width: `${Math.max(3, Math.min(100, percentOfDay))}%` }}
+                    />
+                  </div>
+
+                  {/* Collapsible Session Details */}
+                  {isExpanded && (
+                    <div className="p-1.5 sm:p-2 bg-slate-50/50 border-t border-slate-100 space-y-1 divide-y divide-slate-100">
+                      <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono flex items-center justify-between">
+                        <span>Sessions Breakdown ({group.logs.length})</span>
+                        <span className="normal-case text-[9.5px]">Click to edit log</span>
+                      </div>
+                      {group.logs.map(log => renderLogCard(log))}
+                    </div>
+                  )}
                 </div>
               )
             })}

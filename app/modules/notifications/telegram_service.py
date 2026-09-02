@@ -49,26 +49,24 @@ class TelegramService:
         # 1. If SSO is enabled: Dispatch via CentralAuth Queue Hub
         if cfg["is_sso_enabled"] and cfg["server_url"]:
             try:
-                queue_url = f"{cfg['server_url'].rstrip('/')}/api/queue/submit"
-                async with httpx.AsyncClient(timeout=5.0) as client:
+                queue_url = f"{cfg['server_url'].rstrip('/')}/api/queue/telegram/send-message"
+                queue_token = getattr(settings, "QUEUE_API_SECRET", "super-secret-token-123")
+                async with httpx.AsyncClient(timeout=10.0) as client:
                     res = await client.post(
                         queue_url,
                         json={
-                            "task_type": "telegram_message",
-                            "satellite_source": "timehack",
-                            "payload": {
-                                "user_id": user_id,
-                                "chat_id": str(chat_id),
-                                "message": text,
-                                "text": text,
-                                "parse_mode": parse_mode
-                            }
+                            "chat_id": str(chat_id),
+                            "text": text,
+                            "source": "timehack",
+                            "message_type": "custom_notification"
                         },
-                        headers={"X-Queue-Secret": settings.QUEUE_API_SECRET}
+                        headers={"X-Queue-Token": queue_token, "X-Queue-Secret": queue_token}
                     )
                     if res.status_code in [200, 201]:
                         logger.info(f"Telegram notification dispatched via CentralAuth Queue for chat_id={chat_id}")
                         return True
+                    else:
+                        logger.warning(f"CentralAuth send-message returned {res.status_code}: {res.text}")
             except Exception as e:
                 logger.warning(f"CentralAuth Queue Telegram dispatch error: {e}, attempting direct Bot fallback...")
 

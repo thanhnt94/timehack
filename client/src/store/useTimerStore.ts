@@ -222,6 +222,21 @@ export const useTimerStore = create<TimerState>((set, get) => ({
 
   // Multi-track Start (POST to DB)
   startNewTrack: async (target) => {
+    // Prevent duplicate active tracks for the same task, habit, or title
+    const existing = get().activeTracks.find(t => {
+      if (target.taskId && t.taskId === target.taskId) return true
+      if (target.habitId && t.habitId === target.habitId) return true
+      if (target.title && t.title.trim().toLowerCase() === target.title.trim().toLowerCase()) return true
+      return false
+    })
+
+    if (existing) {
+      if (existing.isPaused) {
+        await get().resumeTrack(existing.id)
+      }
+      return existing.id
+    }
+
     const chosenMode = target.mode || get().mode || 'stopwatch'
     const now = new Date()
 

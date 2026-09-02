@@ -2,7 +2,7 @@ import React, { useEffect, useLayoutEffect, useState, useMemo, useRef } from 're
 import axios from 'axios'
 import {
   Calendar as CalendarIcon, Plus, Check, Clock, Trash2, X,
-  Sparkles, ArrowRight, Play, CheckCircle2, Flame, BarChart2,
+  Sparkles, ArrowRight, Play, Pause, Square, CheckCircle2, Flame, BarChart2,
   TrendingUp, AlertCircle, ChevronLeft, ChevronRight, LayoutList,
   Clock3, Search, Tag, Edit3, RotateCcw, Zap, Target, BookOpen,
   Activity, Smile, Coffee, Droplets, Bell
@@ -57,10 +57,13 @@ interface TimelineItemPopoverProps {
   category?: { name: string; color: string }
   notes?: string
   isDone?: boolean
+  activeTrack?: { id: string; elapsedSeconds: number; isPaused: boolean } | null
   onMouseEnter?: () => void
   onMouseLeave?: () => void
   onEdit: () => void
   onPlay: () => void
+  onPause?: () => void
+  onStopTimer?: () => void
   onToggleDone: () => void
   onDelete: () => void
 }
@@ -72,10 +75,13 @@ const TimelineItemPopover: React.FC<TimelineItemPopoverProps> = ({
   category,
   notes,
   isDone,
+  activeTrack,
   onMouseEnter,
   onMouseLeave,
   onEdit,
   onPlay,
+  onPause,
+  onStopTimer,
   onToggleDone,
   onDelete
 }) => {
@@ -149,6 +155,16 @@ const TimelineItemPopover: React.FC<TimelineItemPopoverProps> = ({
           <span className="text-[9px] font-mono font-bold text-slate-500 dark:text-slate-400">
             {timeStr}
           </span>
+          {activeTrack && !activeTrack.isPaused && (
+            <span className="text-[8px] font-mono font-black text-amber-700 bg-amber-100/90 px-1 py-0.2 rounded border border-amber-300/80 animate-pulse">
+              ⏱️ Running
+            </span>
+          )}
+          {activeTrack && activeTrack.isPaused && (
+            <span className="text-[8px] font-mono font-bold text-slate-600 bg-slate-100 px-1 py-0.2 rounded border border-slate-200">
+              ⏸️ Paused
+            </span>
+          )}
         </div>
 
         {category && (
@@ -186,22 +202,55 @@ const TimelineItemPopover: React.FC<TimelineItemPopoverProps> = ({
             <Edit3 className="w-3 h-3 text-violet-600 dark:text-violet-400" />
           </button>
 
-          {/* Play / Focus Timer */}
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation()
-              onPlay()
-            }}
-            className={`w-6 h-6 rounded-lg ${
-              type === 'habit' ? 'bg-emerald-600 hover:bg-emerald-700' :
-              type === 'deadline' ? 'bg-rose-600 hover:bg-rose-700' :
-              'bg-violet-600 hover:bg-violet-700'
-            } text-white flex items-center justify-center transition active:scale-90 cursor-pointer shadow-2xs`}
-            title="Start focus timer"
-          >
-            <Play className="w-2.5 h-2.5 fill-current ml-0.5" />
-          </button>
+          {/* Timer Play / Pause Toggle Button */}
+          {activeTrack && !activeTrack.isPaused ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onPause && onPause()
+              }}
+              className="w-6 h-6 rounded-lg bg-amber-500 hover:bg-amber-600 text-white flex items-center justify-center transition active:scale-90 cursor-pointer shadow-xs shadow-amber-500/30 animate-pulse"
+              title="Pause focus timer"
+            >
+              <Pause className="w-3 h-3 fill-current" />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onPlay()
+              }}
+              className={`w-6 h-6 rounded-lg ${
+                activeTrack?.isPaused
+                  ? 'bg-amber-600 hover:bg-amber-700 text-white shadow-xs shadow-amber-600/30'
+                  : type === 'habit'
+                  ? 'bg-emerald-600 hover:bg-emerald-700'
+                  : type === 'deadline'
+                  ? 'bg-rose-600 hover:bg-rose-700'
+                  : 'bg-violet-600 hover:bg-violet-700'
+              } text-white flex items-center justify-center transition active:scale-90 cursor-pointer shadow-2xs`}
+              title={activeTrack?.isPaused ? 'Resume timer' : 'Start focus timer'}
+            >
+              <Play className="w-2.5 h-2.5 fill-current ml-0.5" />
+            </button>
+          )}
+
+          {/* Stop Button when Timer is Active */}
+          {activeTrack && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onStopTimer && onStopTimer()
+              }}
+              className="w-6 h-6 rounded-lg bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800 flex items-center justify-center transition active:scale-90 cursor-pointer shadow-2xs"
+              title="Stop timer and record actual time"
+            >
+              <Square className="w-2.5 h-2.5 fill-current" />
+            </button>
+          )}
 
           {/* Check / Done */}
           <button
@@ -247,7 +296,7 @@ const TimelineItemPopover: React.FC<TimelineItemPopoverProps> = ({
 export const TimeBlockingSchedule: React.FC = () => {
   const { slots, selectedDate, setSelectedDate, fetchSlots, createSlot, updateSlot, toggleSlotDone, deleteSlot } = useScheduleStore()
   const { createLog } = useTimeLogStore()
-  const { startTimer } = useTimerStore()
+  const { startTimer, activeTracks, pauseTrack, resumeTrack, stopTrack } = useTimerStore()
   const { categories, tasks, fetchTasks, fetchCategories, toggleTaskStatus, updateTask, deleteTask } = useTaskStore()
   const { habits, fetchHabits, checkinHabit, updateHabit, deleteHabit } = useHabitStore()
 
@@ -1777,6 +1826,8 @@ export const TimeBlockingSchedule: React.FC = () => {
                 const layoutStyle = getItemHorizontalStyle(`habit-${habit.id}`, isBeingDragged)
                 const isPopoverActive = !isBeingDragged && activePopoverId === `habit-${habit.id}`
 
+                const activeTrack = activeTracks.find(t => t.habitId === habit.id || (t.title && t.title.trim().toLowerCase() === habit.title.trim().toLowerCase()))
+
                 return (
                   <div
                     key={`habit-rem-${habit.id}`}
@@ -1809,6 +1860,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                         category={habit.category}
                         notes={habit.description || (habit.target_count ? `Target: ${habit.target_count} ${habit.unit}` : undefined)}
                         isDone={isDone}
+                        activeTrack={activeTrack}
                         onMouseEnter={() => handlePopoverMouseEnter(`habit-${habit.id}`)}
                         onMouseLeave={handlePopoverMouseLeave}
                         onEdit={() => {
@@ -1816,7 +1868,26 @@ export const TimeBlockingSchedule: React.FC = () => {
                           setHoveredPopoverId(null)
                           handleOpenEditHabit(habit)
                         }}
-                        onPlay={() => handleStartHabitFocus(habit)}
+                        onPlay={() => {
+                          if (activeTrack?.isPaused) {
+                            sounds.playTap()
+                            resumeTrack(activeTrack.id)
+                          } else {
+                            handleStartHabitFocus(habit)
+                          }
+                        }}
+                        onPause={() => {
+                          if (activeTrack) {
+                            sounds.playTap()
+                            pauseTrack(activeTrack.id)
+                          }
+                        }}
+                        onStopTimer={async () => {
+                          if (activeTrack) {
+                            sounds.playSuccess()
+                            await stopTrack(activeTrack.id)
+                          }
+                        }}
                         onToggleDone={() => {
                           sounds.playTap()
                           checkinHabit(habit.id, { logged_date: selectedDate, completed: !isDone })
@@ -1871,6 +1942,8 @@ export const TimeBlockingSchedule: React.FC = () => {
                 const layoutStyle = getItemHorizontalStyle(`deadline-${task.id}`, isBeingDragged)
                 const isPopoverActive = !isBeingDragged && activePopoverId === `deadline-${task.id}`
 
+                const activeTrack = activeTracks.find(t => t.taskId === task.id || (t.title && t.title.trim().toLowerCase() === task.title.trim().toLowerCase()))
+
                 return (
                   <div
                     key={`deadline-line-${task.id}`}
@@ -1903,6 +1976,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                         category={task.category}
                         notes={task.description}
                         isDone={isDone}
+                        activeTrack={activeTrack}
                         onMouseEnter={() => handlePopoverMouseEnter(`deadline-${task.id}`)}
                         onMouseLeave={handlePopoverMouseLeave}
                         onEdit={() => {
@@ -1910,7 +1984,26 @@ export const TimeBlockingSchedule: React.FC = () => {
                           setHoveredPopoverId(null)
                           handleOpenEditTask(task)
                         }}
-                        onPlay={() => handleStartTaskFocus(task)}
+                        onPlay={() => {
+                          if (activeTrack?.isPaused) {
+                            sounds.playTap()
+                            resumeTrack(activeTrack.id)
+                          } else {
+                            handleStartTaskFocus(task)
+                          }
+                        }}
+                        onPause={() => {
+                          if (activeTrack) {
+                            sounds.playTap()
+                            pauseTrack(activeTrack.id)
+                          }
+                        }}
+                        onStopTimer={async () => {
+                          if (activeTrack) {
+                            sounds.playSuccess()
+                            await stopTrack(activeTrack.id)
+                          }
+                        }}
                         onToggleDone={() => {
                           sounds.playTap()
                           toggleTaskStatus(task.id)
@@ -1975,6 +2068,8 @@ export const TimeBlockingSchedule: React.FC = () => {
                 const layoutStyle = getItemHorizontalStyle(`slot-${slot.id}`, isBeingDragged)
                 const isPopoverActive = !isBeingDragged && activePopoverId === `slot-${slot.id}`
 
+                const activeTrack = activeTracks.find(t => t.title && t.title.trim().toLowerCase() === slot.title.trim().toLowerCase())
+
                 return (
                   <div
                     key={`slot-${slot.id}`}
@@ -2007,6 +2102,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                         category={slot.category}
                         notes={slot.notes}
                         isDone={slot.is_done}
+                        activeTrack={activeTrack}
                         onMouseEnter={() => handlePopoverMouseEnter(`slot-${slot.id}`)}
                         onMouseLeave={handlePopoverMouseLeave}
                         onEdit={() => {
@@ -2014,7 +2110,26 @@ export const TimeBlockingSchedule: React.FC = () => {
                           setHoveredPopoverId(null)
                           handleOpenEditSlot(slot)
                         }}
-                        onPlay={() => handleStartSlotFocus(slot)}
+                        onPlay={() => {
+                          if (activeTrack?.isPaused) {
+                            sounds.playTap()
+                            resumeTrack(activeTrack.id)
+                          } else {
+                            handleStartSlotFocus(slot)
+                          }
+                        }}
+                        onPause={() => {
+                          if (activeTrack) {
+                            sounds.playTap()
+                            pauseTrack(activeTrack.id)
+                          }
+                        }}
+                        onStopTimer={async () => {
+                          if (activeTrack) {
+                            sounds.playSuccess()
+                            await stopTrack(activeTrack.id)
+                          }
+                        }}
                         onToggleDone={() => {
                           sounds.playTap()
                           toggleSlotDone(slot.id, !slot.is_done)

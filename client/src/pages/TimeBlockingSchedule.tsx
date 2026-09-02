@@ -57,6 +57,8 @@ interface TimelineItemPopoverProps {
   category?: { name: string; color: string }
   notes?: string
   isDone?: boolean
+  onMouseEnter?: () => void
+  onMouseLeave?: () => void
   onEdit: () => void
   onPlay: () => void
   onToggleDone: () => void
@@ -70,6 +72,8 @@ const TimelineItemPopover: React.FC<TimelineItemPopoverProps> = ({
   category,
   notes,
   isDone,
+  onMouseEnter,
+  onMouseLeave,
   onEdit,
   onPlay,
   onToggleDone,
@@ -105,8 +109,12 @@ const TimelineItemPopover: React.FC<TimelineItemPopoverProps> = ({
     <div
       ref={popoverRef}
       onClick={(e) => e.stopPropagation()}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
       className={`absolute z-50 min-w-[200px] max-w-[270px] bg-white/98 dark:bg-slate-900/98 text-slate-900 dark:text-slate-100 rounded-xl shadow-xl shadow-slate-300/40 dark:shadow-slate-950/70 p-2.5 border border-slate-200/90 dark:border-slate-700/90 backdrop-blur-md pointer-events-auto transition-all animate-in fade-in zoom-in-95 duration-150 text-left cursor-default select-text ${
-        placeBelow ? 'top-[calc(100%+6px)]' : 'bottom-[calc(100%+6px)]'
+        placeBelow
+          ? 'top-[calc(100%+6px)] before:content-[\'\'] before:absolute before:bottom-full before:left-0 before:right-0 before:h-3 before:bg-transparent'
+          : 'bottom-[calc(100%+6px)] after:content-[\'\'] after:absolute after:top-full after:left-0 after:right-0 after:h-3 after:bg-transparent'
       } ${
         alignRight
           ? 'right-0 sm:right-1/2 sm:translate-x-1/2'
@@ -278,6 +286,26 @@ export const TimeBlockingSchedule: React.FC = () => {
   const [hoveredPopoverId, setHoveredPopoverId] = useState<string | null>(null)
   const [pinnedPopoverId, setPinnedPopoverId] = useState<string | null>(null)
   const activePopoverId = pinnedPopoverId || hoveredPopoverId
+  const popoverLeaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const handlePopoverMouseEnter = (id: string) => {
+    if (draggingSlot) return
+    if (popoverLeaveTimerRef.current) {
+      clearTimeout(popoverLeaveTimerRef.current)
+      popoverLeaveTimerRef.current = null
+    }
+    setHoveredPopoverId(id)
+  }
+
+  const handlePopoverMouseLeave = () => {
+    if (draggingSlot) return
+    if (popoverLeaveTimerRef.current) {
+      clearTimeout(popoverLeaveTimerRef.current)
+    }
+    popoverLeaveTimerRef.current = setTimeout(() => {
+      setHoveredPopoverId(null)
+    }, 250)
+  }
 
   // 9. Edit Task / Deadline modal state
   const [editTaskModalOpen, setEditTaskModalOpen] = useState(false)
@@ -1721,8 +1749,8 @@ export const TimeBlockingSchedule: React.FC = () => {
                   <div
                     key={`habit-rem-${habit.id}`}
                     onPointerDown={(e) => handleStartHabitMove(e, habit)}
-                    onMouseEnter={() => { if (!draggingSlot) setHoveredPopoverId(`habit-${habit.id}`) }}
-                    onMouseLeave={() => { if (!draggingSlot) setHoveredPopoverId(null) }}
+                    onMouseEnter={() => handlePopoverMouseEnter(`habit-${habit.id}`)}
+                    onMouseLeave={handlePopoverMouseLeave}
                     onClick={(e) => {
                       if (!isBeingDragged) {
                         e.stopPropagation()
@@ -1749,6 +1777,8 @@ export const TimeBlockingSchedule: React.FC = () => {
                         category={habit.category}
                         notes={habit.description || (habit.target_count ? `Target: ${habit.target_count} ${habit.unit}` : undefined)}
                         isDone={isDone}
+                        onMouseEnter={() => handlePopoverMouseEnter(`habit-${habit.id}`)}
+                        onMouseLeave={handlePopoverMouseLeave}
                         onEdit={() => {
                           setPinnedPopoverId(null)
                           setHoveredPopoverId(null)
@@ -1836,8 +1866,8 @@ export const TimeBlockingSchedule: React.FC = () => {
                   <div
                     key={`deadline-line-${task.id}`}
                     onPointerDown={(e) => handleStartDeadlineMove(e, task)}
-                    onMouseEnter={() => { if (!draggingSlot) setHoveredPopoverId(`deadline-${task.id}`) }}
-                    onMouseLeave={() => { if (!draggingSlot) setHoveredPopoverId(null) }}
+                    onMouseEnter={() => handlePopoverMouseEnter(`deadline-${task.id}`)}
+                    onMouseLeave={handlePopoverMouseLeave}
                     onClick={(e) => {
                       if (!isBeingDragged) {
                         e.stopPropagation()
@@ -1864,6 +1894,8 @@ export const TimeBlockingSchedule: React.FC = () => {
                         category={task.category}
                         notes={task.description}
                         isDone={isDone}
+                        onMouseEnter={() => handlePopoverMouseEnter(`deadline-${task.id}`)}
+                        onMouseLeave={handlePopoverMouseLeave}
                         onEdit={() => {
                           setPinnedPopoverId(null)
                           setHoveredPopoverId(null)
@@ -1961,8 +1993,8 @@ export const TimeBlockingSchedule: React.FC = () => {
                   <div
                     key={`slot-${slot.id}`}
                     onPointerDown={(e) => handleStartMove(e, slot)}
-                    onMouseEnter={() => { if (!draggingSlot) setHoveredPopoverId(`slot-${slot.id}`) }}
-                    onMouseLeave={() => { if (!draggingSlot) setHoveredPopoverId(null) }}
+                    onMouseEnter={() => handlePopoverMouseEnter(`slot-${slot.id}`)}
+                    onMouseLeave={handlePopoverMouseLeave}
                     onClick={(e) => {
                       if (!isBeingDragged) {
                         e.stopPropagation()
@@ -1989,6 +2021,8 @@ export const TimeBlockingSchedule: React.FC = () => {
                         category={slot.category}
                         notes={slot.notes}
                         isDone={slot.is_done}
+                        onMouseEnter={() => handlePopoverMouseEnter(`slot-${slot.id}`)}
+                        onMouseLeave={handlePopoverMouseLeave}
                         onEdit={() => {
                           setPinnedPopoverId(null)
                           setHoveredPopoverId(null)

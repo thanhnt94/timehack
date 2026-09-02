@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import {
   X, ArrowLeft, CheckSquare, Zap, Play, Calendar, Clock,
-  Flame, Star, Users, Inbox
+  Flame, Star, Users, Inbox, Bell
 } from 'lucide-react'
 import { useTaskStore } from '../store/useTaskStore'
 import { useHabitStore } from '../store/useHabitStore'
@@ -63,6 +63,8 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
   const [taskDueDate, setTaskDueDate] = useState('')
   const [taskEisen, setTaskEisen] = useState<'do_first' | 'schedule' | 'delegate' | 'eliminate'>('do_first')
   const [taskCategoryId, setTaskCategoryId] = useState<number | null>(null)
+  const [taskReminderEnabled, setTaskReminderEnabled] = useState(false)
+  const [taskRemindBeforeMins, setTaskRemindBeforeMins] = useState(30)
 
   const [habitTitle, setHabitTitle] = useState('')
   const [habitCategoryId, setHabitCategoryId] = useState<number | null>(null)
@@ -70,12 +72,16 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
   const [habitTargetCount, setHabitTargetCount] = useState(1)
   const [habitUnit, setHabitUnit] = useState('times')
   const [habitColor, setHabitColor] = useState(HABIT_COLORS[0])
+  const [habitReminderEnabled, setHabitReminderEnabled] = useState(false)
+  const [habitReminderTime, setHabitReminderTime] = useState('08:00')
   const { createHabit } = useHabitStore()
 
   const [scheduleTitle, setScheduleTitle] = useState('')
   const [scheduleStart, setScheduleStart] = useState('09:00')
   const [scheduleEnd, setScheduleEnd] = useState('10:00')
   const [scheduleCategoryId, setScheduleCategoryId] = useState<number | null>(null)
+  const [scheduleReminderEnabled, setScheduleReminderEnabled] = useState(false)
+  const [scheduleRemindBeforeMins, setScheduleRemindBeforeMins] = useState(30)
   const { createSlot, selectedDate } = useScheduleStore()
 
   const [logNotes, setLogNotes] = useState('')
@@ -107,12 +113,15 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
       title: taskTitle.trim(),
       category_id: taskCategoryId || undefined,
       eisenhower: taskEisen,
-      due_date: taskDueDate ? `${taskDueDate}T23:59:59` : undefined
+      due_date: taskDueDate ? `${taskDueDate}T23:59:59` : undefined,
+      reminder_enabled: taskReminderEnabled,
+      remind_before_mins: taskReminderEnabled ? taskRemindBeforeMins : undefined
     })
     sounds.playSuccess()
     setTaskTitle('')
     setTaskDueDate('')
     setTaskCategoryId(null)
+    setTaskReminderEnabled(false)
     handleClose()
   }
 
@@ -134,11 +143,14 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
       icon: '⚡',
       target_count: Math.max(1, Number(habitTargetCount) || 1),
       unit: habitUnit.trim() || 'times',
-      frequency_type: habitFreqPeriod
+      frequency_type: habitFreqPeriod,
+      reminder_enabled: habitReminderEnabled,
+      reminder_time: habitReminderEnabled ? habitReminderTime : undefined
     })
     sounds.playSuccess()
     setHabitTitle('')
     setHabitCategoryId(null)
+    setHabitReminderEnabled(false)
     handleClose()
   }
 
@@ -166,11 +178,14 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
       start_time: scheduleStart,
       end_time: endStr,
       title: scheduleTitle.trim(),
-      category_id: scheduleCategoryId || undefined
+      category_id: scheduleCategoryId || undefined,
+      reminder_enabled: scheduleReminderEnabled,
+      remind_before_mins: scheduleReminderEnabled ? scheduleRemindBeforeMins : undefined
     })
     sounds.playSuccess()
     setScheduleTitle('')
     setScheduleCategoryId(null)
+    setScheduleReminderEnabled(false)
     handleClose()
   }
 
@@ -412,6 +427,23 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
               />
             </div>
 
+            {/* Quick Reminder Toggle */}
+            <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+              <div className="flex items-center gap-2">
+                <Bell className={`w-3.5 h-3.5 ${taskReminderEnabled ? 'text-violet-600' : 'text-slate-400'}`} />
+                <span className="text-xs font-bold text-slate-700">Reminder (30m before)</span>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={taskReminderEnabled}
+                  onChange={e => { sounds.playTap(); setTaskReminderEnabled(e.target.checked) }}
+                  className="sr-only peer"
+                />
+                <div className="w-8 h-4.5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-violet-600"></div>
+              </label>
+            </div>
+
             <button
               type="submit"
               className="w-full py-3.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-xs active:scale-[0.98] transition shadow-md shadow-violet-600/20 mt-2"
@@ -537,6 +569,23 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
               </div>
             </div>
 
+            {/* Quick Habit Reminder Toggle */}
+            <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+              <div className="flex items-center gap-2">
+                <Bell className={`w-3.5 h-3.5 ${habitReminderEnabled ? 'text-emerald-600' : 'text-slate-400'}`} />
+                <span className="text-xs font-bold text-slate-700">Daily Reminder ({habitReminderTime})</span>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={habitReminderEnabled}
+                  onChange={e => { sounds.playTap(); setHabitReminderEnabled(e.target.checked) }}
+                  className="sr-only peer"
+                />
+                <div className="w-8 h-4.5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-emerald-600"></div>
+              </label>
+            </div>
+
             <button
               type="submit"
               className="w-full py-3.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-xs active:scale-[0.98] transition shadow-md shadow-violet-600/20 mt-2"
@@ -609,6 +658,23 @@ export const QuickActionSheet: React.FC<Props> = ({ isOpen, onClose, onStartFocu
                   </React.Fragment>
                 ))}
               </select>
+            </div>
+
+            {/* Quick Schedule Reminder Toggle */}
+            <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+              <div className="flex items-center gap-2">
+                <Bell className={`w-3.5 h-3.5 ${scheduleReminderEnabled ? 'text-violet-600' : 'text-slate-400'}`} />
+                <span className="text-xs font-bold text-slate-700">Reminder (30m before)</span>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={scheduleReminderEnabled}
+                  onChange={e => { sounds.playTap(); setScheduleReminderEnabled(e.target.checked) }}
+                  className="sr-only peer"
+                />
+                <div className="w-8 h-4.5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-violet-600"></div>
+              </label>
             </div>
 
             <button

@@ -27,6 +27,8 @@ class HabitCreateSchema(BaseModel):
     target_count_secondary: Optional[int] = None # Either/OR goal count
     unit_secondary: Optional[str] = None # Either/OR goal unit
     reminder_time: Optional[str] = None
+    reminder_enabled: Optional[bool] = False
+    remind_before_mins: Optional[int] = 30
     icon: Optional[str] = "⚡"
     color: Optional[str] = "#7C3AED"
 
@@ -42,6 +44,8 @@ class HabitUpdateSchema(BaseModel):
     target_count_secondary: Optional[int] = None
     unit_secondary: Optional[str] = None
     reminder_time: Optional[str] = None
+    reminder_enabled: Optional[bool] = None
+    remind_before_mins: Optional[int] = None
     icon: Optional[str] = None
     color: Optional[str] = None
     archived: Optional[bool] = None
@@ -382,6 +386,8 @@ async def get_habits(
             "target_count_secondary": target_count_secondary,
             "unit_secondary": h.unit_secondary,
             "reminder_time": h.reminder_time,
+            "reminder_enabled": bool(h.reminder_enabled),
+            "remind_before_mins": h.remind_before_mins if h.remind_before_mins is not None else 30,
             "icon": h.icon or "⚡",
             "color": h.color or "#7C3AED",
             "archived": bool(h.archived),
@@ -421,12 +427,20 @@ async def get_habit_detail(habit_id: int, request: Request, db: AsyncSession = D
     if not habit:
         raise HTTPException(status_code=404, detail="Habit not found")
 
-    log_res = await db.execute(
+    cat_info = None
+    if habit.category_id:
+        c_res = await db.execute(select(Category).where(Category.id == habit.category_id))
+        c = c_res.scalar_one_or_none()
+        if c:
+            cat_info = {"id": c.id, "name": c.name, "color": c.color, "icon": c.icon}
+
+    l_res = await db.execute(
         select(HabitLog)
         .where(HabitLog.habit_id == habit_id)
         .order_by(HabitLog.logged_date.desc())
     )
-    logs = log_res.scalars().all()
+    logs = l_res.scalars().all()
+
     target_count = habit.target_count or 1
     target_count_secondary = habit.target_count_secondary
     freq = habit.frequency_type or "daily"
@@ -464,32 +478,18 @@ async def get_habit_detail(habit_id: int, request: Request, db: AsyncSession = D
 
     strength_info = calculate_habit_strength(logs, habit.created_at, today_user_date, 30)
 
-    # 30-day heatmap
-    heatmap_30d = []
-    log_map = {l.logged_date.isoformat(): l for l in logs if l.logged_date}
-    total_time_spent = sum(l.time_spent or 0 for l in logs)
+    total_time_spent = sum([l.time_spent or 0 for l in logs])
 
+    heatmap_30d = []
     for i in range(29, -1, -1):
         d = today_user_date - timedelta(days=i)
-        d_str = d.isoformat()
-        lg = log_map.get(d_str)
+        lg = next((l for l in logs if l.logged_date == d), None)
         heatmap_30d.append({
-            "date": d_str,
+            "date": d.isoformat(),
             "completed": lg.completed if lg else False,
             "is_frozen_day": lg.is_frozen_day if lg else False,
-            "time_spent": lg.time_spent if lg else 0,
-            "count": lg.count if lg else 0,
-            "mood": lg.mood if lg else None,
-            "notes": lg.notes if lg else None,
-            "completed_time": lg.completed_time if lg else None
+            "time_spent": lg.time_spent if lg else 0
         })
-
-    cat_info = None
-    if habit.category_id:
-        c_res = await db.execute(select(Category).where(Category.id == habit.category_id))
-        c_obj = c_res.scalar_one_or_none()
-        if c_obj:
-            cat_info = {"id": c_obj.id, "name": c_obj.name, "color": c_obj.color, "icon": c_obj.icon}
 
     created_str = (habit.created_at.isoformat() + "Z") if habit.created_at else (datetime.utcnow().isoformat() + "Z")
 
@@ -507,6 +507,8 @@ async def get_habit_detail(habit_id: int, request: Request, db: AsyncSession = D
         "target_count_secondary": target_count_secondary,
         "unit_secondary": habit.unit_secondary,
         "reminder_time": habit.reminder_time,
+        "reminder_enabled": bool(habit.reminder_enabled),
+        "remind_before_mins": habit.remind_before_mins if habit.remind_before_mins is not None else 30,
         "icon": habit.icon or "⚡",
         "color": habit.color or "#7C3AED",
         "archived": bool(habit.archived),
@@ -557,6 +559,8 @@ async def create_habit(payload: HabitCreateSchema, request: Request, db: AsyncSe
         target_count_secondary=payload.target_count_secondary,
         unit_secondary=payload.unit_secondary,
         reminder_time=payload.reminder_time,
+        reminder_enabled=payload.reminder_enabled or False,
+        remind_before_mins=payload.remind_before_mins if payload.remind_before_mins is not None else 30,
         icon=payload.icon or "⚡",
         color=payload.color or "#7C3AED",
         streak_freeze_count=2
@@ -596,6 +600,10 @@ async def update_habit(habit_id: int, payload: HabitUpdateSchema, request: Reque
         habit.unit_secondary = payload.unit_secondary
     if payload.reminder_time is not None:
         habit.reminder_time = payload.reminder_time
+    if payload.reminder_enabled is not None:
+        habit.reminder_enabled = payload.reminder_enabled
+    if payload.remind_before_mins is not None:
+        habit.remind_before_mins = payload.remind_before_mins
     if payload.icon is not None:
         habit.icon = payload.icon
     if payload.color is not None:

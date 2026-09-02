@@ -20,6 +20,8 @@ class Habit(Base):
     target_count_secondary = Column(Integer, nullable=True) # Optional either/or target
     unit_secondary = Column(String(50), nullable=True) # Optional either/or unit
     reminder_time = Column(String(10), nullable=True) # e.g. "08:00"
+    reminder_enabled = Column(Boolean, default=False)
+    remind_before_mins = Column(Integer, default=30)
     icon = Column(String(50), default="zap")
     color = Column(String(50), default="#10B981")
     archived = Column(Boolean, default=False)

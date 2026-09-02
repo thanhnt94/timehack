@@ -97,6 +97,9 @@ class TaskCreateSchema(BaseModel):
     eisenhower: Optional[str] = "schedule"
     estimated_minutes: Optional[int] = 30
     due_date: Optional[str] = None
+    reminder_enabled: Optional[bool] = False
+    remind_at: Optional[str] = None
+    remind_before_mins: Optional[int] = 30
 
 class TaskUpdateSchema(BaseModel):
     title: Optional[str] = None
@@ -108,6 +111,9 @@ class TaskUpdateSchema(BaseModel):
     estimated_minutes: Optional[int] = None
     spent_seconds: Optional[int] = None
     due_date: Optional[str] = None
+    reminder_enabled: Optional[bool] = None
+    remind_at: Optional[str] = None
+    remind_before_mins: Optional[int] = None
 
 class CategoryCreateSchema(BaseModel):
     name: str
@@ -359,6 +365,9 @@ async def get_tasks(
             "due_date": t.due_date.isoformat() if t.due_date else None,
             "completed_at": t.completed_at.isoformat() if t.completed_at else None,
             "order_index": t.order_index,
+            "reminder_enabled": t.reminder_enabled or False,
+            "remind_at": t.remind_at.isoformat() if t.remind_at else None,
+            "remind_before_mins": t.remind_before_mins if t.remind_before_mins is not None else 30,
             "subtasks": [{"id": st.id, "title": st.title, "is_completed": st.is_completed} for st in subtasks],
             "created_at": t.created_at.isoformat() if t.created_at else ""
         })
@@ -373,6 +382,7 @@ async def create_task(payload: TaskCreateSchema, request: Request, db: AsyncSess
     user_tz = user.timezone if user else "Asia/Ho_Chi_Minh"
     
     due_dt = parse_to_utc(payload.due_date, user_tz) if payload.due_date else None
+    remind_dt = parse_to_utc(payload.remind_at, user_tz) if payload.remind_at else None
 
     task = Task(
         user_id=user_id,
@@ -383,7 +393,10 @@ async def create_task(payload: TaskCreateSchema, request: Request, db: AsyncSess
         status=payload.status or "todo",
         eisenhower=payload.eisenhower or "schedule",
         estimated_minutes=payload.estimated_minutes or 30,
-        due_date=due_dt
+        due_date=due_dt,
+        reminder_enabled=payload.reminder_enabled or False,
+        remind_at=remind_dt,
+        remind_before_mins=payload.remind_before_mins if payload.remind_before_mins is not None else 30
     )
     db.add(task)
     await db.commit()
@@ -393,7 +406,10 @@ async def create_task(payload: TaskCreateSchema, request: Request, db: AsyncSess
         "title": task.title,
         "status": task.status,
         "priority": task.priority,
-        "eisenhower": task.eisenhower
+        "eisenhower": task.eisenhower,
+        "reminder_enabled": task.reminder_enabled,
+        "remind_at": task.remind_at.isoformat() if task.remind_at else None,
+        "remind_before_mins": task.remind_before_mins
     }}
 
 @router.patch("/{task_id}")
@@ -422,6 +438,16 @@ async def update_task(task_id: int, payload: TaskUpdateSchema, request: Request,
         task.estimated_minutes = payload.estimated_minutes
     if payload.spent_seconds is not None:
         task.spent_seconds = payload.spent_seconds
+    if payload.reminder_enabled is not None:
+        task.reminder_enabled = payload.reminder_enabled
+    if payload.remind_before_mins is not None:
+        task.remind_before_mins = payload.remind_before_mins
+
+    if payload.remind_at is not None:
+        if payload.remind_at == "":
+            task.remind_at = None
+        else:
+            task.remind_at = parse_to_utc(payload.remind_at, user_tz)
 
     if payload.status is not None:
         old_status = task.status
@@ -444,6 +470,9 @@ async def update_task(task_id: int, payload: TaskUpdateSchema, request: Request,
         "title": task.title,
         "status": task.status,
         "spent_seconds": task.spent_seconds,
+        "reminder_enabled": task.reminder_enabled,
+        "remind_at": task.remind_at.isoformat() if task.remind_at else None,
+        "remind_before_mins": task.remind_before_mins,
         "completed_at": task.completed_at.isoformat() if task.completed_at else None
     }}
 

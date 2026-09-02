@@ -5,7 +5,7 @@ import {
   Sparkles, ArrowRight, Play, CheckCircle2, Flame, BarChart2,
   TrendingUp, AlertCircle, ChevronLeft, ChevronRight, LayoutList,
   Clock3, Search, Tag, Edit3, RotateCcw, Zap, Target, BookOpen,
-  Activity, Smile, Coffee, Droplets
+  Activity, Smile, Coffee, Droplets, Bell
 } from 'lucide-react'
 import { useScheduleStore, type ScheduleSlot } from '../store/useScheduleStore'
 import { useTimeLogStore } from '../store/useTimeLogStore'
@@ -79,6 +79,8 @@ export const TimeBlockingSchedule: React.FC = () => {
   const [slotEnd, setSlotEnd] = useState('10:30')
   const [slotNotes, setSlotNotes] = useState('')
   const [slotCategoryId, setSlotCategoryId] = useState<number | null>(null)
+  const [slotReminderEnabled, setSlotReminderEnabled] = useState(false)
+  const [slotRemindBeforeMins, setSlotRemindBeforeMins] = useState(30)
 
   // 7. Edit Plan Slot modal state
   const [editPlanModalOpen, setEditPlanModalOpen] = useState(false)
@@ -88,6 +90,8 @@ export const TimeBlockingSchedule: React.FC = () => {
   const [editSlotEnd, setEditSlotEnd] = useState('10:30')
   const [editSlotNotes, setEditSlotNotes] = useState('')
   const [editSlotCategoryId, setEditSlotCategoryId] = useState<number | null>(null)
+  const [editSlotReminderEnabled, setEditSlotReminderEnabled] = useState(false)
+  const [editSlotRemindBeforeMins, setEditSlotRemindBeforeMins] = useState(30)
 
   // Current time marker for live Timeline
   const [currentTimeMinutes, setCurrentTimeMinutes] = useState(() => {
@@ -513,12 +517,16 @@ export const TimeBlockingSchedule: React.FC = () => {
       end_time: endStr,
       title: slotTitle,
       category_id: slotCategoryId || undefined,
+      reminder_enabled: slotReminderEnabled,
+      remind_before_mins: slotReminderEnabled ? slotRemindBeforeMins : undefined,
       notes: slotNotes.trim() || undefined
     })
     sounds.playSuccess()
     setSlotTitle('')
     setSlotNotes('')
     setSlotCategoryId(null)
+    setSlotReminderEnabled(false)
+    setSlotRemindBeforeMins(30)
     setPlanModalOpen(false)
   }
 
@@ -531,6 +539,8 @@ export const TimeBlockingSchedule: React.FC = () => {
     setEditSlotEnd(slot.end_time === '00:00' ? '23:59' : slot.end_time)
     setEditSlotNotes(slot.notes || '')
     setEditSlotCategoryId(slot.category_id || null)
+    setEditSlotReminderEnabled(!!slot.reminder_enabled)
+    setEditSlotRemindBeforeMins(slot.remind_before_mins || 30)
     setEditPlanModalOpen(true)
   }
 
@@ -556,6 +566,8 @@ export const TimeBlockingSchedule: React.FC = () => {
       start_time: editSlotStart,
       end_time: endStr,
       category_id: editSlotCategoryId || undefined,
+      reminder_enabled: editSlotReminderEnabled,
+      remind_before_mins: editSlotReminderEnabled ? editSlotRemindBeforeMins : undefined,
       notes: editSlotNotes.trim() || undefined
     })
     sounds.playSuccess()
@@ -1416,6 +1428,12 @@ export const TimeBlockingSchedule: React.FC = () => {
                               {slot.is_done && (
                                 <span className="text-[9px] font-bold text-emerald-700 bg-emerald-100 px-1 rounded">✓ Done</span>
                               )}
+                              {slot.reminder_enabled && (
+                                <span className="text-[9px] font-bold text-violet-700 bg-violet-100 px-1.5 py-0.5 rounded flex items-center gap-0.5" title="Reminder Active">
+                                  <Bell className="w-2.5 h-2.5 text-violet-600 fill-violet-600/20" />
+                                  <span>{slot.remind_before_mins || 30}m</span>
+                                </span>
+                              )}
                               {isBeingDragged && (
                                 <span className="text-[9px] font-bold text-violet-700 bg-violet-100 px-1.5 rounded animate-pulse">
                                   {draggingSlot?.type === 'resize' ? 'Resizing...' : 'Moving...'}
@@ -1595,6 +1613,53 @@ export const TimeBlockingSchedule: React.FC = () => {
                 />
               </div>
 
+              {/* Reminder Section */}
+              <div className="p-3 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className={`w-6 h-6 rounded-lg flex items-center justify-center ${slotReminderEnabled ? 'bg-violet-600 text-white shadow-2xs' : 'bg-slate-200 text-slate-500'}`}>
+                      <Bell className="w-3.5 h-3.5" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-slate-900">Focus Session Reminder</div>
+                      <div className="text-[10px] text-slate-400">Telegram & In-App Alert</div>
+                    </div>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={slotReminderEnabled}
+                      onChange={e => { sounds.playTap(); setSlotReminderEnabled(e.target.checked) }}
+                      className="sr-only peer"
+                    />
+                    <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-violet-600"></div>
+                  </label>
+                </div>
+
+                {slotReminderEnabled && (
+                  <div className="pt-2 border-t border-slate-200 flex items-center gap-1.5 flex-wrap">
+                    {[
+                      { mins: 15, label: '⏱️ 15m before' },
+                      { mins: 30, label: '⏱️ 30m before' },
+                      { mins: 60, label: '⏱️ 1h before' }
+                    ].map(opt => (
+                      <button
+                        key={opt.mins}
+                        type="button"
+                        onClick={() => { sounds.playTap(); setSlotRemindBeforeMins(opt.mins) }}
+                        className={`px-3 py-1.5 rounded-xl text-[11px] font-bold border transition cursor-pointer ${
+                          slotRemindBeforeMins === opt.mins
+                            ? 'bg-violet-600 border-violet-600 text-white shadow-2xs'
+                            : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <button
                 type="submit"
                 className="w-full py-3.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold active:scale-[0.98] transition shadow-md shadow-violet-600/20 mt-2 cursor-pointer"
@@ -1701,6 +1766,53 @@ export const TimeBlockingSchedule: React.FC = () => {
                   placeholder="Additional notes..."
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-900 outline-none focus:border-violet-500 focus:bg-white transition"
                 />
+              </div>
+
+              {/* Edit Reminder Section */}
+              <div className="p-3 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className={`w-6 h-6 rounded-lg flex items-center justify-center ${editSlotReminderEnabled ? 'bg-violet-600 text-white shadow-2xs' : 'bg-slate-200 text-slate-500'}`}>
+                      <Bell className="w-3.5 h-3.5" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-slate-900">Focus Session Reminder</div>
+                      <div className="text-[10px] text-slate-400">Telegram & In-App Alert</div>
+                    </div>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={editSlotReminderEnabled}
+                      onChange={e => { sounds.playTap(); setEditSlotReminderEnabled(e.target.checked) }}
+                      className="sr-only peer"
+                    />
+                    <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-violet-600"></div>
+                  </label>
+                </div>
+
+                {editSlotReminderEnabled && (
+                  <div className="pt-2 border-t border-slate-200 flex items-center gap-1.5 flex-wrap">
+                    {[
+                      { mins: 15, label: '⏱️ 15m before' },
+                      { mins: 30, label: '⏱️ 30m before' },
+                      { mins: 60, label: '⏱️ 1h before' }
+                    ].map(opt => (
+                      <button
+                        key={opt.mins}
+                        type="button"
+                        onClick={() => { sounds.playTap(); setEditSlotRemindBeforeMins(opt.mins) }}
+                        className={`px-3 py-1.5 rounded-xl text-[11px] font-bold border transition cursor-pointer ${
+                          editSlotRemindBeforeMins === opt.mins
+                            ? 'bg-violet-600 border-violet-600 text-white shadow-2xs'
+                            : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Action Buttons: Convert to Actual, Delete & Save */}

@@ -4,7 +4,7 @@ import {
   ArrowLeft, Flame, Trophy, CheckCircle2, Percent, Calendar,
   Clock, Smile, Edit3, Trash2, Snowflake, Play, Plus, X,
   Sparkles, Check, ChevronRight, ChevronLeft, MessageSquare, AlertCircle,
-  Shield, Sun, Sunrise, Sunset, Award, Minus, Split
+  Shield, Sun, Sunrise, Sunset, Award, Minus, Split, Bell
 } from 'lucide-react'
 import { useHabitStore, type HabitDetail, type HabitLogEntry } from '../store/useHabitStore'
 import { useTaskStore } from '../store/useTaskStore'
@@ -65,7 +65,9 @@ export const HabitDetailPage: React.FC = () => {
 
   const [editColor, setEditColor] = useState(HABIT_COLORS[0])
   const [editIcon, setEditIcon] = useState('⚡')
-  const [editReminder, setEditReminder] = useState('')
+  const [editReminderEnabled, setEditReminderEnabled] = useState(false)
+  const [editReminderTime, setEditReminderTime] = useState('08:00')
+  const [editRemindBeforeMins, setEditRemindBeforeMins] = useState(30)
 
   // Log Edit / Checkin Modal State
   const [logModalOpen, setLogModalOpen] = useState(false)
@@ -113,7 +115,9 @@ export const HabitDetailPage: React.FC = () => {
 
       setEditColor(activeDetail.color || HABIT_COLORS[0])
       setEditIcon(activeDetail.icon || '⚡')
-      setEditReminder(activeDetail.reminder_time || '')
+      setEditReminderEnabled(!!activeDetail.reminder_enabled)
+      setEditReminderTime(activeDetail.reminder_time || '08:00')
+      setEditRemindBeforeMins(activeDetail.remind_before_mins || 30)
     }
   }, [activeDetail])
 
@@ -157,7 +161,9 @@ export const HabitDetailPage: React.FC = () => {
       unit: editUnit.trim() || 'times',
       color: editColor,
       icon: editIcon,
-      reminder_time: editReminder || undefined
+      reminder_enabled: editReminderEnabled,
+      reminder_time: editReminderEnabled ? editReminderTime : undefined,
+      remind_before_mins: editReminderEnabled ? editRemindBeforeMins : undefined
     }
 
     if (hasSecondaryGoal && editTargetCountSecondary && editUnitSecondary) {
@@ -1150,6 +1156,63 @@ export const HabitDetailPage: React.FC = () => {
                     />
                   ))}
                 </div>
+              </div>
+
+              {/* Reminder Section */}
+              <div className="p-3 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className={`w-6 h-6 rounded-lg flex items-center justify-center ${editReminderEnabled ? 'bg-emerald-600 text-white shadow-2xs' : 'bg-slate-200 text-slate-500'}`}>
+                      <Bell className="w-3.5 h-3.5" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-slate-900">Daily Habit Reminder</div>
+                      <div className="text-[10px] text-slate-400">Telegram & In-App Alert</div>
+                    </div>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={editReminderEnabled}
+                      onChange={e => { sounds.playTap(); setEditReminderEnabled(e.target.checked) }}
+                      className="sr-only peer"
+                    />
+                    <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
+                  </label>
+                </div>
+
+                {editReminderEnabled && (
+                  <div className="pt-2 border-t border-slate-200 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1">
+                        <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                          Preferred Reminder Time
+                        </label>
+                        <input
+                          type="time"
+                          value={editReminderTime}
+                          onChange={e => setEditReminderTime(e.target.value)}
+                          className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-emerald-500 transition"
+                        />
+                      </div>
+                      <div className="w-36">
+                        <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                          Remind Before
+                        </label>
+                        <select
+                          value={editRemindBeforeMins}
+                          onChange={e => setEditRemindBeforeMins(Number(e.target.value))}
+                          className="w-full px-2.5 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-emerald-500 transition"
+                        >
+                          <option value={0}>At exact time</option>
+                          <option value={15}>15m before</option>
+                          <option value={30}>30m before</option>
+                          <option value={60}>1h before</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <button

@@ -12,6 +12,9 @@ export interface ScheduleSlot {
   category_id?: number
   category?: { id: number; name: string; color: string }
   is_done: boolean
+  reminder_enabled?: boolean
+  remind_at?: string
+  remind_before_mins?: number
   notes?: string
 }
 

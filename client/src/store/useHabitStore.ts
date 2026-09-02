@@ -15,6 +15,8 @@ export interface Habit {
   target_count_secondary?: number
   unit_secondary?: string
   reminder_time?: string
+  reminder_enabled?: boolean
+  remind_before_mins?: number
   icon: string
   color: string
   archived: boolean

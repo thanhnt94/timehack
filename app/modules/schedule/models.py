@@ -19,6 +19,12 @@ class ScheduleSlot(Base):
     
     is_done = Column(Boolean, default=False)
     notes = Column(Text, nullable=True)
+
+    # Reminder & Notifications
+    reminder_enabled = Column(Boolean, default=False)
+    remind_at = Column(DateTime, nullable=True)
+    remind_before_mins = Column(Integer, default=30)
+
     created_at = Column(DateTime, default=datetime.utcnow)
 
     task = relationship("Task")

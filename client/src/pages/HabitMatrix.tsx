@@ -4,7 +4,7 @@ import {
   Flame, Check, Plus, X, Zap, Sparkles, Layers, Search,
   Snowflake, ChevronRight, Calendar, Clock, Edit3, Trash2,
   Minus, CheckCircle2, RotateCcw, Play, Sun, Sunrise, Sunset,
-  Shield, Award, Trophy, CalendarDays, CalendarRange, Split
+  Shield, Award, Trophy, CalendarDays, CalendarRange, Split, Bell
 } from 'lucide-react'
 import { useHabitStore, type Habit } from '../store/useHabitStore'
 import { useTaskStore } from '../store/useTaskStore'
@@ -68,6 +68,9 @@ export const HabitMatrix: React.FC = () => {
   const [newTimeOfDay, setNewTimeOfDay] = useState<'morning' | 'afternoon' | 'evening' | 'anytime'>('anytime')
   const [newColor, setNewColor] = useState(HABIT_COLORS[0])
   const [newIcon, setNewIcon] = useState('⚡')
+  const [newReminderEnabled, setNewReminderEnabled] = useState(false)
+  const [newReminderTime, setNewReminderTime] = useState('08:00')
+  const [newRemindBeforeMins, setNewRemindBeforeMins] = useState(30)
 
   // Quick Progress Adjustment Modal
   const [progressModalHabit, setProgressModalHabit] = useState<Habit | null>(null)
@@ -146,7 +149,10 @@ export const HabitMatrix: React.FC = () => {
       target_count: Math.max(1, Number(newTargetCount) || 1),
       unit: newUnit.trim() || 'times',
       color: newColor,
-      icon: newIcon
+      icon: newIcon,
+      reminder_enabled: newReminderEnabled,
+      reminder_time: newReminderEnabled ? newReminderTime : undefined,
+      remind_before_mins: newReminderEnabled ? newRemindBeforeMins : undefined
     }
 
     if (hasSecondaryGoal && newTargetCountSecondary && newUnitSecondary.trim()) {
@@ -166,6 +172,7 @@ export const HabitMatrix: React.FC = () => {
     setNewUnit('times')
     setIsCustomUnit(false)
     setHasSecondaryGoal(false)
+    setNewReminderEnabled(false)
     setCreateSheetOpen(false)
     if (newId) {
       navigate(`/habits/${newId}`)
@@ -447,6 +454,15 @@ export const HabitMatrix: React.FC = () => {
                               <>
                                 <span className="text-slate-300">•</span>
                                 <span className="text-[11px] text-slate-400 capitalize">{h.time_of_day}</span>
+                              </>
+                            )}
+                            {h.reminder_enabled && (
+                              <>
+                                <span className="text-slate-300">•</span>
+                                <span className="text-[10px] text-emerald-700 bg-emerald-50 font-bold flex items-center gap-1 px-1.5 py-0.5 rounded border border-emerald-200">
+                                  <Bell className="w-2.5 h-2.5 text-emerald-600 fill-emerald-600/20" />
+                                  <span>{h.reminder_time || `${h.remind_before_mins || 30}m`}</span>
+                                </span>
                               </>
                             )}
                           </div>
@@ -920,6 +936,63 @@ export const HabitMatrix: React.FC = () => {
                     />
                   ))}
                 </div>
+              </div>
+
+              {/* 6. Reminder Section */}
+              <div className="p-3 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className={`w-6 h-6 rounded-lg flex items-center justify-center ${newReminderEnabled ? 'bg-emerald-600 text-white shadow-2xs' : 'bg-slate-200 text-slate-500'}`}>
+                      <Bell className="w-3.5 h-3.5" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-slate-900">Daily Habit Reminder</div>
+                      <div className="text-[10px] text-slate-400">Telegram & In-App Alert</div>
+                    </div>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newReminderEnabled}
+                      onChange={e => { sounds.playTap(); setNewReminderEnabled(e.target.checked) }}
+                      className="sr-only peer"
+                    />
+                    <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
+                  </label>
+                </div>
+
+                {newReminderEnabled && (
+                  <div className="pt-2 border-t border-slate-200 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1">
+                        <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                          Preferred Reminder Time
+                        </label>
+                        <input
+                          type="time"
+                          value={newReminderTime}
+                          onChange={e => setNewReminderTime(e.target.value)}
+                          className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-emerald-500 transition"
+                        />
+                      </div>
+                      <div className="w-36">
+                        <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                          Remind Before
+                        </label>
+                        <select
+                          value={newRemindBeforeMins}
+                          onChange={e => setNewRemindBeforeMins(Number(e.target.value))}
+                          className="w-full px-2.5 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-emerald-500 transition"
+                        >
+                          <option value={0}>At exact time</option>
+                          <option value={15}>15m before</option>
+                          <option value={30}>30m before</option>
+                          <option value={60}>1h before</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <button

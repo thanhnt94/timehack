@@ -46,6 +46,11 @@ class Task(Base):
     completed_at = Column(DateTime, nullable=True)
     order_index = Column(Integer, default=0)
 
+    # Reminder & Notifications
+    reminder_enabled = Column(Boolean, default=False)
+    remind_at = Column(DateTime, nullable=True)
+    remind_before_mins = Column(Integer, default=30)
+
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

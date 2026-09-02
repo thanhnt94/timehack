@@ -21,6 +21,9 @@ class ScheduleSlotCreateSchema(BaseModel):
     habit_id: Optional[int] = None
     category_id: Optional[int] = None
     notes: Optional[str] = None
+    reminder_enabled: Optional[bool] = False
+    remind_at: Optional[str] = None
+    remind_before_mins: Optional[int] = 30
 
 @router.get("")
 async def get_schedule_slots(date_str: Optional[str] = None, request: Request = None, db: AsyncSession = Depends(get_db)):
@@ -69,6 +72,9 @@ async def get_schedule_slots(date_str: Optional[str] = None, request: Request = 
             "category_id": s.category_id,
             "category": cat_info,
             "is_done": s.is_done,
+            "reminder_enabled": bool(s.reminder_enabled),
+            "remind_at": s.remind_at.isoformat() if s.remind_at else None,
+            "remind_before_mins": s.remind_before_mins if s.remind_before_mins is not None else 30,
             "notes": s.notes
         })
 
@@ -91,6 +97,8 @@ async def create_schedule_slot(payload: ScheduleSlotCreateSchema, request: Reque
         task_id=payload.task_id,
         habit_id=payload.habit_id,
         category_id=payload.category_id,
+        reminder_enabled=payload.reminder_enabled or False,
+        remind_before_mins=payload.remind_before_mins if payload.remind_before_mins is not None else 30,
         notes=payload.notes
     )
     db.add(slot)
@@ -123,6 +131,10 @@ async def update_schedule_slot(slot_id: int, payload: dict, request: Request, db
         slot.category_id = payload["category_id"]
     if "notes" in payload:
         slot.notes = payload["notes"]
+    if "reminder_enabled" in payload:
+        slot.reminder_enabled = payload["reminder_enabled"]
+    if "remind_before_mins" in payload:
+        slot.remind_before_mins = payload["remind_before_mins"]
 
     await db.commit()
     return {"status": "ok", "slot_id": slot.id, "is_done": slot.is_done, "start_time": slot.start_time, "end_time": slot.end_time}

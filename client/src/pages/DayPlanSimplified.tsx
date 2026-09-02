@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import {
   Calendar as CalendarIcon, Plus, Check, Clock, Trash2, Edit3,
-  Play, Sparkles, ChevronLeft, ChevronRight, X, Layers, AlertCircle
+  Play, Sparkles, ChevronLeft, ChevronRight, X, Layers, AlertCircle, Bell
 } from 'lucide-react'
 import { useScheduleStore, type ScheduleSlot } from '../store/useScheduleStore'
 import { useTaskStore } from '../store/useTaskStore'
@@ -40,6 +40,8 @@ export const DayPlanSimplified: React.FC = () => {
   const [slotEnd, setSlotEnd] = useState('10:30')
   const [slotCategoryId, setSlotCategoryId] = useState<number | null>(null)
   const [slotNotes, setSlotNotes] = useState('')
+  const [slotReminderEnabled, setSlotReminderEnabled] = useState(false)
+  const [slotRemindBeforeMins, setSlotRemindBeforeMins] = useState(30)
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null)
 
   // Edit Modal State (Popup)
@@ -49,6 +51,8 @@ export const DayPlanSimplified: React.FC = () => {
   const [editEnd, setEditEnd] = useState('10:30')
   const [editCategoryId, setEditCategoryId] = useState<number | null>(null)
   const [editNotes, setEditNotes] = useState('')
+  const [editReminderEnabled, setEditReminderEnabled] = useState(false)
+  const [editRemindBeforeMins, setEditRemindBeforeMins] = useState(30)
 
   useEffect(() => {
     fetchSlots(selectedDate)
@@ -145,6 +149,8 @@ export const DayPlanSimplified: React.FC = () => {
       title: slotTitle.trim(),
       category_id: slotCategoryId || undefined,
       task_id: selectedTaskId || undefined,
+      reminder_enabled: slotReminderEnabled,
+      remind_before_mins: slotReminderEnabled ? slotRemindBeforeMins : undefined,
       notes: slotNotes.trim() || undefined
     })
 
@@ -153,6 +159,7 @@ export const DayPlanSimplified: React.FC = () => {
     setSlotNotes('')
     setSelectedTaskId(null)
     setSlotCategoryId(null)
+    setSlotReminderEnabled(false)
     setIsAddModalOpen(false)
   }
 
@@ -165,6 +172,8 @@ export const DayPlanSimplified: React.FC = () => {
     setEditEnd(slot.end_time)
     setEditCategoryId(slot.category_id || null)
     setEditNotes(slot.notes || '')
+    setEditReminderEnabled(!!slot.reminder_enabled)
+    setEditRemindBeforeMins(slot.remind_before_mins || 30)
   }
 
   // Handle Save Edit
@@ -178,6 +187,8 @@ export const DayPlanSimplified: React.FC = () => {
       start_time: editStart,
       end_time: editEnd,
       category_id: editCategoryId || undefined,
+      reminder_enabled: editReminderEnabled,
+      remind_before_mins: editReminderEnabled ? editRemindBeforeMins : undefined,
       notes: editNotes.trim() || undefined
     })
 
@@ -581,6 +592,23 @@ export const DayPlanSimplified: React.FC = () => {
               />
             </div>
 
+            {/* Quick Reminder Toggle */}
+            <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+              <div className="flex items-center gap-2">
+                <Bell className={`w-3.5 h-3.5 ${slotReminderEnabled ? 'text-violet-600' : 'text-slate-400'}`} />
+                <span className="text-xs font-bold text-slate-700">Reminder (30m before)</span>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={slotReminderEnabled}
+                  onChange={e => { sounds.playTap(); setSlotReminderEnabled(e.target.checked) }}
+                  className="sr-only peer"
+                />
+                <div className="w-8 h-4.5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-violet-600"></div>
+              </label>
+            </div>
+
             {/* Actions */}
             <div className="flex items-center gap-2 pt-1">
               <button
@@ -726,6 +754,23 @@ export const DayPlanSimplified: React.FC = () => {
                 placeholder="Notes (optional)..."
                 className="w-full px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 outline-none focus:border-violet-500"
               />
+            </div>
+
+            {/* Edit Reminder Toggle */}
+            <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+              <div className="flex items-center gap-2">
+                <Bell className={`w-3.5 h-3.5 ${editReminderEnabled ? 'text-violet-600' : 'text-slate-400'}`} />
+                <span className="text-xs font-bold text-slate-700">Reminder (30m before)</span>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={editReminderEnabled}
+                  onChange={e => { sounds.playTap(); setEditReminderEnabled(e.target.checked) }}
+                  className="sr-only peer"
+                />
+                <div className="w-8 h-4.5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-violet-600"></div>
+              </label>
             </div>
 
             {/* Actions */}

@@ -95,13 +95,14 @@ class TelegramService:
         return False
 
     @staticmethod
-    async def send_task_reminder(chat_id: str, task_title: str, due_time: str, priority: str = "medium") -> bool:
+    async def send_task_reminder(chat_id: str, task_title: str, due_time: str, priority: str = "medium", before_mins: Optional[int] = None) -> bool:
         priority_emoji = {"urgent": "🚨", "high": "🔥", "medium": "📌", "low": "💡"}.get(priority, "📌")
+        time_info = f"{due_time} ({before_mins}m before deadline)" if before_mins else due_time
         text = (
-            f"<b>⏰ [TimeHack] Nhắc Nhở Công Việc Đến Hạn</b>\n\n"
-            f"{priority_emoji} <b>Nhiệm vụ:</b> {task_title}\n"
-            f"⏳ <b>Thời hạn:</b> {due_time}\n\n"
-            f"👉 <a href='{settings.APP_BASE_URL or 'https://time.inmind.site'}'>Mở TimeHack để hoàn thành</a>"
+            f"<b>⏰ [TimeHack] Task Due Reminder</b>\n\n"
+            f"{priority_emoji} <b>Task:</b> {task_title}\n"
+            f"⏳ <b>Due:</b> {time_info}\n\n"
+            f"👉 <a href='{settings.APP_BASE_URL or 'https://time.inmind.site'}'>Open TimeHack to Complete</a>"
         )
         return await TelegramService.send_message(chat_id=chat_id, text=text)
 
@@ -110,16 +111,32 @@ class TelegramService:
         chat_id: str,
         habit_id: int,
         habit_title: str,
-        target_str: str = "1 lần",
+        target_str: str = "1 time",
         streak: int = 0
     ) -> bool:
-        streak_badge = f"🔥 <b>Chuỗi hiện tại:</b> {streak} ngày\n" if streak > 0 else ""
+        streak_badge = f"🔥 <b>Current Streak:</b> {streak} days\n" if streak > 0 else ""
         text = (
-            f"<b>⚡ [TimeHack] Nhắc Nhở Thói Quen Hàng Ngày</b>\n\n"
-            f"🎯 <b>Thói quen:</b> {habit_title}\n"
-            f"📊 <b>Mục tiêu:</b> {target_str}\n"
+            f"<b>⚡ [TimeHack] Daily Habit Reminder</b>\n\n"
+            f"🎯 <b>Habit:</b> {habit_title}\n"
+            f"📊 <b>Goal:</b> {target_str}\n"
             f"{streak_badge}\n"
-            f"👉 <a href='{settings.APP_BASE_URL or 'https://time.inmind.site'}/habits/{habit_id}'>Mở TimeHack để check-in</a>"
+            f"👉 <a href='{settings.APP_BASE_URL or 'https://time.inmind.site'}'>Open TimeHack to Check In</a>"
+        )
+        return await TelegramService.send_message(chat_id=chat_id, text=text)
+
+    @staticmethod
+    async def send_plan_reminder(
+        chat_id: str,
+        slot_title: str,
+        start_time: str,
+        end_time: str,
+        before_mins: int = 30
+    ) -> bool:
+        text = (
+            f"<b>📅 [TimeHack] Focus Plan Reminder</b>\n\n"
+            f"🎯 <b>Planned Block:</b> {slot_title}\n"
+            f"⏰ <b>Scheduled Time:</b> {start_time} - {end_time} (in {before_mins} mins)\n\n"
+            f"👉 <a href='{settings.APP_BASE_URL or 'https://time.inmind.site'}'>Open TimeHack to Start Focus Session</a>"
         )
         return await TelegramService.send_message(chat_id=chat_id, text=text)
 
@@ -133,13 +150,13 @@ class TelegramService:
     ) -> bool:
         h = focus_minutes // 60
         m = focus_minutes % 60
-        focus_str = f"{h}h {m}p" if h > 0 else f"{m}p"
+        focus_str = f"{h}h {m}m" if h > 0 else f"{m}m"
         
         text = (
-            f"<b>📊 [TimeHack] Báo Cáo Tổng Kết Ngày - {user_name}</b>\n\n"
-            f"✅ <b>Nhiệm vụ hoàn thành:</b> {tasks_done} việc\n"
-            f"⚡ <b>Thói quen đã check-in:</b> {habits_done} mục\n"
-            f"⏱️ <b>Thời gian tập trung:</b> {focus_str}\n\n"
-            f"Chúc bạn buổi tối nghỉ ngơi vui vẻ và sẵn sàng bứt phá ngày mai! 🚀"
+            f"<b>📊 [TimeHack] Daily Summary Report - {user_name}</b>\n\n"
+            f"✅ <b>Tasks Completed:</b> {tasks_done}\n"
+            f"⚡ <b>Habits Checked-In:</b> {habits_done}\n"
+            f"⏱️ <b>Focus Time:</b> {focus_str}\n\n"
+            f"Great job today! Rest well and get ready for tomorrow. 🚀"
         )
         return await TelegramService.send_message(chat_id=chat_id, text=text)

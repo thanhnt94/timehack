@@ -21,6 +21,9 @@ export interface Task {
   due_date?: string
   completed_at?: string
   order_index: number
+  reminder_enabled?: boolean
+  remind_at?: string
+  remind_before_mins?: number
   subtasks: Subtask[]
   created_at: string
 }

@@ -106,7 +106,7 @@ export const TimeHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
               )}
             </button>
 
-            {/* Tab 3: Time Ledger (Sổ thu chi thời gian) */}
+            {/* Tab 3: Time Ledger */}
             <button
               onClick={() => handleTabChange('ledger')}
               className={`flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-xl font-bold text-xs transition-all active:scale-95 cursor-pointer ${
@@ -116,7 +116,7 @@ export const TimeHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
               }`}
             >
               <BookOpen className={`w-3.5 h-3.5 ${activeTab === 'ledger' ? 'text-indigo-600' : 'text-slate-400'}`} />
-              <span className="truncate">Sổ thời gian</span>
+              <span className="truncate">Time Ledger</span>
               {todayLogsCount > 0 && (
                 <span className={`text-[10px] px-1.5 py-0.2 rounded-md font-mono font-bold ${
                   activeTab === 'ledger' ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-200/80 text-slate-600'

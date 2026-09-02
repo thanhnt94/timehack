@@ -246,6 +246,19 @@ export const TimeBlockingSchedule: React.FC = () => {
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
   }
 
+  const extractTaskDueTime = (dueDate?: string) => {
+    if (!dueDate) return '18:00'
+    if (dueDate.includes('T')) {
+      const timePart = dueDate.split('T')[1]?.slice(0, 5)
+      if (timePart) return timePart
+    }
+    if (dueDate.includes(' ')) {
+      const timePart = dueDate.split(' ')[1]?.slice(0, 5)
+      if (timePart) return timePart
+    }
+    return '18:00'
+  }
+
   // Combined and sorted list of Blocks for Blocks View
   const combinedBlocks = useMemo(() => {
     const list: CombinedBlockItem[] = []
@@ -294,14 +307,7 @@ export const TimeBlockingSchedule: React.FC = () => {
 
     // 3. Add Deadlines for this date
     deadlineTasks.forEach(task => {
-      let dueTime = '23:59'
-      if (task.due_date && task.due_date.includes(' ')) {
-        const timePart = task.due_date.split(' ')[1]?.slice(0, 5)
-        if (timePart) dueTime = timePart
-      } else if (task.due_date && task.due_date.includes('T')) {
-        const timePart = task.due_date.split('T')[1]?.slice(0, 5)
-        if (timePart) dueTime = timePart
-      }
+      const dueTime = extractTaskDueTime(task.due_date)
       list.push({
         type: 'deadline',
         id: task.id,
@@ -464,14 +470,7 @@ export const TimeBlockingSchedule: React.FC = () => {
       return
     }
     e.currentTarget.setPointerCapture(e.pointerId)
-    let dueTime = '18:00'
-    if (task.due_date && task.due_date.includes(' ')) {
-      const timePart = task.due_date.split(' ')[1]?.slice(0, 5)
-      if (timePart) dueTime = timePart
-    } else if (task.due_date && task.due_date.includes('T')) {
-      const timePart = task.due_date.split('T')[1]?.slice(0, 5)
-      if (timePart) dueTime = timePart
-    }
+    const dueTime = extractTaskDueTime(task.due_date)
     const dueMins = timeToMinutes(dueTime)
 
     setDraggingSlot({
@@ -539,7 +538,7 @@ export const TimeBlockingSchedule: React.FC = () => {
           })
         } else if (itemType === 'deadline') {
           await updateTask(itemId, {
-            due_date: `${selectedDate} ${startStr}:00`
+            due_date: `${selectedDate}T${startStr}:00`
           })
         }
       }
@@ -1361,19 +1360,12 @@ export const TimeBlockingSchedule: React.FC = () => {
 
               {/* ── Render Deadline Tasks on the Timeline (Draggable to change time) ── */}
               {visibleDeadlines.map(task => {
-                let dueTime = '23:59'
-                if (task.due_date && task.due_date.includes(' ')) {
-                  const timePart = task.due_date.split(' ')[1]?.slice(0, 5)
-                  if (timePart) dueTime = timePart
-                } else if (task.due_date && task.due_date.includes('T')) {
-                  const timePart = task.due_date.split('T')[1]?.slice(0, 5)
-                  if (timePart) dueTime = timePart
-                }
+                const dueTime = extractTaskDueTime(task.due_date)
                 const dueMins = timeToMinutes(dueTime)
                 const isBeingDragged = draggingSlot?.itemType === 'deadline' && draggingSlot?.itemId === task.id
                 const activeStart = isBeingDragged ? draggingSlot.currentStartMins : dueMins
                 const top = Math.max(0, ((activeStart - START_HOUR * 60) / 60) * HOUR_HEIGHT)
-                const displayDueTime = isBeingDragged ? minutesToTimeStr(activeStart) : (dueTime !== '23:59' ? dueTime : 'EOD')
+                const displayDueTime = isBeingDragged ? minutesToTimeStr(activeStart) : dueTime
                 const isDone = task.status === 'completed'
 
                 return (

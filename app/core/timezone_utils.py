@@ -70,3 +70,21 @@ def local_date_to_utc_range(date_str: str, user_tz_name: Optional[str] = None) -
     utc_end = end_local.astimezone(timezone.utc).replace(tzinfo=None)
 
     return utc_start, utc_end
+
+def utc_to_local_iso(utc_dt: Optional[datetime], user_tz_name: Optional[str] = None) -> Optional[str]:
+    """
+    Convert a stored UTC datetime into user's local ISO datetime string 'YYYY-MM-DDTHH:MM:SS'.
+    """
+    if not utc_dt:
+        return None
+    try:
+        if utc_dt.tzinfo is None:
+            utc_aware = utc_dt.replace(tzinfo=timezone.utc)
+        else:
+            utc_aware = utc_dt.astimezone(timezone.utc)
+        
+        tz = get_zoneinfo(user_tz_name)
+        local_dt = utc_aware.astimezone(tz)
+        return local_dt.strftime("%Y-%m-%dT%H:%M:%S")
+    except Exception:
+        return utc_dt.isoformat()

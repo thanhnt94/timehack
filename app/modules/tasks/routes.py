@@ -8,7 +8,7 @@ from pydantic import BaseModel
 
 from app.core.database import get_db
 from app.core.security import get_current_user_id
-from app.core.timezone_utils import parse_to_utc, utc_now
+from app.core.timezone_utils import parse_to_utc, utc_now, utc_to_local_iso
 from app.models import Task, Subtask, Category, User, TimeLog
 
 router = APIRouter(prefix="/api/v1/tasks", tags=["Tasks"])
@@ -315,6 +315,10 @@ async def get_tasks(
     db: AsyncSession = Depends(get_db)
 ):
     user_id = get_current_user_id(request)
+    u_res = await db.execute(select(User).where(User.id == user_id))
+    user = u_res.scalar_one_or_none()
+    user_tz = user.timezone if user else "Asia/Ho_Chi_Minh"
+
     stmt = (
         select(Task)
         .options(
@@ -362,14 +366,14 @@ async def get_tasks(
             "eisenhower": t.eisenhower,
             "estimated_minutes": t.estimated_minutes,
             "spent_seconds": t.spent_seconds,
-            "due_date": t.due_date.isoformat() if t.due_date else None,
-            "completed_at": t.completed_at.isoformat() if t.completed_at else None,
+            "due_date": utc_to_local_iso(t.due_date, user_tz) if t.due_date else None,
+            "completed_at": utc_to_local_iso(t.completed_at, user_tz) if t.completed_at else None,
             "order_index": t.order_index,
             "reminder_enabled": t.reminder_enabled or False,
-            "remind_at": t.remind_at.isoformat() if t.remind_at else None,
+            "remind_at": utc_to_local_iso(t.remind_at, user_tz) if t.remind_at else None,
             "remind_before_mins": t.remind_before_mins if t.remind_before_mins is not None else 30,
             "subtasks": [{"id": st.id, "title": st.title, "is_completed": st.is_completed} for st in subtasks],
-            "created_at": t.created_at.isoformat() if t.created_at else ""
+            "created_at": utc_to_local_iso(t.created_at, user_tz) if t.created_at else ""
         })
 
     return result
@@ -407,8 +411,9 @@ async def create_task(payload: TaskCreateSchema, request: Request, db: AsyncSess
         "status": task.status,
         "priority": task.priority,
         "eisenhower": task.eisenhower,
+        "due_date": utc_to_local_iso(task.due_date, user_tz) if task.due_date else None,
         "reminder_enabled": task.reminder_enabled,
-        "remind_at": task.remind_at.isoformat() if task.remind_at else None,
+        "remind_at": utc_to_local_iso(task.remind_at, user_tz) if task.remind_at else None,
         "remind_before_mins": task.remind_before_mins
     }}
 
@@ -469,11 +474,12 @@ async def update_task(task_id: int, payload: TaskUpdateSchema, request: Request,
         "id": task.id,
         "title": task.title,
         "status": task.status,
+        "due_date": utc_to_local_iso(task.due_date, user_tz) if task.due_date else None,
         "spent_seconds": task.spent_seconds,
         "reminder_enabled": task.reminder_enabled,
-        "remind_at": task.remind_at.isoformat() if task.remind_at else None,
+        "remind_at": utc_to_local_iso(task.remind_at, user_tz) if task.remind_at else None,
         "remind_before_mins": task.remind_before_mins,
-        "completed_at": task.completed_at.isoformat() if task.completed_at else None
+        "completed_at": utc_to_local_iso(task.completed_at, user_tz) if task.completed_at else None
     }}
 
 @router.delete("/{task_id}")

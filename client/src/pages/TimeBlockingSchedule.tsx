@@ -50,12 +50,146 @@ interface DraggingState {
   currentEndMins: number
 }
 
+interface TimelineItemPopoverProps {
+  type: 'habit' | 'deadline' | 'slot'
+  title: string
+  timeStr: string
+  category?: { name: string; color: string }
+  notes?: string
+  isDone?: boolean
+  onEdit: () => void
+  onPlay: () => void
+  onToggleDone: () => void
+  onDelete: () => void
+}
+
+const TimelineItemPopover: React.FC<TimelineItemPopoverProps> = ({
+  type,
+  title,
+  timeStr,
+  category,
+  notes,
+  isDone,
+  onEdit,
+  onPlay,
+  onToggleDone,
+  onDelete
+}) => {
+  return (
+    <div
+      onClick={(e) => e.stopPropagation()}
+      className="absolute bottom-[calc(100%+8px)] left-0 sm:left-1/2 sm:-translate-x-1/2 z-50 min-w-[240px] max-w-[320px] sm:max-w-[360px] bg-slate-900/95 text-white rounded-2xl shadow-2xl p-3 border border-slate-700/80 backdrop-blur-md pointer-events-auto transition-all animate-in fade-in zoom-in-95 duration-150 text-left cursor-default select-text"
+    >
+      {/* Down Arrow pointing to card */}
+      <div className="absolute top-full left-6 sm:left-1/2 sm:-translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-900 pointer-events-none" />
+
+      {/* Header Info */}
+      <div className="flex items-center justify-between gap-2 mb-1.5">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded ${
+            type === 'habit' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' :
+            type === 'deadline' ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' :
+            'bg-sky-500/20 text-sky-300 border border-sky-500/30'
+          }`}>
+            {type === 'habit' ? '⚡ Habit' : type === 'deadline' ? '🎯 Deadline' : '📅 Plan'}
+          </span>
+          <span className="text-[10px] font-mono font-bold text-slate-300">
+            {timeStr}
+          </span>
+        </div>
+
+        {category && (
+          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 truncate max-w-[100px]">
+            {category.name}
+          </span>
+        )}
+      </div>
+
+      {/* Full Title (No truncation!) */}
+      <div className="text-xs sm:text-sm font-bold text-white leading-snug break-words mb-1.5">
+        {title}
+      </div>
+
+      {/* Notes / Description */}
+      {notes && (
+        <div className="text-[11px] text-slate-400 font-medium mb-2 leading-tight break-words line-clamp-2">
+          {notes}
+        </div>
+      )}
+
+      {/* Action Buttons Toolbar */}
+      <div className="flex items-center justify-between gap-1.5 pt-2 border-t border-slate-800">
+        <div className="flex items-center gap-1">
+          {/* Edit Button */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              onEdit()
+            }}
+            className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white text-[11px] font-bold flex items-center gap-1 border border-slate-700 transition active:scale-95 cursor-pointer shadow-2xs"
+            title="Edit"
+          >
+            <Edit3 className="w-3 h-3 text-violet-400" />
+            <span>Edit</span>
+          </button>
+
+          {/* Play / Focus Timer */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              onPlay()
+            }}
+            className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold flex items-center gap-1 transition active:scale-95 cursor-pointer shadow-2xs"
+            title="Start focus timer"
+          >
+            <Play className="w-3 h-3 fill-current" />
+            <span>Focus</span>
+          </button>
+
+          {/* Check / Done */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              onToggleDone()
+            }}
+            className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold flex items-center gap-1 transition active:scale-95 cursor-pointer shadow-2xs border ${
+              isDone
+                ? 'bg-emerald-600/30 border-emerald-500/50 text-emerald-300'
+                : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-300'
+            }`}
+            title={isDone ? 'Mark Incomplete' : 'Mark Done'}
+          >
+            <Check className="w-3 h-3" />
+            <span>{isDone ? 'Done' : 'Check'}</span>
+          </button>
+        </div>
+
+        {/* Delete Button */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            onDelete()
+          }}
+          className="p-1.5 rounded-lg hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 transition active:scale-95 cursor-pointer"
+          title="Delete"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export const TimeBlockingSchedule: React.FC = () => {
   const { slots, selectedDate, setSelectedDate, fetchSlots, createSlot, updateSlot, toggleSlotDone, deleteSlot } = useScheduleStore()
   const { createLog } = useTimeLogStore()
   const { startTimer } = useTimerStore()
-  const { categories, tasks, fetchTasks, fetchCategories, toggleTaskStatus, updateTask } = useTaskStore()
-  const { habits, fetchHabits, checkinHabit, updateHabit } = useHabitStore()
+  const { categories, tasks, fetchTasks, fetchCategories, toggleTaskStatus, updateTask, deleteTask } = useTaskStore()
+  const { habits, fetchHabits, checkinHabit, updateHabit, deleteHabit } = useHabitStore()
 
   // 1. Primary View Mode Switcher: Timeline vs Blocks
   const [viewMode, setViewMode] = useState<ViewMode>('timeline')
@@ -95,6 +229,30 @@ export const TimeBlockingSchedule: React.FC = () => {
   const [editSlotReminderEnabled, setEditSlotReminderEnabled] = useState(false)
   const [editSlotRemindBeforeMins, setEditSlotRemindBeforeMins] = useState(30)
 
+  // 8. Hover & Pinned Popover State for Timeline Cards
+  const [hoveredPopoverId, setHoveredPopoverId] = useState<string | null>(null)
+  const [pinnedPopoverId, setPinnedPopoverId] = useState<string | null>(null)
+  const activePopoverId = pinnedPopoverId || hoveredPopoverId
+
+  // 9. Edit Task / Deadline modal state
+  const [editTaskModalOpen, setEditTaskModalOpen] = useState(false)
+  const [editingTask, setEditingTask] = useState<Task | null>(null)
+  const [editTaskTitle, setEditTaskTitle] = useState('')
+  const [editTaskDueDate, setEditTaskDueDate] = useState('')
+  const [editTaskDueTime, setEditTaskDueTime] = useState('18:00')
+  const [editTaskCategoryId, setEditTaskCategoryId] = useState<number | null>(null)
+  const [editTaskPriority, setEditTaskPriority] = useState<string>('medium')
+  const [editTaskDescription, setEditTaskDescription] = useState('')
+
+  // 10. Edit Habit modal state
+  const [editHabitModalOpen, setEditHabitModalOpen] = useState(false)
+  const [editingHabit, setEditingHabit] = useState<Habit | null>(null)
+  const [editHabitTitle, setEditHabitTitle] = useState('')
+  const [editHabitReminderTime, setEditHabitReminderTime] = useState('08:00')
+  const [editHabitTargetCount, setEditHabitTargetCount] = useState(1)
+  const [editHabitUnit, setEditHabitUnit] = useState('times')
+  const [editHabitCategoryId, setEditHabitCategoryId] = useState<number | null>(null)
+
   // Current time marker for live Timeline
   const [currentTimeMinutes, setCurrentTimeMinutes] = useState(() => {
     const now = new Date()
@@ -102,6 +260,17 @@ export const TimeBlockingSchedule: React.FC = () => {
   })
 
   const timelineScrollRef = useRef<HTMLDivElement>(null)
+
+  // Close pinned popover on click outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement).closest('.timeline-card-container')) {
+        setPinnedPopoverId(null)
+      }
+    }
+    window.addEventListener('click', handleClickOutside)
+    return () => window.removeEventListener('click', handleClickOutside)
+  }, [])
 
   useEffect(() => {
     fetchSlots(selectedDate)
@@ -768,6 +937,77 @@ export const TimeBlockingSchedule: React.FC = () => {
     setEditingSlot(null)
   }
 
+  // Open Edit Task / Deadline Modal
+  const handleOpenEditTask = (task: Task) => {
+    sounds.playTap()
+    setEditingTask(task)
+    setEditTaskTitle(task.title)
+    setEditTaskDescription(task.description || '')
+    setEditTaskCategoryId(task.category_id || null)
+    setEditTaskPriority(task.priority || 'medium')
+    if (task.due_date) {
+      if (task.due_date.includes('T')) {
+        const [d, t] = task.due_date.split('T')
+        setEditTaskDueDate(d)
+        setEditTaskDueTime(t ? t.slice(0, 5) : '18:00')
+      } else if (task.due_date.includes(' ')) {
+        const [d, t] = task.due_date.split(' ')
+        setEditTaskDueDate(d)
+        setEditTaskDueTime(t ? t.slice(0, 5) : '18:00')
+      } else {
+        setEditTaskDueDate(task.due_date)
+        setEditTaskDueTime('18:00')
+      }
+    } else {
+      setEditTaskDueDate(selectedDate)
+      setEditTaskDueTime('18:00')
+    }
+    setEditTaskModalOpen(true)
+  }
+
+  const handleSaveEditTask = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingTask || !editTaskTitle.trim()) return
+    sounds.playSuccess()
+    const finalDueDate = editTaskDueDate ? `${editTaskDueDate}T${editTaskDueTime || '18:00'}:00` : undefined
+    await updateTask(editingTask.id, {
+      title: editTaskTitle.trim(),
+      description: editTaskDescription.trim(),
+      category_id: editTaskCategoryId || undefined,
+      priority: editTaskPriority as any,
+      due_date: finalDueDate
+    })
+    setEditTaskModalOpen(false)
+    setEditingTask(null)
+  }
+
+  // Open Edit Habit Modal
+  const handleOpenEditHabit = (habit: Habit) => {
+    sounds.playTap()
+    setEditingHabit(habit)
+    setEditHabitTitle(habit.title)
+    setEditHabitReminderTime(habit.reminder_time || '08:00')
+    setEditHabitTargetCount(habit.target_count || 1)
+    setEditHabitUnit(habit.unit || 'times')
+    setEditHabitCategoryId(habit.category_id || null)
+    setEditHabitModalOpen(true)
+  }
+
+  const handleSaveEditHabit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingHabit || !editHabitTitle.trim()) return
+    sounds.playSuccess()
+    await updateHabit(editingHabit.id, {
+      title: editHabitTitle.trim(),
+      reminder_time: editHabitReminderTime,
+      target_count: editHabitTargetCount,
+      unit: editHabitUnit,
+      category_id: editHabitCategoryId || undefined
+    })
+    setEditHabitModalOpen(false)
+    setEditingHabit(null)
+  }
+
   // Convert Plan Slot to Actual Log
   const handleConvertSlotToActual = async (slot: ScheduleSlot) => {
     sounds.playTap()
@@ -1432,20 +1672,60 @@ export const TimeBlockingSchedule: React.FC = () => {
                 const displayReminderTime = isBeingDragged ? minutesToTimeStr(activeStart) : (habit.reminder_time || '08:00')
                 const isDone = !!habit.today_completed
                 const layoutStyle = getItemHorizontalStyle(`habit-${habit.id}`, isBeingDragged)
+                const isPopoverActive = !isBeingDragged && activePopoverId === `habit-${habit.id}`
 
                 return (
                   <div
                     key={`habit-rem-${habit.id}`}
                     onPointerDown={(e) => handleStartHabitMove(e, habit)}
-                    className={`absolute rounded-xl px-2 py-1.5 border flex items-center justify-between gap-1 shadow-2xs transition select-none touch-none cursor-grab active:cursor-grabbing backdrop-blur-xs ${
+                    onMouseEnter={() => { if (!draggingSlot) setHoveredPopoverId(`habit-${habit.id}`) }}
+                    onMouseLeave={() => { if (!draggingSlot) setHoveredPopoverId(null) }}
+                    onClick={(e) => {
+                      if (!isBeingDragged) {
+                        e.stopPropagation()
+                        setPinnedPopoverId(pinnedPopoverId === `habit-${habit.id}` ? null : `habit-${habit.id}`)
+                      }
+                    }}
+                    className={`timeline-card-container absolute rounded-xl px-2 py-1.5 border flex items-center justify-between gap-1 shadow-2xs transition select-none touch-none cursor-grab active:cursor-grabbing backdrop-blur-xs ${
                       isBeingDragged
-                        ? 'ring-2 ring-emerald-500 shadow-2xl z-30 scale-[1.01] bg-emerald-100/95 border-emerald-400 text-emerald-950'
+                        ? 'ring-2 ring-emerald-500 shadow-2xl z-40 scale-[1.01] bg-emerald-100/95 border-emerald-400 text-emerald-950'
+                        : isPopoverActive
+                        ? 'ring-2 ring-emerald-400 bg-emerald-50/95 border-emerald-400 text-emerald-950 shadow-md z-35'
                         : isDone
                         ? 'bg-emerald-50/95 border-emerald-300 text-emerald-950 opacity-80 z-20'
                         : 'bg-emerald-50/95 border-emerald-300 text-emerald-950 hover:border-emerald-500 z-20'
                     }`}
                     style={{ top: `${top}px`, height: '36px', ...layoutStyle }}
                   >
+                    {/* Interactive Floating Popover */}
+                    {isPopoverActive && (
+                      <TimelineItemPopover
+                        type="habit"
+                        title={habit.title}
+                        timeStr={`⚡ ${displayReminderTime}`}
+                        category={habit.category}
+                        notes={habit.description || (habit.target_count ? `Target: ${habit.target_count} ${habit.unit}` : undefined)}
+                        isDone={isDone}
+                        onEdit={() => {
+                          setPinnedPopoverId(null)
+                          setHoveredPopoverId(null)
+                          handleOpenEditHabit(habit)
+                        }}
+                        onPlay={() => handleStartHabitFocus(habit)}
+                        onToggleDone={() => {
+                          sounds.playTap()
+                          checkinHabit(habit.id, { logged_date: selectedDate, completed: !isDone })
+                          if (!isDone) sounds.playSuccess()
+                        }}
+                        onDelete={() => {
+                          sounds.playTap()
+                          deleteHabit(habit.id)
+                          setPinnedPopoverId(null)
+                          setHoveredPopoverId(null)
+                        }}
+                      />
+                    )}
+
                     <div className="flex items-center gap-1.5 min-w-0 flex-1">
                       <span className="text-[9px] font-mono font-black px-1.5 py-0.5 rounded bg-white border border-emerald-200 shrink-0 text-emerald-700">
                         ⚡ {displayReminderTime}
@@ -1502,20 +1782,60 @@ export const TimeBlockingSchedule: React.FC = () => {
                 const displayDueTime = isBeingDragged ? minutesToTimeStr(activeStart) : dueTime
                 const isDone = task.status === 'completed'
                 const layoutStyle = getItemHorizontalStyle(`deadline-${task.id}`, isBeingDragged)
+                const isPopoverActive = !isBeingDragged && activePopoverId === `deadline-${task.id}`
 
                 return (
                   <div
                     key={`deadline-line-${task.id}`}
                     onPointerDown={(e) => handleStartDeadlineMove(e, task)}
-                    className={`absolute rounded-xl px-2 py-1.5 border flex items-center justify-between gap-1 shadow-2xs transition select-none touch-none cursor-grab active:cursor-grabbing z-20 ${
+                    onMouseEnter={() => { if (!draggingSlot) setHoveredPopoverId(`deadline-${task.id}`) }}
+                    onMouseLeave={() => { if (!draggingSlot) setHoveredPopoverId(null) }}
+                    onClick={(e) => {
+                      if (!isBeingDragged) {
+                        e.stopPropagation()
+                        setPinnedPopoverId(pinnedPopoverId === `deadline-${task.id}` ? null : `deadline-${task.id}`)
+                      }
+                    }}
+                    className={`timeline-card-container absolute rounded-xl px-2 py-1.5 border flex items-center justify-between gap-1 shadow-2xs transition select-none touch-none cursor-grab active:cursor-grabbing z-20 ${
                       isBeingDragged
-                        ? 'ring-2 ring-rose-500 shadow-2xl z-30 scale-[1.01] bg-rose-100/95 border-rose-400 text-rose-950'
+                        ? 'ring-2 ring-rose-500 shadow-2xl z-40 scale-[1.01] bg-rose-100/95 border-rose-400 text-rose-950'
+                        : isPopoverActive
+                        ? 'ring-2 ring-rose-400 bg-rose-50/95 border-rose-400 text-rose-950 shadow-md z-35'
                         : isDone
                         ? 'bg-rose-50/70 border-rose-200 text-rose-950 opacity-75'
                         : 'bg-rose-50/95 border-rose-300 text-rose-950 hover:border-rose-500'
                     }`}
                     style={{ top: `${top}px`, height: '36px', ...layoutStyle }}
                   >
+                    {/* Interactive Floating Popover */}
+                    {isPopoverActive && (
+                      <TimelineItemPopover
+                        type="deadline"
+                        title={task.title}
+                        timeStr={`🎯 ${displayDueTime}`}
+                        category={task.category}
+                        notes={task.description}
+                        isDone={isDone}
+                        onEdit={() => {
+                          setPinnedPopoverId(null)
+                          setHoveredPopoverId(null)
+                          handleOpenEditTask(task)
+                        }}
+                        onPlay={() => handleStartTaskFocus(task)}
+                        onToggleDone={() => {
+                          sounds.playTap()
+                          toggleTaskStatus(task.id)
+                          if (!isDone) sounds.playSuccess()
+                        }}
+                        onDelete={() => {
+                          sounds.playTap()
+                          deleteTask(task.id)
+                          setPinnedPopoverId(null)
+                          setHoveredPopoverId(null)
+                        }}
+                      />
+                    )}
+
                     <div className="flex items-center gap-1.5 min-w-0 flex-1">
                       <span className="text-[9px] font-mono font-black px-1.5 py-0.5 rounded bg-white border border-rose-200 text-rose-700 shrink-0 flex items-center gap-0.5">
                         <Target className="w-2.5 h-2.5 text-rose-600" />
@@ -1583,20 +1903,58 @@ export const TimeBlockingSchedule: React.FC = () => {
 
                 const isCompact = height < 50
                 const layoutStyle = getItemHorizontalStyle(`slot-${slot.id}`, isBeingDragged)
+                const isPopoverActive = !isBeingDragged && activePopoverId === `slot-${slot.id}`
 
                 return (
                   <div
                     key={`slot-${slot.id}`}
                     onPointerDown={(e) => handleStartMove(e, slot)}
-                    className={`absolute rounded-2xl p-2.5 border transition select-none touch-none cursor-grab active:cursor-grabbing flex flex-col justify-between overflow-hidden ${
+                    onMouseEnter={() => { if (!draggingSlot) setHoveredPopoverId(`slot-${slot.id}`) }}
+                    onMouseLeave={() => { if (!draggingSlot) setHoveredPopoverId(null) }}
+                    onClick={(e) => {
+                      if (!isBeingDragged) {
+                        e.stopPropagation()
+                        setPinnedPopoverId(pinnedPopoverId === `slot-${slot.id}` ? null : `slot-${slot.id}`)
+                      }
+                    }}
+                    className={`timeline-card-container absolute rounded-2xl p-2.5 border transition select-none touch-none cursor-grab active:cursor-grabbing flex flex-col justify-between overflow-visible ${
                       isBeingDragged
-                        ? 'ring-2 ring-violet-500 shadow-2xl z-30 scale-[1.01] bg-sky-100/95 border-sky-400 text-sky-950'
+                        ? 'ring-2 ring-violet-500 shadow-2xl z-40 scale-[1.01] bg-sky-100/95 border-sky-400 text-sky-950'
+                        : isPopoverActive
+                        ? 'ring-2 ring-sky-400 bg-sky-50/95 border-sky-400 text-sky-950 shadow-md z-35'
                         : slot.is_done
                         ? 'bg-sky-50/90 border-sky-300 text-sky-950 opacity-80 z-10'
                         : 'bg-sky-50/95 border-sky-300 text-sky-950 hover:border-sky-500 hover:shadow-md z-10'
                     }`}
                     style={{ top: `${top}px`, height: `${height}px`, ...layoutStyle }}
                   >
+                    {/* Interactive Floating Popover */}
+                    {isPopoverActive && (
+                      <TimelineItemPopover
+                        type="slot"
+                        title={slot.title}
+                        timeStr={`📅 ${displayStartTime} - ${displayEndTime}`}
+                        category={slot.category}
+                        notes={slot.notes}
+                        isDone={slot.is_done}
+                        onEdit={() => {
+                          setPinnedPopoverId(null)
+                          setHoveredPopoverId(null)
+                          handleOpenEditSlot(slot)
+                        }}
+                        onPlay={() => handleStartSlotFocus(slot)}
+                        onToggleDone={() => {
+                          sounds.playTap()
+                          toggleSlotDone(slot.id, !slot.is_done)
+                        }}
+                        onDelete={() => {
+                          sounds.playTap()
+                          deleteSlot(slot.id)
+                          setPinnedPopoverId(null)
+                          setHoveredPopoverId(null)
+                        }}
+                      />
+                    )}
                     {/* Dynamic Content layout depending on height */}
                     {isCompact ? (
                       <div className="flex items-center justify-between gap-2 w-full h-full min-w-0 pr-0.5">
@@ -2096,6 +2454,246 @@ export const TimeBlockingSchedule: React.FC = () => {
                     Save Changes
                   </button>
                 </div>
+              </div>
+            </form>
+          </div>
+        </>
+      )}
+
+      {/* ── Modal 3: Edit Task / Deadline ────── */}
+      {editTaskModalOpen && editingTask && (
+        <>
+          <div className="sheet-backdrop" onClick={() => setEditTaskModalOpen(false)} />
+          <div className="sheet-content max-w-lg mx-auto">
+            <div className="sheet-handle" />
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h2 className="text-sm font-black text-slate-900">Edit Task Deadline</h2>
+                <p className="text-[11px] text-slate-500 font-medium">Update task details and due time</p>
+              </div>
+              <button onClick={() => setEditTaskModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleSaveEditTask} className="space-y-3">
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  Task Title *
+                </label>
+                <input
+                  type="text"
+                  value={editTaskTitle}
+                  onChange={e => setEditTaskTitle(e.target.value)}
+                  placeholder="Task title..."
+                  autoFocus
+                  required
+                  className="w-full px-3.5 py-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-rose-500 focus:bg-white transition"
+                />
+              </div>
+
+              {/* Category Picker */}
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  Category
+                </label>
+                <select
+                  value={editTaskCategoryId || ''}
+                  onChange={e => setEditTaskCategoryId(e.target.value ? Number(e.target.value) : null)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 outline-none focus:border-rose-500 focus:bg-white transition"
+                >
+                  <option value="">-- Select Category --</option>
+                  {categories.map(c => (
+                    <React.Fragment key={c.id}>
+                      <option value={c.id}>
+                        📁 {c.name} ({c.category_type === 'wasted' ? '🔴 Wasted' : c.category_type === 'neutral' ? '🔵 Neutral' : '🟢 Productive'})
+                      </option>
+                      {c.subcategories && c.subcategories.map(sub => (
+                        <option key={sub.id} value={sub.id}>
+                          &nbsp;&nbsp;&nbsp;&nbsp;↳ {sub.name}
+                        </option>
+                      ))}
+                    </React.Fragment>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                    Due Date
+                  </label>
+                  <input
+                    type="date"
+                    value={editTaskDueDate}
+                    onChange={e => setEditTaskDueDate(e.target.value)}
+                    required
+                    className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-rose-500 focus:bg-white transition"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                    Due Time
+                  </label>
+                  <input
+                    type="time"
+                    value={editTaskDueTime}
+                    onChange={e => setEditTaskDueTime(e.target.value)}
+                    required
+                    className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-900 outline-none focus:border-rose-500 focus:bg-white transition"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  Description / Notes
+                </label>
+                <input
+                  type="text"
+                  value={editTaskDescription}
+                  onChange={e => setEditTaskDescription(e.target.value)}
+                  placeholder="Task details..."
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-900 outline-none focus:border-rose-500 focus:bg-white transition"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    sounds.playTap()
+                    deleteTask(editingTask.id)
+                    setEditTaskModalOpen(false)
+                  }}
+                  className="px-4 py-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 text-xs font-bold active:scale-95 transition flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>Delete</span>
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-black active:scale-[0.98] transition shadow-md shadow-rose-600/20 cursor-pointer"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </>
+      )}
+
+      {/* ── Modal 4: Edit Habit ────── */}
+      {editHabitModalOpen && editingHabit && (
+        <>
+          <div className="sheet-backdrop" onClick={() => setEditHabitModalOpen(false)} />
+          <div className="sheet-content max-w-lg mx-auto">
+            <div className="sheet-handle" />
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h2 className="text-sm font-black text-slate-900">Edit Habit</h2>
+                <p className="text-[11px] text-slate-500 font-medium">Update habit schedule and targets</p>
+              </div>
+              <button onClick={() => setEditHabitModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleSaveEditHabit} className="space-y-3">
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  Habit Title *
+                </label>
+                <input
+                  type="text"
+                  value={editHabitTitle}
+                  onChange={e => setEditHabitTitle(e.target.value)}
+                  placeholder="e.g. Read Book, Morning Workout..."
+                  autoFocus
+                  required
+                  className="w-full px-3.5 py-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-emerald-500 focus:bg-white transition"
+                />
+              </div>
+
+              {/* Category Picker */}
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  Category
+                </label>
+                <select
+                  value={editHabitCategoryId || ''}
+                  onChange={e => setEditHabitCategoryId(e.target.value ? Number(e.target.value) : null)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 outline-none focus:border-emerald-500 focus:bg-white transition"
+                >
+                  <option value="">-- Select Category --</option>
+                  {categories.map(c => (
+                    <React.Fragment key={c.id}>
+                      <option value={c.id}>
+                        📁 {c.name} ({c.category_type === 'wasted' ? '🔴 Wasted' : c.category_type === 'neutral' ? '🔵 Neutral' : '🟢 Productive'})
+                      </option>
+                      {c.subcategories && c.subcategories.map(sub => (
+                        <option key={sub.id} value={sub.id}>
+                          &nbsp;&nbsp;&nbsp;&nbsp;↳ {sub.name}
+                        </option>
+                      ))}
+                    </React.Fragment>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                    Reminder Time
+                  </label>
+                  <input
+                    type="time"
+                    value={editHabitReminderTime}
+                    onChange={e => setEditHabitReminderTime(e.target.value)}
+                    required
+                    className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-900 outline-none focus:border-emerald-500 focus:bg-white transition"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                    Daily Target
+                  </label>
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="number"
+                      min="1"
+                      value={editHabitTargetCount}
+                      onChange={e => setEditHabitTargetCount(Number(e.target.value) || 1)}
+                      className="w-16 px-2.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-900 outline-none focus:border-emerald-500 focus:bg-white transition"
+                    />
+                    <input
+                      type="text"
+                      value={editHabitUnit}
+                      onChange={e => setEditHabitUnit(e.target.value)}
+                      placeholder="unit (e.g. mins, pages)"
+                      className="flex-1 px-2.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-900 outline-none focus:border-emerald-500 focus:bg-white transition"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    sounds.playTap()
+                    deleteHabit(editingHabit.id)
+                    setEditHabitModalOpen(false)
+                  }}
+                  className="px-4 py-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 text-xs font-bold active:scale-95 transition flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>Delete</span>
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black active:scale-[0.98] transition shadow-md shadow-emerald-600/20 cursor-pointer"
+                >
+                  Save Changes
+                </button>
               </div>
             </form>
           </div>

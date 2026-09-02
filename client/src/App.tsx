@@ -11,6 +11,7 @@ import { HabitDetailPage } from './pages/HabitDetailPage'
 import { PomodoroFocus } from './pages/PomodoroFocus'
 import { ProductivityAnalytics } from './pages/ProductivityAnalytics'
 import { CategoryManagement } from './pages/CategoryManagement'
+import { SettingsHub } from './pages/SettingsHub'
 import { LandingPage } from './pages/LandingPage'
 import { Admin } from './pages/Admin'
 import { useAuthStore } from './store/useAuthStore'
@@ -86,10 +87,10 @@ const AppShell: React.FC = () => {
                   <span className="text-slate-300">•</span>
                   <span className="text-emerald-700">{doneHabits}/{(habits || []).length} habits</span>
                 </div>
-              ) : location.pathname === '/categories' ? (
-                <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-50 border border-indigo-200/70 text-indigo-700 text-[10px] font-black">
-                  <FolderTree className="w-2.5 h-2.5 text-indigo-600" />
-                  <span>Projects</span>
+              ) : location.pathname === '/settings' || location.pathname === '/categories' ? (
+                <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-violet-50 border border-violet-200/70 text-violet-700 text-[10px] font-black">
+                  <Sparkles className="w-2.5 h-2.5 text-violet-600" />
+                  <span>Settings</span>
                 </div>
               ) : (
                 <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-violet-50 border border-violet-200/70 text-violet-700 text-[10px] font-black">
@@ -140,7 +141,8 @@ const AppShell: React.FC = () => {
             <Route path="/habits" element={<TasksAndHabitsHub />} />
             <Route path="/plans" element={<TasksAndHabitsHub />} />
             <Route path="/habits/:id" element={<HabitDetailPage />} />
-            <Route path="/categories" element={<CategoryManagement />} />
+            <Route path="/settings" element={<SettingsHub />} />
+            <Route path="/categories" element={<SettingsHub />} />
             <Route path="/analytics" element={<div className="flex-1 overflow-y-auto px-4 py-4 md:px-8 md:py-6"><div className="max-w-lg md:max-w-5xl mx-auto"><ProductivityAnalytics /></div></div>} />
             <Route path="/admin" element={<div className="flex-1 overflow-y-auto px-4 py-4 md:px-8 md:py-6"><div className="max-w-lg md:max-w-5xl mx-auto"><Admin /></div></div>} />
             <Route path="*" element={<Navigate to="/" replace />} />

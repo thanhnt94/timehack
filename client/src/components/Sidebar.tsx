@@ -14,9 +14,9 @@ interface Props {
 
 const links = [
   { path: '/', icon: Clock, label: 'Time Hub (Schedule & Track)', matchPaths: ['/', '/calendar', '/schedule', '/tracking'] },
-  { path: '/tasks', icon: CheckSquare, label: 'Tasks & Habits', matchPaths: ['/tasks', '/habits'] },
-  { path: '/categories', icon: FolderTree, label: 'Projects & Categories', matchPaths: ['/categories'] },
+  { path: '/tasks', icon: CheckSquare, label: 'Actions (Tasks, Habits, Plan)', matchPaths: ['/tasks', '/habits', '/plans'] },
   { path: '/analytics', icon: BarChart3, label: 'Analytics', matchPaths: ['/analytics'] },
+  { path: '/settings', icon: Settings, label: 'Settings & Customization', matchPaths: ['/settings', '/categories'] },
 ]
 
 export const Sidebar: React.FC<Props> = ({ user, onLogout, onOpenSettings }) => {

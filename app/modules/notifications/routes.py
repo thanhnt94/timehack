@@ -85,8 +85,16 @@ async def get_telegram_config(request: Request, db: AsyncSession = Depends(get_d
                         "bot_username": ca_data.get("bot_username", "InMindBot"),
                         "reminder_time": existing_settings.get("reminder_time", ca_data.get("reminder_time", "20:00")),
                         "is_active": existing_settings.get("telegram_is_active", True),
+                        "morning_briefing_enabled": existing_settings.get("morning_briefing_enabled", True),
+                        "morning_briefing_time": existing_settings.get("morning_briefing_time", "07:30"),
+                        "evening_reflection_enabled": existing_settings.get("evening_reflection_enabled", True),
+                        "evening_reflection_time": existing_settings.get("evening_reflection_time", "21:30"),
+                        "inactivity_reminder_enabled": existing_settings.get("inactivity_reminder_enabled", True),
+                        "inactivity_reminder_interval_hours": existing_settings.get("inactivity_reminder_interval_hours", 2),
                         "notify_task": existing_settings.get("notify_task", True),
                         "notify_habit": existing_settings.get("notify_habit", True),
+                        "notify_task_deadline": existing_settings.get("notify_task_deadline", True),
+                        "notify_habit_reminder": existing_settings.get("notify_habit_reminder", True),
                         "notify_daily_report": existing_settings.get("notify_daily_report", True)
                     }
         except Exception as e:
@@ -109,8 +117,16 @@ async def get_telegram_config(request: Request, db: AsyncSession = Depends(get_d
         "bot_username": "InMindBot",
         "reminder_time": existing_settings.get("reminder_time", "20:00"),
         "is_active": existing_settings.get("telegram_is_active", True),
+        "morning_briefing_enabled": existing_settings.get("morning_briefing_enabled", True),
+        "morning_briefing_time": existing_settings.get("morning_briefing_time", "07:30"),
+        "evening_reflection_enabled": existing_settings.get("evening_reflection_enabled", True),
+        "evening_reflection_time": existing_settings.get("evening_reflection_time", "21:30"),
+        "inactivity_reminder_enabled": existing_settings.get("inactivity_reminder_enabled", True),
+        "inactivity_reminder_interval_hours": existing_settings.get("inactivity_reminder_interval_hours", 2),
         "notify_task": existing_settings.get("notify_task", True),
         "notify_habit": existing_settings.get("notify_habit", True),
+        "notify_task_deadline": existing_settings.get("notify_task_deadline", True),
+        "notify_habit_reminder": existing_settings.get("notify_habit_reminder", True),
         "notify_daily_report": existing_settings.get("notify_daily_report", True)
     }
 
@@ -139,7 +155,14 @@ async def update_telegram_config(payload: dict, request: Request, db: AsyncSessi
         existing_settings["telegram_chat_id"] = None
         existing_settings["telegram_connect_token"] = f"TH_{secrets.token_hex(4).upper()}"
     else:
-        for k in ["reminder_time", "notify_task", "notify_habit", "notify_daily_report", "telegram_is_active", "telegram_chat_id"]:
+        for k in [
+            "reminder_time", "notify_task", "notify_habit", "notify_daily_report",
+            "telegram_is_active", "telegram_chat_id",
+            "morning_briefing_enabled", "morning_briefing_time",
+            "evening_reflection_enabled", "evening_reflection_time",
+            "inactivity_reminder_enabled", "inactivity_reminder_interval_hours",
+            "notify_task_deadline", "notify_habit_reminder"
+        ]:
             if k in payload:
                 existing_settings[k] = payload[k]
 

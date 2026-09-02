@@ -1,6 +1,6 @@
 import React from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Clock, CheckSquare, BarChart3, FolderTree, Plus } from 'lucide-react'
+import { Clock, CheckSquare, BarChart3, Settings, Plus } from 'lucide-react'
 import { sounds } from '../utils/soundEffects'
 
 interface Props {
@@ -9,10 +9,10 @@ interface Props {
 
 const tabs = [
   { path: '/', icon: Clock, label: 'Time', matchPaths: ['/', '/calendar', '/schedule', '/tracking'] },
-  { path: '/tasks', icon: CheckSquare, label: 'Actions', matchPaths: ['/tasks', '/habits'] },
+  { path: '/tasks', icon: CheckSquare, label: 'Actions', matchPaths: ['/tasks', '/habits', '/plans'] },
   { path: '__fab__', icon: Plus, label: 'Create', matchPaths: [] },
   { path: '/analytics', icon: BarChart3, label: 'Analytics', matchPaths: ['/analytics'] },
-  { path: '/categories', icon: FolderTree, label: 'Projects', matchPaths: ['/categories'] },
+  { path: '/settings', icon: Settings, label: 'Settings', matchPaths: ['/settings', '/categories'] },
 ]
 
 export const BottomNav: React.FC<Props> = ({ onFabTap }) => {

@@ -12,7 +12,7 @@ export interface Task {
   title: string
   description?: string
   category_id?: number
-  category?: { id: number; name: string; color: string; icon?: string }
+  category?: { id: number; name: string; color: string; icon?: string; category_type?: string }
   priority: 'low' | 'medium' | 'high' | 'urgent'
   status: 'todo' | 'in_progress' | 'completed'
   eisenhower: 'do_first' | 'schedule' | 'delegate' | 'eliminate'

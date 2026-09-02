@@ -10,7 +10,7 @@ export interface ScheduleSlot {
   task_id?: number
   habit_id?: number
   category_id?: number
-  category?: { id: number; name: string; color: string }
+  category?: { id: number; name: string; color: string; category_type?: string }
   is_done: boolean
   reminder_enabled?: boolean
   remind_at?: string

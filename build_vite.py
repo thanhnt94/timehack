@@ -19,6 +19,16 @@ def build_vite():
             print(" [VITE] Installing dependencies...")
             subprocess.run([npm_cmd, "install"], cwd=client_dir, check=True)
             
+        # Step 1: Type Checking to prevent runtime white screens / undefined variables
+        print(" [VITE] Running TypeScript type check...")
+        try:
+            subprocess.run([npx_cmd, "tsc", "-p", "tsconfig.app.json", "--noEmit"], cwd=client_dir, check=True)
+            print(" [VITE] TypeScript type check passed!")
+        except Exception as te:
+            print(f" [-] TypeScript compilation failed: {te}")
+            sys.exit(1)
+            
+        # Step 2: Vite Build
         try:
             subprocess.run([npm_cmd, "run", "build"], cwd=client_dir, check=True)
         except Exception:

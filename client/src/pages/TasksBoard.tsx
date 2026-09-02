@@ -56,6 +56,7 @@ const PRIORITY_CHOICES = [
     desc: 'Do immediately',
     icon: Flame,
     color: 'text-rose-600',
+    badgeBg: 'bg-rose-50 text-rose-700 border-rose-200',
     selectedBg: 'bg-rose-50 border-rose-400 text-rose-700 ring-2 ring-rose-400/20'
   },
   {
@@ -64,6 +65,7 @@ const PRIORITY_CHOICES = [
     desc: 'Plan & schedule',
     icon: Star,
     color: 'text-violet-600',
+    badgeBg: 'bg-violet-50 text-violet-700 border-violet-200',
     selectedBg: 'bg-violet-50 border-violet-400 text-violet-700 ring-2 ring-violet-400/20'
   },
   {
@@ -72,6 +74,7 @@ const PRIORITY_CHOICES = [
     desc: 'Delegate or do fast',
     icon: Users,
     color: 'text-amber-600',
+    badgeBg: 'bg-amber-50 text-amber-700 border-amber-200',
     selectedBg: 'bg-amber-50 border-amber-400 text-amber-700 ring-2 ring-amber-400/20'
   },
   {
@@ -80,6 +83,7 @@ const PRIORITY_CHOICES = [
     desc: 'Backlog / Eliminate',
     icon: Inbox,
     color: 'text-slate-600',
+    badgeBg: 'bg-slate-50 text-slate-700 border-slate-200',
     selectedBg: 'bg-slate-50 border-slate-400 text-slate-700 ring-2 ring-slate-400/20'
   }
 ] as const
@@ -103,6 +107,7 @@ export const TasksBoard: React.FC = () => {
 
   const [filter, setFilter] = useState<'all' | 'do_first' | 'schedule' | 'delegate' | 'eliminate'>('all')
   const [searchQuery, setSearchQuery] = useState('')
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const PAGE_SIZE = 4
 

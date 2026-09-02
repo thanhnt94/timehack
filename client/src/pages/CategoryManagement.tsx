@@ -8,28 +8,12 @@ import {
 } from 'lucide-react'
 import { useTaskStore, type Category } from '../store/useTaskStore'
 import { sounds } from '../utils/soundEffects'
+import { renderAppIcon } from '../utils/iconHelper'
 
-const ICON_MAP: Record<string, any> = {
-  folder: Folder,
-  briefcase: Briefcase,
-  code: Code,
-  book: Book,
-  'book-open': BookOpen,
-  activity: Activity,
-  dumbbell: Dumbbell,
-  heart: Heart,
-  wallet: Wallet,
-  'pie-chart': PieChart,
-  'trending-up': TrendingUp,
-  coffee: Coffee,
-  tv: Tv,
-  smile: Smile,
-  'alert-triangle': AlertTriangle,
-  smartphone: Smartphone,
-  clock: Clock,
-  target: Target,
-  zap: Zap
-}
+const PRESET_ICONS = [
+  'folder', 'briefcase', 'code', 'book', 'activity', 'dumbbell',
+  'heart', 'wallet', 'coffee', 'smile', 'clock', 'target', 'zap'
+]
 
 const PRESET_COLORS = [
   '#8B5CF6', // Violet
@@ -64,7 +48,7 @@ export const CategoryManagement: React.FC = () => {
 
   // Separate parent and child categories
   const parentCategories = useMemo(() => {
-    return categories.filter(c => !c.parent_id)
+    return (categories || []).filter(c => !c.parent_id)
   }, [categories])
 
   const filteredParents = useMemo(() => {
@@ -72,24 +56,17 @@ export const CategoryManagement: React.FC = () => {
     return parentCategories.filter(c => (c.category_type || 'productive') === filterType)
   }, [parentCategories, filterType])
 
-  // Summary counts
-  const productiveMins = useMemo(() => {
-    return categories
-      .filter(c => (c.category_type || 'productive') === 'productive')
-      .reduce((sum, c) => sum + (c.focus_minutes || 0), 0)
-  }, [categories])
+  const productiveCount = useMemo(() => {
+    return parentCategories.filter(c => (c.category_type || 'productive') === 'productive').length
+  }, [parentCategories])
 
-  const neutralMins = useMemo(() => {
-    return categories
-      .filter(c => c.category_type === 'neutral')
-      .reduce((sum, c) => sum + (c.focus_minutes || 0), 0)
-  }, [categories])
+  const neutralCount = useMemo(() => {
+    return parentCategories.filter(c => c.category_type === 'neutral').length
+  }, [parentCategories])
 
-  const wastedMins = useMemo(() => {
-    return categories
-      .filter(c => c.category_type === 'wasted')
-      .reduce((sum, c) => sum + (c.focus_minutes || 0), 0)
-  }, [categories])
+  const wastedCount = useMemo(() => {
+    return parentCategories.filter(c => c.category_type === 'wasted').length
+  }, [parentCategories])
 
   const handleOpenAddModal = (parentId: number | null = null) => {
     sounds.playTap()
@@ -181,60 +158,52 @@ export const CategoryManagement: React.FC = () => {
     }
   }
 
-  const renderIcon = (iconName?: string, className = 'w-4 h-4') => {
-    const IconComp = iconName ? ICON_MAP[iconName] || Folder : Folder
-    return <IconComp className={className} />
-  }
-
   const getTypeBadge = (type?: string) => {
     switch (type) {
       case 'wasted':
         return (
           <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-rose-50 text-rose-700 border border-rose-200">
-            🔴 Wasted / Distraction
+            🔴 Wasted
           </span>
         )
       case 'neutral':
         return (
           <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-sky-50 text-sky-700 border border-sky-200">
-            🔵 Neutral / Maintenance
+            🔵 Neutral
           </span>
         )
       case 'productive':
       default:
         return (
           <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
-            🟢 Productive / Value
+            🟢 Productive
           </span>
         )
     }
   }
 
   return (
-    <div className="flex-1 overflow-y-auto px-4 py-4 md:px-8 md:py-6 bg-[#F8FAFC]">
-      <div className="max-w-4xl mx-auto space-y-5 pb-24">
-        {/* ── Ergonomic Header ─────── */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+    <div className="flex-1 overflow-y-auto px-3.5 py-3 sm:px-6 sm:py-4 bg-[#F8FAFC]">
+      <div className="max-w-3xl mx-auto space-y-3.5 pb-24">
+        {/* ── Compact Top Action Header ─────── */}
+        <div className="bg-white rounded-2xl p-3 sm:p-4 border border-slate-200/90 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <div className="flex items-center gap-2">
-              <FolderTree className="w-5 h-5 text-violet-600" />
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 font-mono">
-                Time Allocation & Hierarchy
-              </span>
+            <div className="flex items-center gap-1.5">
+              <FolderTree className="w-4 h-4 text-violet-600" />
+              <h1 className="text-sm sm:text-base font-black text-slate-900 tracking-tight">
+                Categories & Hierarchy
+              </h1>
             </div>
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight mt-0.5">
-              Category Management
-            </h1>
-            <p className="text-xs text-slate-500 font-medium">
-              Categorize time blocks & tasks with value group auditing (Productive, Neutral, or Distraction).
+            <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+              Organize tasks, habits & time logs with value tags
             </p>
           </div>
 
           {/* Header Action Buttons */}
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 shrink-0">
             <button
               onClick={() => { sounds.playTap(); setPresetConfirmOpen(true) }}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 shadow-xs active:scale-95 transition"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition active:scale-95 cursor-pointer"
               title="Load standard preset categories"
             >
               <RotateCcw className="w-3.5 h-3.5 text-violet-600" />
@@ -243,7 +212,7 @@ export const CategoryManagement: React.FC = () => {
 
             <button
               onClick={() => handleOpenAddModal(null)}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-violet-600 text-white hover:bg-violet-700 shadow-xs active:scale-95 transition"
+              className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-black bg-violet-600 text-white hover:bg-violet-700 shadow-sm shadow-violet-600/25 transition active:scale-95 cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               <span>New Category</span>
@@ -251,63 +220,21 @@ export const CategoryManagement: React.FC = () => {
           </div>
         </div>
 
-        {/* ── Time Allocation Metrics ─────── */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className="glass rounded-2xl p-4 border border-emerald-200/70 bg-emerald-50/30">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-emerald-800">🟢 Productive</span>
-              <span className="text-[10px] font-bold font-mono px-2 py-0.5 bg-emerald-100/70 text-emerald-800 rounded-md">
-                {categories.filter(c => (c.category_type || 'productive') === 'productive').length} items
-              </span>
-            </div>
-            <div className="text-xl font-black text-slate-900 font-mono mt-2">
-              {Math.round(productiveMins)} <span className="text-xs font-normal text-slate-500">focus mins</span>
-            </div>
-            <div className="text-[11px] text-slate-500 mt-0.5">Deep work, coding, learning & fitness</div>
-          </div>
-
-          <div className="glass rounded-2xl p-4 border border-sky-200/70 bg-sky-50/30">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-sky-800">🔵 Neutral / Rest</span>
-              <span className="text-[10px] font-bold font-mono px-2 py-0.5 bg-sky-100/70 text-sky-800 rounded-md">
-                {categories.filter(c => c.category_type === 'neutral').length} items
-              </span>
-            </div>
-            <div className="text-xl font-black text-slate-900 font-mono mt-2">
-              {Math.round(neutralMins)} <span className="text-xs font-normal text-slate-500">focus mins</span>
-            </div>
-            <div className="text-[11px] text-slate-500 mt-0.5">Routine syncs, meals & socializing</div>
-          </div>
-
-          <div className="glass rounded-2xl p-4 border border-rose-200/70 bg-rose-50/30">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-rose-800">🔴 Wasted / Distraction</span>
-              <span className="text-[10px] font-bold font-mono px-2 py-0.5 bg-rose-100/70 text-rose-800 rounded-md">
-                {categories.filter(c => c.category_type === 'wasted').length} items
-              </span>
-            </div>
-            <div className="text-xl font-black text-slate-900 font-mono mt-2">
-              {Math.round(wastedMins)} <span className="text-xs font-normal text-slate-500">logged mins</span>
-            </div>
-            <div className="text-[11px] text-slate-500 mt-0.5">Doomscrolling, procrastination, delays</div>
-          </div>
-        </div>
-
-        {/* ── Filter Tabs ─────── */}
-        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+        {/* ── Filter Tabs Bar ─────── */}
+        <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
           {[
-            { id: 'all', label: 'All Categories' },
-            { id: 'productive', label: '🟢 Productive' },
-            { id: 'neutral', label: '🔵 Neutral' },
-            { id: 'wasted', label: '🔴 Wasted' }
+            { id: 'all', label: `All (${parentCategories.length})` },
+            { id: 'productive', label: `🟢 Productive (${productiveCount})` },
+            { id: 'neutral', label: `🔵 Neutral (${neutralCount})` },
+            { id: 'wasted', label: `🔴 Wasted (${wastedCount})` }
           ].map(tab => (
             <button
               key={tab.id}
               onClick={() => { sounds.playTap(); setFilterType(tab.id as any) }}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition shadow-xs ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer ${
                 filterType === tab.id
-                  ? 'bg-slate-900 text-white'
-                  : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                  ? 'bg-slate-900 text-white shadow-xs font-black'
+                  : 'bg-white border border-slate-200/90 text-slate-600 hover:bg-slate-50 shadow-2xs'
               }`}
             >
               {tab.label}
@@ -315,108 +242,108 @@ export const CategoryManagement: React.FC = () => {
           ))}
         </div>
 
-        {/* ── Hierarchical Category Tree / Cards ─────── */}
+        {/* ── Hierarchical Category Tree Cards ─────── */}
         {filteredParents.length === 0 ? (
-          <div className="glass rounded-3xl p-10 text-center border border-slate-200 space-y-3">
-            <div className="w-12 h-12 rounded-2xl bg-violet-100 text-violet-600 flex items-center justify-center mx-auto">
+          <div className="bg-white rounded-3xl p-8 text-center border border-slate-200 shadow-2xs space-y-3">
+            <div className="w-12 h-12 rounded-2xl bg-violet-50 text-violet-600 flex items-center justify-center mx-auto">
               <FolderTree className="w-6 h-6" />
             </div>
-            <h3 className="text-base font-bold text-slate-800">No categories found</h3>
+            <h3 className="text-sm font-bold text-slate-800">No categories found</h3>
             <p className="text-xs text-slate-500 max-w-sm mx-auto">
-              You can create a new parent category or load preset categories to get started instantly.
+              Create a new category or load standard presets to organize your activities.
             </p>
             <button
               onClick={() => handleSeedPresets()}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-violet-600 text-white hover:bg-violet-700 shadow-sm transition"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-violet-600 text-white hover:bg-violet-700 shadow-sm transition active:scale-95 cursor-pointer"
             >
               <Sparkles className="w-4 h-4" />
               <span>Load Preset Categories</span>
             </button>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-2.5">
             {filteredParents.map(parent => (
               <div
                 key={parent.id}
-                className="glass rounded-2xl border border-slate-200 overflow-hidden shadow-xs hover:border-slate-300 transition"
+                className="bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-2xs hover:border-slate-300 transition"
               >
                 {/* Parent Category Header Card */}
-                <div className="p-4 bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100">
-                  <div className="flex items-center gap-3 min-w-0">
+                <div className="p-3 sm:p-3.5 flex items-center justify-between gap-2.5 border-b border-slate-100">
+                  <div className="flex items-center gap-2.5 min-w-0">
                     <div
-                      className="w-10 h-10 rounded-xl flex items-center justify-center text-white shrink-0 shadow-xs"
+                      className="w-8 h-8 rounded-xl flex items-center justify-center text-white shrink-0 shadow-2xs"
                       style={{ backgroundColor: parent.color }}
                     >
-                      {renderIcon(parent.icon, 'w-5 h-5 text-white')}
+                      {renderAppIcon(parent.icon, 'w-4 h-4 text-white')}
                     </div>
                     <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-black text-slate-900 truncate">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-xs sm:text-sm font-black text-slate-900 truncate">
                           {parent.name}
                         </span>
                         {getTypeBadge(parent.category_type)}
                       </div>
-                      <div className="flex items-center gap-3 text-[11px] text-slate-500 font-medium mt-0.5">
+                      <div className="flex items-center gap-2 text-[10px] text-slate-400 font-mono mt-0.5">
                         <span>{parent.subcategories?.length || 0} sub-categories</span>
                         <span>•</span>
                         <span>{parent.tasks_count || 0} tasks</span>
                         <span>•</span>
-                        <span className="font-mono">{Math.round(parent.focus_minutes || 0)}m focus</span>
+                        <span>{Math.round(parent.focus_minutes || 0)}m focus</span>
                       </div>
                     </div>
                   </div>
 
                   {/* Parent Actions */}
-                  <div className="flex items-center gap-1.5 self-end sm:self-center shrink-0">
+                  <div className="flex items-center gap-1 shrink-0">
                     <button
                       onClick={() => handleOpenAddModal(parent.id)}
-                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 transition"
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 transition cursor-pointer active:scale-95"
                       title="Add sub-category"
                     >
-                      <Plus className="w-3.5 h-3.5" />
+                      <Plus className="w-3 h-3" />
                       <span>Add Sub</span>
                     </button>
                     <button
                       onClick={() => handleOpenEditModal(parent)}
-                      className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 border border-transparent transition"
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition cursor-pointer active:scale-90"
                       title="Edit Category"
                     >
-                      <Edit2 className="w-4 h-4" />
+                      <Edit2 className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={() => handleDeleteCategory(parent.id, parent.name)}
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent transition"
+                      className="p-1.5 rounded-lg text-slate-300 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer active:scale-90"
                       title="Delete Category"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
 
                 {/* Subcategories List */}
                 {parent.subcategories && parent.subcategories.length > 0 ? (
-                  <div className="p-3 bg-slate-50/50 space-y-2">
+                  <div className="p-2.5 bg-slate-50/50 space-y-1.5">
                     {parent.subcategories.map(sub => (
                       <div
                         key={sub.id}
-                        className="flex items-center justify-between p-2.5 rounded-xl bg-white border border-slate-200/80 hover:border-violet-200 transition shadow-2xs group"
+                        className="flex items-center justify-between p-2 rounded-xl bg-white border border-slate-200/80 hover:border-violet-200 transition shadow-2xs group"
                       >
-                        <div className="flex items-center gap-2.5 min-w-0 pl-1">
-                          <CornerDownRight className="w-3.5 h-3.5 text-slate-300 shrink-0" />
+                        <div className="flex items-center gap-2 min-w-0 pl-1">
+                          <CornerDownRight className="w-3 h-3 text-slate-300 shrink-0" />
                           <div
-                            className="w-7 h-7 rounded-lg flex items-center justify-center text-white shrink-0 shadow-2xs"
+                            className="w-6 h-6 rounded-lg flex items-center justify-center text-white shrink-0 shadow-2xs"
                             style={{ backgroundColor: sub.color || parent.color }}
                           >
-                            {renderIcon(sub.icon, 'w-3.5 h-3.5 text-white')}
+                            {renderAppIcon(sub.icon, 'w-3 h-3 text-white')}
                           </div>
                           <div className="min-w-0">
                             <span className="text-xs font-bold text-slate-800 truncate block">
                               {sub.name}
                             </span>
-                            <div className="flex items-center gap-2 text-[10px] text-slate-400 font-medium">
+                            <div className="flex items-center gap-1.5 text-[9px] text-slate-400 font-mono">
                               <span>{sub.tasks_count || 0} tasks</span>
                               <span>•</span>
-                              <span className="font-mono">{Math.round(sub.focus_minutes || 0)}m focus</span>
+                              <span>{Math.round(sub.focus_minutes || 0)}m</span>
                             </div>
                           </div>
                         </div>
@@ -425,24 +352,24 @@ export const CategoryManagement: React.FC = () => {
                         <div className="flex items-center gap-1 shrink-0 opacity-80 group-hover:opacity-100 transition">
                           <button
                             onClick={() => handleOpenEditModal(sub)}
-                            className="p-1 rounded-lg text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition"
+                            className="p-1 rounded-lg text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition cursor-pointer active:scale-90"
                             title="Edit Subcategory"
                           >
-                            <Edit2 className="w-3.5 h-3.5" />
+                            <Edit2 className="w-3 h-3" />
                           </button>
                           <button
                             onClick={() => handleDeleteCategory(sub.id, sub.name)}
-                            className="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition"
+                            className="p-1 rounded-lg text-slate-300 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer active:scale-90"
                             title="Delete Subcategory"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 className="w-3 h-3" />
                           </button>
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <div className="px-5 py-3 bg-slate-50/40 text-[11px] text-slate-400 italic flex items-center gap-1.5">
+                  <div className="px-4 py-2 bg-slate-50/40 text-[10px] text-slate-400 italic flex items-center gap-1.5">
                     <span>No sub-categories yet. Click "+ Add Sub" to organize deeper.</span>
                   </div>
                 )}
@@ -452,150 +379,144 @@ export const CategoryManagement: React.FC = () => {
         )}
       </div>
 
-      {/* ── Modal: Add / Edit Category ─────── */}
+      {/* ── MODAL: CREATE / EDIT CATEGORY ── */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 anim-fade-in">
-          <div className="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-slate-200 space-y-4 max-h-[90dvh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm anim-fade-in">
+          <div className="bg-white rounded-3xl p-5 max-w-sm w-full shadow-2xl border border-slate-100 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-base font-black text-slate-900">
-                {editingCategory ? 'Edit Category' : formParentId ? 'Add Sub-Category' : 'Add Parent Category'}
-              </h3>
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-violet-100 text-violet-700 flex items-center justify-center font-bold">
+                  📁
+                </div>
+                <h3 className="text-sm font-black text-slate-900">
+                  {editingCategory ? 'Edit Category' : formParentId ? 'New Sub-category' : 'New Category'}
+                </h3>
+              </div>
               <button
                 onClick={() => setModalOpen(false)}
-                className="p-1.5 rounded-full text-slate-400 hover:bg-slate-100 transition"
+                className="text-slate-400 hover:text-slate-700 p-1 rounded-lg transition cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveCategory} className="space-y-4">
-              {/* Name */}
+            <form onSubmit={handleSaveCategory} className="space-y-3.5">
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
                   Category Name *
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Backend Development, English Speaking..."
                   value={formName}
-                  onChange={(e) => setFormName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 font-medium"
+                  onChange={e => setFormName(e.target.value)}
+                  placeholder="e.g. Deep Work, Learning, Workout..."
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:bg-white focus:border-violet-500 transition"
+                  autoFocus
                 />
               </div>
 
-              {/* Parent Category Selector */}
+              {/* Value / Productivity Type */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Parent Category
+                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
+                  Productivity Value Type
                 </label>
-                <select
-                  value={formParentId || ''}
-                  onChange={(e) => setFormParentId(e.target.value ? Number(e.target.value) : null)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-violet-500"
-                >
-                  <option value="">-- Level 1 Parent Category (No Parent) --</option>
-                  {parentCategories
-                    .filter(p => !editingCategory || p.id !== editingCategory.id)
-                    .map(p => (
-                      <option key={p.id} value={p.id}>
-                        📁 {p.name}
-                      </option>
-                    ))}
-                </select>
-              </div>
-
-              {/* Category Type (Productivity / Value Allocation) */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Value Allocation Group *
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { id: 'productive', label: '🟢 Productive', desc: 'Work/Study' },
-                    { id: 'neutral', label: '🔵 Neutral', desc: 'Rest/Social' },
-                    { id: 'wasted', label: '🔴 Wasted', desc: 'Distraction' }
-                  ].map(t => (
-                    <button
-                      type="button"
-                      key={t.id}
-                      onClick={() => { sounds.playTap(); setFormCategoryType(t.id as any) }}
-                      className={`p-2 rounded-xl text-left border transition ${
-                        formCategoryType === t.id
-                          ? 'border-violet-600 bg-violet-50/60 ring-2 ring-violet-500/20'
-                          : 'border-slate-200 hover:bg-slate-50'
-                      }`}
-                    >
-                      <div className="text-xs font-bold text-slate-900">{t.label}</div>
-                      <div className="text-[10px] text-slate-400">{t.desc}</div>
-                    </button>
-                  ))}
+                <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 rounded-2xl border border-slate-200 text-xs font-bold">
+                  <button
+                    type="button"
+                    onClick={() => setFormCategoryType('productive')}
+                    className={`py-1.5 px-2 rounded-xl text-[11px] font-black transition cursor-pointer ${
+                      formCategoryType === 'productive'
+                        ? 'bg-emerald-600 text-white shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    🟢 Productive
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormCategoryType('neutral')}
+                    className={`py-1.5 px-2 rounded-xl text-[11px] font-black transition cursor-pointer ${
+                      formCategoryType === 'neutral'
+                        ? 'bg-sky-600 text-white shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    🔵 Neutral
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormCategoryType('wasted')}
+                    className={`py-1.5 px-2 rounded-xl text-[11px] font-black transition cursor-pointer ${
+                      formCategoryType === 'wasted'
+                        ? 'bg-rose-600 text-white shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    🔴 Wasted
+                  </button>
                 </div>
               </div>
 
-              {/* Color Palette */}
+              {/* Color Presets */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
                   Color Tag
                 </label>
                 <div className="flex items-center gap-2 flex-wrap">
                   {PRESET_COLORS.map(c => (
                     <button
-                      type="button"
                       key={c}
+                      type="button"
                       onClick={() => setFormColor(c)}
-                      className="w-8 h-8 rounded-xl flex items-center justify-center transition-transform hover:scale-110 active:scale-95"
+                      className={`w-7 h-7 rounded-xl flex items-center justify-center transition cursor-pointer active:scale-90 ${
+                        formColor === c ? 'ring-2 ring-violet-600 ring-offset-2 scale-110' : 'hover:scale-105'
+                      }`}
                       style={{ backgroundColor: c }}
                     >
-                      {formColor === c && <Check className="w-4 h-4 text-white" />}
+                      {formColor === c && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Icon Picker */}
+              {/* Icon Presets */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
                   Icon
                 </label>
-                <div className="grid grid-cols-6 sm:grid-cols-8 gap-1.5 p-2 bg-slate-50 rounded-2xl border border-slate-200 max-h-36 overflow-y-auto">
-                  {Object.keys(ICON_MAP).map(iconKey => {
-                    const IconComp = ICON_MAP[iconKey]
-                    const isSelected = formIcon === iconKey
-                    return (
-                      <button
-                        type="button"
-                        key={iconKey}
-                        onClick={() => setFormIcon(iconKey)}
-                        className={`p-2 rounded-xl flex items-center justify-center transition ${
-                          isSelected
-                            ? 'bg-violet-600 text-white shadow-xs'
-                            : 'text-slate-600 hover:bg-white hover:text-slate-900'
-                        }`}
-                        title={iconKey}
-                      >
-                        <IconComp className="w-4 h-4" />
-                      </button>
-                    )
-                  })}
+                <div className="grid grid-cols-6 gap-1.5 p-2 bg-slate-50 rounded-2xl border border-slate-200">
+                  {PRESET_ICONS.map(ic => (
+                    <button
+                      key={ic}
+                      type="button"
+                      onClick={() => setFormIcon(ic)}
+                      className={`h-8 rounded-xl flex items-center justify-center transition cursor-pointer ${
+                        formIcon === ic
+                          ? 'bg-violet-600 text-white shadow-xs'
+                          : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200/80'
+                      }`}
+                    >
+                      {renderAppIcon(ic, 'w-3.5 h-3.5')}
+                    </button>
+                  ))}
                 </div>
               </div>
 
-              {/* Action Buttons */}
               <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition"
+                  className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition active:scale-95 cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-5 py-2 rounded-xl text-xs font-bold bg-violet-600 text-white hover:bg-violet-700 shadow-sm transition disabled:opacity-50"
+                  className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-black shadow-md shadow-violet-600/30 transition active:scale-95 disabled:opacity-50 cursor-pointer"
                 >
-                  {isSubmitting ? 'Saving...' : editingCategory ? 'Update' : 'Create'}
+                  {isSubmitting ? 'Saving...' : 'Save Category'}
                 </button>
               </div>
             </form>
@@ -603,24 +524,24 @@ export const CategoryManagement: React.FC = () => {
         </div>
       )}
 
-      {/* ── Modal: Seed Presets Confirmation ─────── */}
+      {/* ── MODAL: CONFIRM PRESETS ── */}
       {presetConfirmOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 anim-fade-in">
-          <div className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl border border-slate-200 space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm anim-fade-in">
+          <div className="bg-white rounded-3xl p-5 max-w-sm w-full shadow-2xl border border-slate-100 space-y-4 text-center">
             <div className="w-12 h-12 rounded-2xl bg-violet-100 text-violet-600 flex items-center justify-center mx-auto">
               <Sparkles className="w-6 h-6" />
             </div>
-            <div className="text-center">
-              <h3 className="text-base font-black text-slate-900">Load Preset Categories?</h3>
+            <div>
+              <h3 className="text-sm font-black text-slate-900">Load Preset Categories?</h3>
               <p className="text-xs text-slate-500 mt-1">
-                This will seed 6 standard parent categories (Work, Study, Health, Finance, Leisure, Distraction) along with rich sub-categories.
+                This will create standard categories (Coding, Fitness, Learning, Meetings, Entertainment) configured with proper value groups.
               </p>
             </div>
-            <div className="flex items-center gap-2 pt-2">
+            <div className="flex items-center justify-center gap-2 pt-1">
               <button
                 type="button"
                 onClick={() => setPresetConfirmOpen(false)}
-                className="flex-1 px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 transition"
+                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition cursor-pointer"
               >
                 Cancel
               </button>
@@ -628,7 +549,7 @@ export const CategoryManagement: React.FC = () => {
                 type="button"
                 disabled={isSubmitting}
                 onClick={handleSeedPresets}
-                className="flex-1 px-4 py-2.5 rounded-xl text-xs font-bold bg-violet-600 text-white hover:bg-violet-700 shadow-sm transition disabled:opacity-50"
+                className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-black shadow-md shadow-violet-600/30 transition cursor-pointer"
               >
                 {isSubmitting ? 'Loading...' : 'Load Presets'}
               </button>
@@ -639,3 +560,4 @@ export const CategoryManagement: React.FC = () => {
     </div>
   )
 }
+export default CategoryManagement

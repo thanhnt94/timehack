@@ -12,17 +12,17 @@ import { useAuthStore } from '../store/useAuthStore'
 import { sounds } from '../utils/soundEffects'
 
 const COMMON_TIMEZONES = [
-  { id: 'Asia/Ho_Chi_Minh', label: 'Việt Nam / TP.HCM', offset: 'UTC+7' },
-  { id: 'Asia/Bangkok', label: 'Bangkok, Thái Lan', offset: 'UTC+7' },
+  { id: 'Asia/Ho_Chi_Minh', label: 'Vietnam (HCMC / Hanoi)', offset: 'UTC+7' },
+  { id: 'Asia/Bangkok', label: 'Bangkok, Thailand', offset: 'UTC+7' },
   { id: 'Asia/Singapore', label: 'Singapore', offset: 'UTC+8' },
-  { id: 'Asia/Tokyo', label: 'Tokyo, Nhật Bản', offset: 'UTC+9' },
-  { id: 'Asia/Seoul', label: 'Seoul, Hàn Quốc', offset: 'UTC+9' },
-  { id: 'UTC', label: 'Giờ Quốc Tế Chuẩn (UTC)', offset: 'UTC+0' },
-  { id: 'Europe/London', label: 'London, Vương quốc Anh', offset: 'UTC+0' },
-  { id: 'Europe/Paris', label: 'Paris, Pháp / Tây Âu', offset: 'UTC+1' },
-  { id: 'America/New_York', label: 'New York / Bờ Đông Mỹ', offset: 'UTC-5' },
-  { id: 'America/Los_Angeles', label: 'Los Angeles / Bờ Tây Mỹ', offset: 'UTC-8' },
-  { id: 'Australia/Sydney', label: 'Sydney, Úc', offset: 'UTC+10' }
+  { id: 'Asia/Tokyo', label: 'Tokyo, Japan', offset: 'UTC+9' },
+  { id: 'Asia/Seoul', label: 'Seoul, South Korea', offset: 'UTC+9' },
+  { id: 'UTC', label: 'Coordinated Universal Time (UTC)', offset: 'UTC+0' },
+  { id: 'Europe/London', label: 'London, United Kingdom', offset: 'UTC+0' },
+  { id: 'Europe/Paris', label: 'Paris, France / Central Europe', offset: 'UTC+1' },
+  { id: 'America/New_York', label: 'New York / US Eastern', offset: 'UTC-5' },
+  { id: 'America/Los_Angeles', label: 'Los Angeles / US Pacific', offset: 'UTC-8' },
+  { id: 'Australia/Sydney', label: 'Sydney, Australia', offset: 'UTC+10' }
 ]
 
 export const SettingsHub: React.FC = () => {
@@ -56,7 +56,7 @@ export const SettingsHub: React.FC = () => {
         if (perm === 'granted') {
           sounds.playSuccess()
           new Notification('🔔 TimeHack Notifications', {
-            body: 'Thông báo trên trình duyệt đã được kích hoạt thành công!',
+            body: 'Browser push notifications have been activated successfully!',
             icon: '/favicon.ico'
           })
         }
@@ -71,7 +71,7 @@ export const SettingsHub: React.FC = () => {
     is_linked: false,
     telegram_chat_id: '',
     connect_token: '',
-    bot_username: 'InMindBot',
+    bot_username: 'inmind_auth_bot',
     is_active: true,
     // In-App Channels
     in_app_sound: true,
@@ -120,71 +120,110 @@ export const SettingsHub: React.FC = () => {
     }
   }
 
-  const loadUserSettings = async () => {
+  const loadPreferences = async () => {
     try {
       const res = await axios.get('/api/v1/user/settings')
-      if (res.data && res.data.settings) {
-        setUserSettings((prev: any) => ({ ...prev, ...res.data.settings }))
+      if (res.data) {
+        setUserSettings((prev: any) => ({ ...prev, ...res.data }))
       }
     } catch (e) {
-      console.error('Failed to load user settings', e)
+      // Fallback
     }
   }
 
   useEffect(() => {
-    loadTelegramConfig()
-    loadUserSettings()
-  }, [])
+    if (activeTab === 'notifications') {
+      loadTelegramConfig()
+    }
+    if (activeTab === 'preferences' || activeTab === 'account') {
+      loadPreferences()
+    }
+  }, [activeTab])
 
-  // Save Notification Config
-  const handleSaveTeleConfig = async (updatedFields: Partial<typeof teleConfig>) => {
+  // Save Telegram config
+  const handleSaveTeleConfig = async (patch: Partial<typeof teleConfig>) => {
     sounds.playTap()
-    const nextState = { ...teleConfig, ...updatedFields }
-    setTeleConfig(nextState)
+    const updated = { ...teleConfig, ...patch }
+    setTeleConfig(updated)
     try {
-      await axios.post('/api/v1/notifications/telegram/config', nextState)
+      await axios.put('/api/v1/notifications/telegram/config', patch)
       sounds.playSuccess()
     } catch (e) {
-      console.error('Failed to save notification config', e)
+      console.error('Failed to update telegram config', e)
     }
   }
 
-  // Send Test Telegram Notification
-  const handleSendTestMessage = async () => {
+  // Generate new Telegram connect token
+  const handleGenerateToken = async () => {
     sounds.playTap()
-    setTestSending(true)
-    setTestResult(null)
     try {
-      const res = await axios.post('/api/v1/notifications/telegram/test')
-      if (res.data?.sent) {
+      setTeleLoading(true)
+      const res = await axios.post('/api/v1/notifications/telegram/generate-token')
+      if (res.data?.token) {
+        setTeleConfig((prev: any) => ({ ...prev, connect_token: res.data.token }))
         sounds.playSuccess()
-        setTestResult('Đã gửi tin nhắn thử nghiệm thành công! Hãy kiểm tra Telegram của bạn.')
+      }
+    } catch (e) {
+      console.error('Failed to generate token', e)
+    } finally {
+      setTeleLoading(false)
+    }
+  }
+
+  // Copy token
+  const handleCopyToken = () => {
+    if (!teleConfig.connect_token) return
+    sounds.playTap()
+    navigator.clipboard.writeText(teleConfig.connect_token)
+    setCopiedToken(true)
+    setTimeout(() => setCopiedToken(false), 2000)
+  }
+
+  // Send test message
+  const handleSendTest = async () => {
+    sounds.playTap()
+    try {
+      setTestSending(true)
+      setTestResult(null)
+      const res = await axios.post('/api/v1/notifications/telegram/test')
+      if (res.data?.success) {
+        sounds.playSuccess()
+        setTestResult('success')
       } else {
-        setTestResult('Gửi tin nhắn thất bại. Vui lòng kiểm tra lại Bot Telegram.')
+        setTestResult(res.data?.detail || 'Failed to send test message')
       }
     } catch (e: any) {
-      setTestResult(e.response?.data?.detail || 'Lỗi gửi tin nhắn thử nghiệm.')
+      setTestResult(e.response?.data?.detail || 'Error connecting to Telegram server')
     } finally {
       setTestSending(false)
     }
   }
 
   // Save Preferences
-  const handleSavePreferences = async (updated: Partial<typeof userSettings>) => {
+  const handleSavePreferences = async (patch: Partial<typeof userSettings>) => {
     sounds.playTap()
-    const nextState = { ...userSettings, ...updated }
-    setUserSettings(nextState)
-    setPrefSaving(true)
+    const updated = { ...userSettings, ...patch }
+    setUserSettings(updated)
     try {
-      await axios.post('/api/v1/user/settings', nextState)
-      if (updated.timezone) {
-        await updateTimezone(updated.timezone)
-      }
+      setPrefSaving(true)
+      await axios.put('/api/v1/user/settings', patch)
       sounds.playSuccess()
     } catch (e) {
-      console.error('Failed to save user preferences', e)
+      console.error('Failed to save settings', e)
     } finally {
       setPrefSaving(false)
+    }
+  }
+
+  // Handle Timezone change
+  const handleTimezoneChange = async (tz: string) => {
+    sounds.playTap()
+    try {
+      await updateTimezone(tz)
+      setUserSettings((prev: any) => ({ ...prev, timezone: tz }))
+      sounds.playSuccess()
+    } catch (e) {
+      console.error('Failed to update timezone', e)
     }
   }
 
@@ -192,10 +231,10 @@ export const SettingsHub: React.FC = () => {
   const handleResetSampleData = async () => {
     sounds.playTap()
     try {
-      await axios.post('/api/v1/user/settings/reset-sample-data')
+      await axios.post('/api/v1/schedule/seed-samples')
       sounds.playSuccess()
       setResetConfirmOpen(false)
-      window.location.href = '/'
+      alert('Sample data has been restored successfully!')
     } catch (e) {
       console.error('Failed to reset sample data', e)
     }
@@ -203,22 +242,7 @@ export const SettingsHub: React.FC = () => {
 
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-[#F8FAFC]">
-      {/* ── 1. COMPACT TOP HEADER ── */}
-      <div className="shrink-0 bg-white border-b border-slate-200/80 px-4 py-2.5 z-10 shadow-2xs">
-        <div className="max-w-lg md:max-w-4xl mx-auto flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-xl bg-violet-600 text-white flex items-center justify-center shadow-xs">
-              <Settings className="w-3.5 h-3.5" />
-            </div>
-            <div>
-              <h1 className="text-xs font-black text-slate-900 tracking-tight">Cài Đặt Hệ Thống</h1>
-              <p className="text-[10px] text-slate-500 font-medium">Danh mục, Thông báo In-App / Telegram & Múi giờ</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ── 2. MAIN SCROLLABLE CONTENT BODY ── */}
+      {/* ── 1. MAIN SCROLLABLE CONTENT BODY (Zero duplicated header) ── */}
       <div className="flex-1 min-h-0 overflow-y-auto">
         {/* ── TAB 1: CATEGORIES & PROJECTS ── */}
         {activeTab === 'categories' && (
@@ -238,8 +262,8 @@ export const SettingsHub: React.FC = () => {
                     <Smartphone className="w-4 h-4" />
                   </div>
                   <div>
-                    <h2 className="text-xs font-black text-slate-900">1. Thông Báo Trong Ứng Dụng & Trình Duyệt</h2>
-                    <p className="text-[10px] text-slate-500 font-medium">Âm thanh, thông báo đẩy Web & cảnh báo tức thì</p>
+                    <h2 className="text-xs font-black text-slate-900">1. In-App & Browser Notifications</h2>
+                    <p className="text-[10px] text-slate-500 font-medium">Audio cues, Web push notifications & instant alerts</p>
                   </div>
                 </div>
                 <span className="px-2 py-0.5 rounded-lg bg-violet-50 text-violet-700 text-[10px] font-mono font-bold border border-violet-200">
@@ -252,10 +276,10 @@ export const SettingsHub: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <Laptop className="w-4 h-4 text-slate-600 shrink-0" />
                   <div>
-                    <div className="text-xs font-bold text-slate-800">Thông báo đẩy trên trình duyệt (Web Push)</div>
+                    <div className="text-xs font-bold text-slate-800">Browser Web Push Notifications</div>
                     <div className="text-[10px] text-slate-500">
-                      Trạng thái: <b className={browserNotifStatus === 'granted' ? 'text-emerald-600' : 'text-amber-600'}>
-                        {browserNotifStatus === 'granted' ? 'Đã kích hoạt' : 'Chưa bật'}
+                      Status: <b className={browserNotifStatus === 'granted' ? 'text-emerald-600' : 'text-amber-600'}>
+                        {browserNotifStatus === 'granted' ? 'Active' : 'Disabled'}
                       </b>
                     </div>
                   </div>
@@ -264,13 +288,13 @@ export const SettingsHub: React.FC = () => {
                 {browserNotifStatus !== 'granted' ? (
                   <button
                     onClick={requestBrowserPermission}
-                    className="px-3 py-1.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-xs shadow-xs active:scale-95 transition shrink-0"
+                    className="px-3 py-1.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-xs shadow-xs active:scale-95 transition shrink-0 cursor-pointer"
                   >
-                    Bật thông báo
+                    Enable Push
                   </button>
                 ) : (
                   <span className="px-2 py-1 rounded-xl bg-emerald-100 text-emerald-800 text-[10px] font-bold">
-                    ✓ Hoạt động
+                    ✓ Active
                   </span>
                 )}
               </div>
@@ -280,7 +304,7 @@ export const SettingsHub: React.FC = () => {
                 <label className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/70 border border-slate-200/70 cursor-pointer">
                   <div className="flex items-center gap-2 text-xs font-bold text-slate-800">
                     <Volume2 className="w-3.5 h-3.5 text-violet-600" />
-                    <span>Hiệu ứng âm thanh khi chuông reo & hoàn thành việc</span>
+                    <span>Sound effects on timer alerts & task completion</span>
                   </div>
                   <input
                     type="checkbox"
@@ -293,7 +317,7 @@ export const SettingsHub: React.FC = () => {
                 <label className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/70 border border-slate-200/70 cursor-pointer">
                   <div className="flex items-center gap-2 text-xs font-bold text-slate-800">
                     <Target className="w-3.5 h-3.5 text-rose-600" />
-                    <span>Cảnh báo khi nhiệm vụ sắp đến hạn chót (Deadline warning)</span>
+                    <span>Task deadline approach warnings</span>
                   </div>
                   <input
                     type="checkbox"
@@ -313,8 +337,8 @@ export const SettingsHub: React.FC = () => {
                     <Send className="w-4 h-4" />
                   </div>
                   <div>
-                    <h2 className="text-xs font-black text-slate-900">2. Thông Báo & Tự Động Hóa Telegram</h2>
-                    <p className="text-[10px] text-slate-500 font-medium">Báo cáo sáng/tối, nhắc nhở ghi chép & lịch trình</p>
+                    <h2 className="text-xs font-black text-slate-900">2. CentralAuth Telegram Bot</h2>
+                    <p className="text-[10px] text-slate-500 font-medium">Daily briefings, schedule alerts & streak protection</p>
                   </div>
                 </div>
 
@@ -324,447 +348,330 @@ export const SettingsHub: React.FC = () => {
                     : 'bg-amber-50 text-amber-800 border-amber-300'
                 }`}>
                   <span className={`w-1.5 h-1.5 rounded-full ${teleConfig.is_linked ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-                  {teleConfig.is_linked ? 'Đã liên kết' : 'Chưa liên kết'}
+                  {teleConfig.is_linked ? 'Connected' : 'Not Connected'}
                 </span>
               </div>
 
-              {teleConfig.is_linked ? (
-                <div className="bg-slate-50 rounded-2xl p-3.5 border border-slate-200/80 space-y-2">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-semibold text-slate-500">Telegram Chat ID:</span>
-                    <span className="font-mono font-bold text-slate-900">{teleConfig.telegram_chat_id}</span>
+              {/* Bot Connection Box */}
+              {!teleConfig.is_linked ? (
+                <div className="p-4 bg-gradient-to-br from-sky-50 to-indigo-50 rounded-2xl border border-sky-200 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Radio className="w-4 h-4 text-sky-600 animate-pulse" />
+                    <span className="text-xs font-black text-slate-900">Connect to @inmind_auth_bot</span>
                   </div>
 
-                  <div className="flex items-center gap-2 pt-2 border-t border-slate-200/80">
-                    <button
-                      onClick={handleSendTestMessage}
-                      disabled={testSending}
-                      className="flex-1 py-2 px-3 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs active:scale-95 transition"
-                    >
-                      <Sparkles className="w-3.5 h-3.5" />
-                      <span>{testSending ? 'Đang gửi...' : 'Gửi thử tin nhắn Telegram'}</span>
-                    </button>
-
-                    <button
-                      onClick={() => handleSaveTeleConfig({ unlink: true })}
-                      className="py-2 px-3 rounded-xl bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 font-bold text-xs active:scale-95 transition"
-                    >
-                      Hủy liên kết
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="bg-sky-50/60 rounded-2xl p-3.5 border border-sky-200/80 space-y-3">
-                  <p className="text-xs text-slate-700 font-medium leading-relaxed">
-                    Để kết nối, mở Bot Telegram <b>@{teleConfig.bot_username || 'InMindBot'}</b> và gửi mã:
+                  <p className="text-[11px] text-slate-600 font-medium leading-relaxed">
+                    Link your account with our ecosystem Telegram Bot to receive smart daily schedules, habit check-ins, and reminders across all InMind apps.
                   </p>
 
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 px-3 py-2 bg-white rounded-xl border border-sky-200 font-mono text-xs font-bold text-slate-900 tracking-wider text-center">
-                      /start {teleConfig.connect_token}
-                    </div>
-                    <button
-                      onClick={() => {
-                        sounds.playTap()
-                        navigator.clipboard.writeText(`/start ${teleConfig.connect_token}`)
-                        setCopiedToken(true)
-                        setTimeout(() => setCopiedToken(false), 2000)
-                      }}
-                      className="px-3 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs flex items-center gap-1 shadow-xs active:scale-95 transition"
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <a
+                      href={`https://t.me/${teleConfig.bot_username || 'inmind_auth_bot'}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm shadow-sky-600/30 transition active:scale-95"
                     >
-                      {copiedToken ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                      <span>{copiedToken ? 'Đã copy' : 'Copy'}</span>
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      <span>Open Telegram Bot</span>
+                    </a>
+
+                    <button
+                      onClick={handleGenerateToken}
+                      className="px-3 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-bold text-xs transition active:scale-95 cursor-pointer"
+                    >
+                      Get Link Code
                     </button>
                   </div>
 
-                  <a
-                    href={`https://t.me/${teleConfig.bot_username || 'InMindBot'}?start=${teleConfig.connect_token}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs transition"
-                  >
-                    <span>Mở Telegram Bot ngay</span>
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </a>
-                </div>
-              )}
-
-              {testResult && (
-                <div className="p-3 rounded-2xl bg-slate-100 text-xs font-semibold text-slate-800 border border-slate-200 anim-fade-in flex items-start gap-2">
-                  <Sparkles className="w-4 h-4 text-violet-600 shrink-0 mt-0.5" />
-                  <span>{testResult}</span>
-                </div>
-              )}
-
-              {/* ── Telegram Automations ── */}
-              <div className="space-y-3 pt-2">
-                {/* 1. Morning Briefing */}
-                <div className="p-3.5 bg-slate-50/90 rounded-2xl border border-slate-200/80 space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center">
-                        <Sun className="w-3.5 h-3.5" />
-                      </div>
-                      <div>
-                        <h4 className="text-xs font-black text-slate-900">Báo Cáo Tổng Quan Buổi Sáng</h4>
-                        <p className="text-[10px] text-slate-400">Gửi danh sách kế hoạch, thói quen & deadline hôm nay</p>
-                      </div>
-                    </div>
-
-                    <input
-                      type="checkbox"
-                      checked={!!teleConfig.morning_briefing_enabled}
-                      onChange={e => handleSaveTeleConfig({ morning_briefing_enabled: e.target.checked })}
-                      className="w-4 h-4 accent-violet-600 rounded cursor-pointer"
-                    />
-                  </div>
-
-                  {teleConfig.morning_briefing_enabled && (
-                    <div className="p-2.5 bg-white rounded-xl border border-slate-200 flex items-center justify-between anim-fade-in">
-                      <span className="text-xs font-bold text-slate-700">Giờ gửi báo cáo sáng:</span>
-                      <input
-                        type="time"
-                        value={teleConfig.morning_briefing_time || '07:30'}
-                        onChange={e => handleSaveTeleConfig({ morning_briefing_time: e.target.value })}
-                        className="px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-200 text-xs font-mono font-black text-slate-800 outline-none focus:border-violet-500"
-                      />
-                    </div>
-                  )}
-                </div>
-
-                {/* 2. Evening Reflection */}
-                <div className="p-3.5 bg-slate-50/90 rounded-2xl border border-slate-200/80 space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center">
-                        <Moon className="w-3.5 h-3.5" />
-                      </div>
-                      <div>
-                        <h4 className="text-xs font-black text-slate-900">Tổng Kết & Đánh Giá Cuối Ngày</h4>
-                        <p className="text-[10px] text-slate-400">Nhắc check-in thói quen chưa xong & lên lịch ngày mai</p>
-                      </div>
-                    </div>
-
-                    <input
-                      type="checkbox"
-                      checked={!!teleConfig.evening_reflection_enabled}
-                      onChange={e => handleSaveTeleConfig({ evening_reflection_enabled: e.target.checked })}
-                      className="w-4 h-4 accent-violet-600 rounded cursor-pointer"
-                    />
-                  </div>
-
-                  {teleConfig.evening_reflection_enabled && (
-                    <div className="p-2.5 bg-white rounded-xl border border-slate-200 flex items-center justify-between anim-fade-in">
-                      <span className="text-xs font-bold text-slate-700">Giờ gửi tổng kết tối:</span>
-                      <input
-                        type="time"
-                        value={teleConfig.evening_reflection_time || '21:30'}
-                        onChange={e => handleSaveTeleConfig({ evening_reflection_time: e.target.value })}
-                        className="px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-200 text-xs font-mono font-black text-slate-800 outline-none focus:border-violet-500"
-                      />
-                    </div>
-                  )}
-                </div>
-
-                {/* 3. Inactivity Reminder */}
-                <div className="p-3.5 bg-slate-50/90 rounded-2xl border border-slate-200/80 space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center">
-                        <Clock className="w-3.5 h-3.5" />
-                      </div>
-                      <div>
-                        <h4 className="text-xs font-black text-slate-900">Nhắc Nhở Ghi Nhận Thời Gian</h4>
-                        <p className="text-[10px] text-slate-400">Bot gửi nhắc nếu lâu chưa kích hoạt Focus hoặc Log</p>
-                      </div>
-                    </div>
-
-                    <input
-                      type="checkbox"
-                      checked={!!teleConfig.inactivity_reminder_enabled}
-                      onChange={e => handleSaveTeleConfig({ inactivity_reminder_enabled: e.target.checked })}
-                      className="w-4 h-4 accent-violet-600 rounded cursor-pointer"
-                    />
-                  </div>
-
-                  {teleConfig.inactivity_reminder_enabled && (
-                    <div className="p-2.5 bg-white rounded-xl border border-slate-200 flex items-center justify-between anim-fade-in">
-                      <span className="text-xs font-bold text-slate-700">Nhắc sau khoảng không hoạt động:</span>
-                      <select
-                        value={teleConfig.inactivity_reminder_interval_hours || 2}
-                        onChange={e => handleSaveTeleConfig({ inactivity_reminder_interval_hours: Number(e.target.value) })}
-                        className="px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 outline-none focus:border-violet-500"
+                  {teleConfig.connect_token && (
+                    <div className="p-2.5 bg-white rounded-xl border border-slate-200 flex items-center justify-between gap-2 font-mono text-xs">
+                      <span className="font-bold text-slate-800">/link {teleConfig.connect_token}</span>
+                      <button
+                        onClick={handleCopyToken}
+                        className="px-2 py-1 bg-slate-100 hover:bg-slate-200 rounded-lg text-[10px] font-bold text-slate-700 flex items-center gap-1 cursor-pointer"
                       >
-                        <option value={1}>Sau 1 giờ</option>
-                        <option value={2}>Sau 2 giờ</option>
-                        <option value={3}>Sau 3 giờ</option>
-                        <option value={4}>Sau 4 giờ</option>
-                      </select>
+                        {copiedToken ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                        <span>{copiedToken ? 'Copied' : 'Copy'}</span>
+                      </button>
                     </div>
                   )}
                 </div>
+              ) : (
+                <div className="p-3 bg-emerald-50/60 rounded-2xl border border-emerald-200 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <div>
+                      <div className="text-xs font-bold text-emerald-950">Telegram Connected via CentralAuth</div>
+                      <div className="text-[10px] text-emerald-700 font-mono">
+                        Chat ID: {teleConfig.telegram_chat_id || 'Active'}
+                      </div>
+                    </div>
+                  </div>
 
-                {/* 4. Instant Alerts */}
-                <div className="space-y-2">
-                  <label className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/80 border border-slate-200/70 cursor-pointer">
-                    <div className="flex items-center gap-2 text-xs font-bold text-slate-800">
-                      <Target className="w-3.5 h-3.5 text-rose-600" />
-                      <span>Gửi thông báo Telegram khi đến hạn nhiệm vụ</span>
+                  <button
+                    onClick={handleSendTest}
+                    disabled={testSending}
+                    className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition active:scale-95 disabled:opacity-50 cursor-pointer"
+                  >
+                    {testSending ? 'Sending...' : 'Send Test'}
+                  </button>
+                </div>
+              )}
+
+              {/* Automation Toggles */}
+              <div className="space-y-2 pt-1">
+                <div className="text-[10px] font-black uppercase tracking-wider text-slate-400 font-mono">
+                  Automated Digest Schedules
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="p-3 bg-slate-50/80 rounded-2xl border border-slate-200/80 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-800">🌅 Morning Briefing</span>
+                      <input
+                        type="checkbox"
+                        checked={teleConfig.morning_briefing_enabled !== false}
+                        onChange={e => handleSaveTeleConfig({ morning_briefing_enabled: e.target.checked })}
+                        className="w-4 h-4 accent-violet-600 rounded cursor-pointer"
+                      />
                     </div>
                     <input
-                      type="checkbox"
-                      checked={!!teleConfig.notify_task_deadline}
-                      onChange={e => handleSaveTeleConfig({ notify_task_deadline: e.target.checked })}
-                      className="w-4 h-4 accent-violet-600 rounded"
+                      type="time"
+                      value={teleConfig.morning_briefing_time || '07:30'}
+                      onChange={e => handleSaveTeleConfig({ morning_briefing_time: e.target.value })}
+                      className="w-full px-2.5 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-mono font-bold text-slate-900 outline-none focus:border-violet-500 transition"
                     />
-                  </label>
+                  </div>
 
-                  <label className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/80 border border-slate-200/70 cursor-pointer">
-                    <div className="flex items-center gap-2 text-xs font-bold text-slate-800">
-                      <Zap className="w-3.5 h-3.5 text-emerald-600" />
-                      <span>Gửi thông báo Telegram theo giờ thói quen</span>
+                  <div className="p-3 bg-slate-50/80 rounded-2xl border border-slate-200/80 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-800">🌙 Evening Reflection</span>
+                      <input
+                        type="checkbox"
+                        checked={teleConfig.evening_reflection_enabled !== false}
+                        onChange={e => handleSaveTeleConfig({ evening_reflection_enabled: e.target.checked })}
+                        className="w-4 h-4 accent-violet-600 rounded cursor-pointer"
+                      />
                     </div>
                     <input
-                      type="checkbox"
-                      checked={!!teleConfig.notify_habit_reminder}
-                      onChange={e => handleSaveTeleConfig({ notify_habit_reminder: e.target.checked })}
-                      className="w-4 h-4 accent-violet-600 rounded"
+                      type="time"
+                      value={teleConfig.evening_reflection_time || '21:30'}
+                      onChange={e => handleSaveTeleConfig({ evening_reflection_time: e.target.value })}
+                      className="w-full px-2.5 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-mono font-bold text-slate-900 outline-none focus:border-violet-500 transition"
                     />
-                  </label>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* ── TAB 3: WORK & PREFERENCES ── */}
+        {/* ── TAB 3: PREFERENCES (POMODORO, THEMES, TIMEZONE) ── */}
         {activeTab === 'preferences' && (
           <div className="max-w-lg md:max-w-3xl mx-auto p-3 sm:p-4 space-y-4 pb-20 animate-in fade-in duration-150">
-            {/* Timezone Selector Card */}
-            <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200/90 shadow-2xs space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-violet-50 text-violet-700 flex items-center justify-center">
-                    <Globe className="w-4 h-4" />
+            {/* Pomodoro Timer Configuration */}
+            <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200/90 shadow-2xs space-y-3.5">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shadow-2xs">
+                    <Flame className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="text-xs font-black text-slate-900">Múi Giờ Người Dùng</h3>
-                    <p className="text-[10px] text-slate-400">Đồng bộ lịch trình chuẩn xác theo vùng</p>
+                    <h2 className="text-xs font-black text-slate-900">Pomodoro Focus Timer Settings</h2>
+                    <p className="text-[10px] text-slate-500 font-medium">Customize your focus cycles and interval breaks</p>
                   </div>
-                </div>
-
-                <button
-                  onClick={() => {
-                    try {
-                      const detected = Intl.DateTimeFormat().resolvedOptions().timeZone
-                      if (detected) handleSavePreferences({ timezone: detected })
-                    } catch {
-                      handleSavePreferences({ timezone: 'Asia/Ho_Chi_Minh' })
-                    }
-                  }}
-                  className="px-2.5 py-1 rounded-xl bg-violet-50 border border-violet-200 text-violet-700 text-[10px] font-bold hover:bg-violet-600 hover:text-white transition active:scale-95"
-                >
-                  Tự phát hiện
-                </button>
-              </div>
-
-              <select
-                value={userSettings.timezone || 'Asia/Ho_Chi_Minh'}
-                onChange={e => handleSavePreferences({ timezone: e.target.value })}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 outline-none focus:border-violet-500 focus:bg-white transition"
-              >
-                {COMMON_TIMEZONES.map(tz => (
-                  <option key={tz.id} value={tz.id}>{tz.label} ({tz.offset})</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Pomodoro Duration Defaults */}
-            <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200/90 shadow-2xs space-y-3">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                  <Clock className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="text-xs font-black text-slate-900">Thông Số Pomodoro & Focus</h3>
-                  <p className="text-[10px] text-slate-400">Thời lượng mặc định khi kích hoạt đồng hồ tập trung</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-3 gap-2">
                 <div>
-                  <label className="text-[10px] font-bold text-slate-500 block mb-1">Tập trung (phút)</label>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
+                    Work (mins)
+                  </label>
                   <input
                     type="number"
-                    min="5"
-                    max="180"
+                    min="1"
+                    max="120"
                     value={userSettings.work_duration || 25}
-                    onChange={e => handleSavePreferences({ work_duration: Number(e.target.value) || 25 })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono font-black text-slate-900 text-center outline-none focus:border-violet-500"
+                    onChange={e => handleSavePreferences({ work_duration: Number(e.target.value) })}
+                    className="w-full px-2.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-900 text-center outline-none focus:border-violet-500 focus:bg-white transition"
                   />
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-bold text-slate-500 block mb-1">Nghỉ ngắn (phút)</label>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
+                    Short Break
+                  </label>
                   <input
                     type="number"
                     min="1"
                     max="30"
                     value={userSettings.short_break || 5}
-                    onChange={e => handleSavePreferences({ short_break: Number(e.target.value) || 5 })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono font-black text-slate-900 text-center outline-none focus:border-violet-500"
+                    onChange={e => handleSavePreferences({ short_break: Number(e.target.value) })}
+                    className="w-full px-2.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-900 text-center outline-none focus:border-violet-500 focus:bg-white transition"
                   />
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-bold text-slate-500 block mb-1">Nghỉ dài (phút)</label>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
+                    Long Break
+                  </label>
                   <input
                     type="number"
-                    min="5"
+                    min="1"
                     max="60"
                     value={userSettings.long_break || 15}
-                    onChange={e => handleSavePreferences({ long_break: Number(e.target.value) || 15 })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono font-black text-slate-900 text-center outline-none focus:border-violet-500"
+                    onChange={e => handleSavePreferences({ long_break: Number(e.target.value) })}
+                    className="w-full px-2.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-900 text-center outline-none focus:border-violet-500 focus:bg-white transition"
                   />
                 </div>
               </div>
             </div>
 
-            {/* Reset Sample Data Button */}
+            {/* Timezone Configuration */}
+            <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200/90 shadow-2xs space-y-3.5">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-2xl bg-violet-50 text-violet-700 flex items-center justify-center shadow-2xs">
+                    <Globe className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h2 className="text-xs font-black text-slate-900">Timezone & Localization</h2>
+                    <p className="text-[10px] text-slate-500 font-medium">Controls daily rollover and reminder scheduling</p>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <select
+                  value={user?.timezone || userSettings.timezone || 'Asia/Ho_Chi_Minh'}
+                  onChange={e => handleTimezoneChange(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 outline-none focus:border-violet-500 focus:bg-white transition"
+                >
+                  {COMMON_TIMEZONES.map(tz => (
+                    <option key={tz.id} value={tz.id}>
+                      {tz.label} ({tz.offset})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Reset / Sample Data */}
             <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200/90 shadow-2xs space-y-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-xs font-black text-slate-900">Khởi Tạo Dữ Liệu Mẫu</h3>
-                  <p className="text-[10px] text-slate-400">Làm sạch dữ liệu thử nghiệm và nạp bộ demo chuẩn</p>
+                  <h3 className="text-xs font-bold text-slate-900">Restore Sample Data</h3>
+                  <p className="text-[10px] text-slate-500">Seed sample daily schedules, tasks, and habit tracking routines</p>
                 </div>
 
                 <button
-                  onClick={() => setResetConfirmOpen(true)}
-                  className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-700 text-xs font-bold transition active:scale-95 border border-slate-200"
+                  onClick={() => handleResetSampleData()}
+                  className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition active:scale-95 cursor-pointer"
                 >
-                  Reset Demo Data
+                  Seed Samples
                 </button>
               </div>
-
-              {resetConfirmOpen && (
-                <div className="p-3 bg-rose-50 rounded-2xl border border-rose-200 text-xs space-y-2 anim-fade-in">
-                  <p className="font-bold text-rose-800">
-                    ⚠️ Thao tác này sẽ đặt lại dữ liệu lịch trình, thói quen và danh mục về trạng thái mẫu. Bạn có chắc chắn không?
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={handleResetSampleData}
-                      className="px-3 py-1.5 rounded-xl bg-rose-600 text-white font-bold text-xs active:scale-95"
-                    >
-                      Xác nhận Reset
-                    </button>
-                    <button
-                      onClick={() => setResetConfirmOpen(false)}
-                      className="px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-slate-700 font-bold text-xs"
-                    >
-                      Hủy
-                    </button>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         )}
 
-        {/* ── TAB 4: ACCOUNT & PROFILE ── */}
+        {/* ── TAB 4: ACCOUNT PROFILE ── */}
         {activeTab === 'account' && (
           <div className="max-w-lg md:max-w-3xl mx-auto p-3 sm:p-4 space-y-4 pb-20 animate-in fade-in duration-150">
-            <div className="bg-white rounded-3xl p-6 border border-slate-200/90 shadow-2xs text-center space-y-4">
-              <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-violet-600 via-indigo-600 to-purple-700 text-white font-black text-2xl shadow-md shadow-violet-600/30 flex items-center justify-center mx-auto border-2 border-white ring-2 ring-violet-200">
+            <div className="bg-white rounded-3xl p-5 border border-slate-200/90 shadow-2xs space-y-4 text-center">
+              <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-violet-600 via-indigo-600 to-purple-700 text-white font-black text-2xl mx-auto flex items-center justify-center shadow-lg shadow-violet-600/30 border-2 border-white">
                 {user?.full_name?.charAt(0) || user?.username?.charAt(0) || 'U'}
               </div>
 
               <div>
-                <h2 className="text-base font-black text-slate-900">{user?.full_name || user?.username || 'User'}</h2>
-                <p className="text-xs text-slate-500 font-medium mt-0.5">{user?.email || 'TimeHack Account'}</p>
+                <h3 className="text-base font-black text-slate-900">
+                  {user?.full_name || user?.username || 'User Profile'}
+                </h3>
+                <p className="text-xs font-mono text-slate-400 mt-0.5">
+                  @{user?.username} • {user?.email || 'SSO Account'}
+                </p>
               </div>
 
               <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200/80 text-left space-y-2 text-xs">
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-500 font-medium">Username:</span>
-                  <span className="font-bold text-slate-900">{user?.username}</span>
+                  <span className="text-slate-500 font-medium">CentralAuth SSO Status:</span>
+                  <span className="font-bold text-emerald-600 flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Connected
+                  </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-500 font-medium">Hệ thống xác thực:</span>
-                  <span className="font-bold text-violet-700">CentralAuth SSO</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-500 font-medium">Vai trò (Role):</span>
-                  <span className="font-bold text-slate-900 uppercase">{user?.role || 'Member'}</span>
+                  <span className="text-slate-500 font-medium">Timezone:</span>
+                  <span className="font-bold text-slate-800 font-mono">{user?.timezone || 'Asia/Ho_Chi_Minh'}</span>
                 </div>
               </div>
 
               <button
                 onClick={() => { sounds.playTap(); logout() }}
-                className="w-full py-3 rounded-2xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs flex items-center justify-center gap-2 active:scale-95 transition"
+                className="w-full py-3 rounded-2xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs flex items-center justify-center gap-2 active:scale-95 transition cursor-pointer"
               >
                 <LogOut className="w-4 h-4" />
-                <span>Đăng xuất tài khoản</span>
+                <span>Log Out Account</span>
               </button>
             </div>
           </div>
         )}
       </div>
 
-      {/* ── 3. FIXED BOTTOM DOCKED SEGMENTED SWITCHER (1-Hand Reachability) ── */}
+      {/* ── 2. FIXED BOTTOM DOCKED SEGMENTED SWITCHER (1-Hand Reachability) ── */}
       <div className="shrink-0 bg-white/95 backdrop-blur-md border-t border-slate-200/80 px-2 sm:px-3 py-1.5 z-20 shadow-[0_-4px_16px_rgba(0,0,0,0.04)]">
         <div className="max-w-lg md:max-w-3xl mx-auto">
           <div className="grid grid-cols-4 p-1 bg-slate-100/90 rounded-2xl border border-slate-200/60 shadow-2xs gap-1">
             {/* Tab 1: Categories */}
             <button
               onClick={() => handleTabChange('categories')}
-              className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl font-bold text-xs transition-all active:scale-95 ${
+              className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl font-bold text-xs transition-all active:scale-95 cursor-pointer ${
                 activeTab === 'categories'
                   ? 'bg-white text-violet-700 shadow-xs border border-slate-200/80 font-black'
                   : 'text-slate-600 hover:text-slate-900 border border-transparent'
               }`}
             >
               <FolderTree className="w-3.5 h-3.5 shrink-0" />
-              <span className="truncate">Danh mục</span>
+              <span className="truncate">Categories</span>
             </button>
 
             {/* Tab 2: Notifications */}
             <button
               onClick={() => handleTabChange('notifications')}
-              className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl font-bold text-xs transition-all active:scale-95 ${
+              className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl font-bold text-xs transition-all active:scale-95 cursor-pointer ${
                 activeTab === 'notifications'
                   ? 'bg-white text-sky-700 shadow-xs border border-slate-200/80 font-black'
                   : 'text-slate-600 hover:text-slate-900 border border-transparent'
               }`}
             >
               <Bell className="w-3.5 h-3.5 shrink-0 text-sky-600" />
-              <span className="truncate">Thông báo</span>
+              <span className="truncate">Notifications</span>
             </button>
 
             {/* Tab 3: Preferences */}
             <button
               onClick={() => handleTabChange('preferences')}
-              className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl font-bold text-xs transition-all active:scale-95 ${
+              className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl font-bold text-xs transition-all active:scale-95 cursor-pointer ${
                 activeTab === 'preferences'
                   ? 'bg-white text-emerald-700 shadow-xs border border-slate-200/80 font-black'
                   : 'text-slate-600 hover:text-slate-900 border border-transparent'
               }`}
             >
               <Clock className="w-3.5 h-3.5 shrink-0 text-emerald-600" />
-              <span className="truncate">Tùy chỉnh</span>
+              <span className="truncate">Preferences</span>
             </button>
 
             {/* Tab 4: Account */}
             <button
               onClick={() => handleTabChange('account')}
-              className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl font-bold text-xs transition-all active:scale-95 ${
+              className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl font-bold text-xs transition-all active:scale-95 cursor-pointer ${
                 activeTab === 'account'
                   ? 'bg-white text-slate-900 shadow-xs border border-slate-200/80 font-black'
                   : 'text-slate-600 hover:text-slate-900 border border-transparent'
               }`}
             >
               <User className="w-3.5 h-3.5 shrink-0" />
-              <span className="truncate">Hồ sơ</span>
+              <span className="truncate">Profile</span>
             </button>
           </div>
         </div>

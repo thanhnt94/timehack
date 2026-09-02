@@ -21,6 +21,7 @@ type BlockFilter = 'all' | 'plan' | 'habit' | 'deadline'
 const START_HOUR = 6
 const END_HOUR = 23
 const HOUR_HEIGHT = 64 // pixels per hour block
+const TIMELINE_HOURS = END_HOUR - START_HOUR + 1
 
 interface CombinedBlockItem {
   type: 'slot' | 'habit' | 'deadline'
@@ -39,8 +40,9 @@ interface CombinedBlockItem {
 }
 
 interface DraggingState {
+  itemType: 'slot' | 'habit' | 'deadline'
   type: 'move' | 'resize'
-  slotId: number
+  itemId: number
   initialY: number
   initialStartMins: number
   initialEndMins: number
@@ -52,8 +54,8 @@ export const TimeBlockingSchedule: React.FC = () => {
   const { slots, selectedDate, setSelectedDate, fetchSlots, createSlot, updateSlot, toggleSlotDone, deleteSlot } = useScheduleStore()
   const { createLog } = useTimeLogStore()
   const { startTimer } = useTimerStore()
-  const { categories, tasks, fetchTasks, fetchCategories, toggleTaskStatus } = useTaskStore()
-  const { habits, fetchHabits, checkinHabit } = useHabitStore()
+  const { categories, tasks, fetchTasks, fetchCategories, toggleTaskStatus, updateTask } = useTaskStore()
+  const { habits, fetchHabits, checkinHabit, updateHabit } = useHabitStore()
 
   // 1. Primary View Mode Switcher: Timeline vs Blocks
   const [viewMode, setViewMode] = useState<ViewMode>('timeline')
@@ -393,7 +395,7 @@ export const TimeBlockingSchedule: React.FC = () => {
     }
   }
 
-  // Pointer event handlers for Drag & Move / Resize
+  // Pointer event handlers for Drag & Move / Resize for Slots, Habits, and Deadlines
   const handleStartMove = (e: React.PointerEvent, slot: ScheduleSlot) => {
     if ((e.target as HTMLElement).closest('button') || (e.target as HTMLElement).closest('.group\\/resize')) {
       return
@@ -406,8 +408,9 @@ export const TimeBlockingSchedule: React.FC = () => {
     }
 
     setDraggingSlot({
+      itemType: 'slot',
       type: 'move',
-      slotId: slot.id,
+      itemId: slot.id,
       initialY: e.clientY,
       initialStartMins: startMins,
       initialEndMins: endMins,
@@ -426,13 +429,60 @@ export const TimeBlockingSchedule: React.FC = () => {
     }
 
     setDraggingSlot({
+      itemType: 'slot',
       type: 'resize',
-      slotId: slot.id,
+      itemId: slot.id,
       initialY: e.clientY,
       initialStartMins: startMins,
       initialEndMins: endMins,
       currentStartMins: startMins,
       currentEndMins: endMins
+    })
+  }
+
+  const handleStartHabitMove = (e: React.PointerEvent, habit: Habit) => {
+    if ((e.target as HTMLElement).closest('button')) {
+      return
+    }
+    e.currentTarget.setPointerCapture(e.pointerId)
+    const reminderMins = timeToMinutes(habit.reminder_time || '08:00')
+
+    setDraggingSlot({
+      itemType: 'habit',
+      type: 'move',
+      itemId: habit.id,
+      initialY: e.clientY,
+      initialStartMins: reminderMins,
+      initialEndMins: reminderMins + 30,
+      currentStartMins: reminderMins,
+      currentEndMins: reminderMins + 30
+    })
+  }
+
+  const handleStartDeadlineMove = (e: React.PointerEvent, task: Task) => {
+    if ((e.target as HTMLElement).closest('button')) {
+      return
+    }
+    e.currentTarget.setPointerCapture(e.pointerId)
+    let dueTime = '18:00'
+    if (task.due_date && task.due_date.includes(' ')) {
+      const timePart = task.due_date.split(' ')[1]?.slice(0, 5)
+      if (timePart) dueTime = timePart
+    } else if (task.due_date && task.due_date.includes('T')) {
+      const timePart = task.due_date.split('T')[1]?.slice(0, 5)
+      if (timePart) dueTime = timePart
+    }
+    const dueMins = timeToMinutes(dueTime)
+
+    setDraggingSlot({
+      itemType: 'deadline',
+      type: 'move',
+      itemId: task.id,
+      initialY: e.clientY,
+      initialStartMins: dueMins,
+      initialEndMins: dueMins + 30,
+      currentStartMins: dueMins,
+      currentEndMins: dueMins + 30
     })
   }
 
@@ -471,16 +521,27 @@ export const TimeBlockingSchedule: React.FC = () => {
 
     const handlePointerUp = async () => {
       if (!draggingSlot) return
-      const { slotId, currentStartMins, currentEndMins, initialStartMins, initialEndMins } = draggingSlot
+      const { itemType, itemId, currentStartMins, currentEndMins, initialStartMins, initialEndMins } = draggingSlot
 
       if (currentStartMins !== initialStartMins || currentEndMins !== initialEndMins) {
         const startStr = minutesToTimeStr(currentStartMins)
         const endStr = currentEndMins === 24 * 60 ? '23:59' : minutesToTimeStr(currentEndMins)
         sounds.playSuccess()
-        await updateSlot(slotId, {
-          start_time: startStr,
-          end_time: endStr
-        })
+
+        if (itemType === 'slot') {
+          await updateSlot(itemId, {
+            start_time: startStr,
+            end_time: endStr
+          })
+        } else if (itemType === 'habit') {
+          await updateHabit(itemId, {
+            reminder_time: startStr
+          })
+        } else if (itemType === 'deadline') {
+          await updateTask(itemId, {
+            due_date: `${selectedDate} ${startStr}:00`
+          })
+        }
       }
       setDraggingSlot(null)
     }
@@ -491,7 +552,7 @@ export const TimeBlockingSchedule: React.FC = () => {
       window.removeEventListener('pointermove', handlePointerMove)
       window.removeEventListener('pointerup', handlePointerUp)
     }
-  }, [draggingSlot])
+  }, [draggingSlot, selectedDate])
 
   // Handlers
   const handleCreatePlan = async (e: React.FormEvent) => {
@@ -992,11 +1053,10 @@ export const TimeBlockingSchedule: React.FC = () => {
                           {!isDone && (
                             <button
                               onClick={() => handleStartTaskFocus(task)}
-                              className="h-7 px-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold flex items-center gap-1 shadow-2xs active:scale-95 transition cursor-pointer"
-                              title="Start focus on this task"
+                              className="h-7 w-7 rounded-xl bg-rose-600 hover:bg-rose-700 text-white flex items-center justify-center shrink-0 shadow-2xs active:scale-95 transition cursor-pointer"
+                              title="Start focus timer"
                             >
-                              <Play className="w-2.5 h-2.5 fill-current" />
-                              <span>Focus</span>
+                              <Play className="w-2.5 h-2.5 fill-current ml-0.5" />
                             </button>
                           )}
                         </div>
@@ -1140,11 +1200,10 @@ export const TimeBlockingSchedule: React.FC = () => {
                           {!isDone && (
                             <button
                               onClick={() => handleStartSlotFocus(slot)}
-                              className="h-7 px-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-[11px] font-bold flex items-center gap-1 shadow-2xs active:scale-95 transition cursor-pointer"
+                              className="h-7 w-7 rounded-xl bg-violet-600 hover:bg-violet-700 text-white flex items-center justify-center shrink-0 shadow-2xs active:scale-95 transition cursor-pointer"
                               title="Start focus timer"
                             >
-                              <Play className="w-2.5 h-2.5 fill-current" />
-                              <span>Focus</span>
+                              <Play className="w-2.5 h-2.5 fill-current ml-0.5" />
                             </button>
                           )}
                           <button
@@ -1178,25 +1237,39 @@ export const TimeBlockingSchedule: React.FC = () => {
       {/* ── 3. TIMELINE VIEW (Clean Daily Schedule with Habit Reminders & Deadlines) ── */}
       {/* ══════════════════════════════════════════════════════════════════════ */}
       {viewMode === 'timeline' && (
-        <div className="flex-1 min-h-0 flex flex-col bg-white rounded-2xl sm:rounded-3xl border border-slate-200/90 shadow-2xs overflow-hidden">
-          {/* Timeline Scroll Container */}
-          <div ref={timelineScrollRef} className="flex-1 min-h-0 overflow-y-auto relative">
-            <div className="relative" style={{ height: `${(END_HOUR - START_HOUR + 1) * HOUR_HEIGHT}px` }}>
+        <div className="card-soft overflow-hidden">
+          <div
+            ref={timelineScrollRef}
+            className="overflow-y-auto max-h-[calc(100vh-210px)] relative scroll-smooth select-none"
+          >
+            {/* Timeline Canvas Container */}
+            <div
+              className="relative relative-timeline-container"
+              style={{ height: `${TIMELINE_HOURS * HOUR_HEIGHT}px` }}
+            >
               {/* Hour Grid Lines & Labels */}
-              {Array.from({ length: END_HOUR - START_HOUR + 1 }).map((_, i) => {
-                const hour = START_HOUR + i
-                const top = i * HOUR_HEIGHT
-                const hourStr = `${String(hour).padStart(2, '0')}:00`
+              {Array.from({ length: TIMELINE_HOURS }).map((_, idx) => {
+                const hour = START_HOUR + idx
+                const timeLabel = `${String(hour).padStart(2, '0')}:00`
+                const topPos = idx * HOUR_HEIGHT
 
                 return (
                   <div
-                    key={`hour-${hour}`}
-                    onClick={() => handleTimelineHourClick(hour)}
-                    className="absolute left-0 right-0 border-t border-slate-100 flex items-start group hover:bg-violet-50/30 cursor-pointer transition"
-                    style={{ top: `${top}px`, height: `${HOUR_HEIGHT}px` }}
+                    key={`grid-${hour}`}
+                    className="absolute left-0 right-0 flex items-start border-t border-slate-100 group/line"
+                    style={{ top: `${topPos}px`, height: `${HOUR_HEIGHT}px` }}
                   >
-                    <div className="w-12 text-right pr-2 pt-0.5 text-[10px] font-mono font-bold text-slate-400 group-hover:text-violet-600 transition select-none">
-                      {hourStr}
+                    <div className="w-12 text-right pr-2 -mt-2.5 select-none">
+                      <span className="text-[10px] font-mono font-bold text-slate-400 group-hover/line:text-violet-600 transition">
+                        {timeLabel}
+                      </span>
+                    </div>
+                    <div className="flex-1 h-full border-l border-slate-100/80 relative">
+                      {/* Half-hour dashed divider */}
+                      <div
+                        className="absolute left-0 right-0 border-t border-dashed border-slate-100/60 pointer-events-none"
+                        style={{ top: `${HOUR_HEIGHT / 2}px` }}
+                      />
                     </div>
                   </div>
                 )
@@ -1218,25 +1291,31 @@ export const TimeBlockingSchedule: React.FC = () => {
                 </div>
               )}
 
-              {/* ── Render Habit Reminders directly on the Timeline ── */}
+              {/* ── Render Habit Reminders directly on the Timeline (Draggable to change time) ── */}
               {visibleHabits.map(habit => {
+                const isBeingDragged = draggingSlot?.itemType === 'habit' && draggingSlot?.itemId === habit.id
                 const reminderMins = timeToMinutes(habit.reminder_time || '08:00')
-                const top = Math.max(0, ((reminderMins - START_HOUR * 60) / 60) * HOUR_HEIGHT)
+                const activeStart = isBeingDragged ? draggingSlot.currentStartMins : reminderMins
+                const top = Math.max(0, ((activeStart - START_HOUR * 60) / 60) * HOUR_HEIGHT)
+                const displayReminderTime = isBeingDragged ? minutesToTimeStr(activeStart) : (habit.reminder_time || '08:00')
                 const isDone = !!habit.today_completed
 
                 return (
                   <div
                     key={`habit-rem-${habit.id}`}
-                    className={`absolute left-14 right-2 sm:right-3 rounded-xl px-2.5 py-1.5 border flex items-center justify-between gap-2 shadow-2xs transition z-20 backdrop-blur-xs ${
-                      isDone
-                        ? 'bg-emerald-50/95 border-emerald-300 text-emerald-950 opacity-80'
-                        : 'bg-emerald-50/95 border-emerald-300 text-emerald-950 hover:border-emerald-500'
+                    onPointerDown={(e) => handleStartHabitMove(e, habit)}
+                    className={`absolute left-14 right-2 sm:right-3 rounded-xl px-2.5 py-1.5 border flex items-center justify-between gap-2 shadow-2xs transition select-none touch-none cursor-grab active:cursor-grabbing backdrop-blur-xs ${
+                      isBeingDragged
+                        ? 'ring-2 ring-emerald-500 shadow-2xl z-30 scale-[1.01] bg-emerald-100/95 border-emerald-400 text-emerald-950'
+                        : isDone
+                        ? 'bg-emerald-50/95 border-emerald-300 text-emerald-950 opacity-80 z-20'
+                        : 'bg-emerald-50/95 border-emerald-300 text-emerald-950 hover:border-emerald-500 z-20'
                     }`}
                     style={{ top: `${top}px`, height: '36px' }}
                   >
                     <div className="flex items-center gap-1.5 min-w-0 flex-1">
                       <span className="text-[9px] font-mono font-black px-1.5 py-0.5 rounded bg-white border border-emerald-200 shrink-0 text-emerald-700">
-                        ⚡ {habit.reminder_time}
+                        ⚡ {displayReminderTime}
                       </span>
                       <span className={`text-xs font-bold truncate ${isDone ? 'opacity-80 text-slate-800' : 'text-slate-900'}`}>
                         {habit.title}
@@ -1280,7 +1359,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                 )
               })}
 
-              {/* ── Render Deadline Tasks on the Timeline ── */}
+              {/* ── Render Deadline Tasks on the Timeline (Draggable to change time) ── */}
               {visibleDeadlines.map(task => {
                 let dueTime = '23:59'
                 if (task.due_date && task.due_date.includes(' ')) {
@@ -1291,14 +1370,20 @@ export const TimeBlockingSchedule: React.FC = () => {
                   if (timePart) dueTime = timePart
                 }
                 const dueMins = timeToMinutes(dueTime)
-                const top = Math.max(0, ((dueMins - START_HOUR * 60) / 60) * HOUR_HEIGHT)
+                const isBeingDragged = draggingSlot?.itemType === 'deadline' && draggingSlot?.itemId === task.id
+                const activeStart = isBeingDragged ? draggingSlot.currentStartMins : dueMins
+                const top = Math.max(0, ((activeStart - START_HOUR * 60) / 60) * HOUR_HEIGHT)
+                const displayDueTime = isBeingDragged ? minutesToTimeStr(activeStart) : (dueTime !== '23:59' ? dueTime : 'EOD')
                 const isDone = task.status === 'completed'
 
                 return (
                   <div
                     key={`deadline-line-${task.id}`}
-                    className={`absolute left-14 right-2 sm:right-3 rounded-xl px-2.5 py-1.5 border flex items-center justify-between gap-2 shadow-2xs transition z-20 ${
-                      isDone
+                    onPointerDown={(e) => handleStartDeadlineMove(e, task)}
+                    className={`absolute left-14 right-2 sm:right-3 rounded-xl px-2.5 py-1.5 border flex items-center justify-between gap-2 shadow-2xs transition select-none touch-none cursor-grab active:cursor-grabbing z-20 ${
+                      isBeingDragged
+                        ? 'ring-2 ring-rose-500 shadow-2xl z-30 scale-[1.01] bg-rose-100/95 border-rose-400 text-rose-950'
+                        : isDone
                         ? 'bg-rose-50/70 border-rose-200 text-rose-950 opacity-75'
                         : 'bg-rose-50/95 border-rose-300 text-rose-950 hover:border-rose-500'
                     }`}
@@ -1307,7 +1392,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                     <div className="flex items-center gap-1.5 min-w-0 flex-1">
                       <span className="text-[9px] font-mono font-black px-1.5 py-0.5 rounded bg-white border border-rose-200 text-rose-700 shrink-0 flex items-center gap-0.5">
                         <Target className="w-2.5 h-2.5 text-rose-600" />
-                        <span>{dueTime !== '23:59' ? dueTime : 'EOD'}</span>
+                        <span>{displayDueTime}</span>
                       </span>
                       <span className={`text-xs font-bold truncate ${isDone ? 'opacity-80 text-slate-800' : 'text-slate-900'}`}>
                         {task.title}
@@ -1321,11 +1406,10 @@ export const TimeBlockingSchedule: React.FC = () => {
                             e.stopPropagation()
                             handleStartTaskFocus(task)
                           }}
-                          className="h-6 px-2 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-bold flex items-center gap-1 shadow-2xs active:scale-90 transition cursor-pointer"
+                          className="w-6 h-6 rounded-lg bg-rose-600 hover:bg-rose-700 text-white flex items-center justify-center shrink-0 shadow-2xs active:scale-90 transition cursor-pointer"
                           title="Start focus timer"
                         >
-                          <Play className="w-2 h-2 fill-current" />
-                          <span>Focus</span>
+                          <Play className="w-2.5 h-2.5 fill-current ml-0.5" />
                         </button>
                       )}
                       <button
@@ -1340,7 +1424,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                         }`}
                         title={isDone ? 'Mark incomplete' : 'Mark completed'}
                       >
-                        {isDone && <Check className="w-3 h-3 stroke-[3]" />}
+                        {isDone && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                       </button>
                     </div>
                   </div>
@@ -1349,7 +1433,7 @@ export const TimeBlockingSchedule: React.FC = () => {
 
               {/* ── Render Planned Slots (Full-Width Canvas with Drag & Resize) ── */}
               {visibleSlots.map(slot => {
-                const isBeingDragged = draggingSlot?.slotId === slot.id
+                const isBeingDragged = draggingSlot?.itemType === 'slot' && draggingSlot?.itemId === slot.id
 
                 const startMins = timeToMinutes(slot.start_time)
                 let endMins = timeToMinutes(slot.end_time)

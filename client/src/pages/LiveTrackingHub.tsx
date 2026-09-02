@@ -809,226 +809,6 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
             )}
           </div>
         )}
-
-        {/* ── TAB 3: TIME LEDGER (HISTORY) ── */}
-        {activeTab === 'history' && (
-          <div className="space-y-3 anim-fade-in">
-
-            {/* ── DATE NAVIGATION BAR ── */}
-            <div className="bg-white rounded-2xl p-2 px-3 border border-slate-200/90 shadow-2xs flex items-center justify-between gap-2">
-              <button
-                onClick={() => shiftLedgerDate(-1)}
-                className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition active:scale-90"
-                title="Previous Day"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-
-              {/* Clickable Date with Hidden Native Date Picker */}
-              <div className="relative flex items-center gap-1.5 cursor-pointer group">
-                <input
-                  type="date"
-                  value={ledgerDate}
-                  onChange={e => setLedgerDateDirectly(e.target.value)}
-                  className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
-                  title="Click to pick a specific date"
-                />
-                <CalendarIcon className="w-4 h-4 text-violet-600 group-hover:scale-110 transition-transform" />
-                <span className="text-xs sm:text-sm font-black text-slate-900 group-hover:text-violet-700 transition">
-                  {getFormattedDateHeading(ledgerDate)}
-                </span>
-                {ledgerDate !== todayIso && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setLedgerDateDirectly(todayIso) }}
-                    className="relative z-20 text-[10px] font-bold text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 px-2 py-0.5 rounded-lg active:scale-95 transition ml-1"
-                    title="Return to Today"
-                  >
-                    Today
-                  </button>
-                )}
-              </div>
-
-              <button
-                onClick={() => shiftLedgerDate(1)}
-                className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition active:scale-90"
-                title="Next Day"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Daily Summary Card */}
-            <div className="bg-gradient-to-br from-violet-900 via-indigo-900 to-slate-900 rounded-3xl p-4 text-white shadow-xl shadow-indigo-950/20 space-y-2.5 border border-indigo-700/40">
-              <div className="flex items-center justify-between border-b border-white/10 pb-2">
-                <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-violet-300 block font-mono">
-                    Time Ledger • {ledgerDate === todayIso ? 'Today' : ledgerDate}
-                  </span>
-                  <div className="text-2xl font-black font-mono tracking-tight text-white mt-0.5">
-                    {totalLoggedFormatted}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="text-right">
-                    <span className="text-[10px] font-bold text-slate-400 block font-mono">Total</span>
-                    <span className="text-sm font-black text-emerald-400 font-mono">
-                      {logs.length} logs
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => { sounds.playTap(); setShowManualModal(true) }}
-                    className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/20 transition active:scale-95"
-                    title="Add Manual Log"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-2">
-                <div className="bg-white/10 rounded-2xl p-2 border border-white/10 text-center">
-                  <span className="text-[9px] font-bold uppercase tracking-wider text-emerald-300 block">
-                    🟢 Productive
-                  </span>
-                  <span className="text-xs font-black font-mono text-white mt-0.5 block">
-                    {ledgerBreakdown.productive}
-                  </span>
-                </div>
-
-                <div className="bg-white/10 rounded-2xl p-2 border border-white/10 text-center">
-                  <span className="text-[9px] font-bold uppercase tracking-wider text-sky-300 block">
-                    🔵 Neutral
-                  </span>
-                  <span className="text-xs font-black font-mono text-white mt-0.5 block">
-                    {ledgerBreakdown.neutral}
-                  </span>
-                </div>
-
-                <div className="bg-white/10 rounded-2xl p-2 border border-white/10 text-center">
-                  <span className="text-[9px] font-bold uppercase tracking-wider text-rose-300 block">
-                    🔴 Wasted
-                  </span>
-                  <span className="text-xs font-black font-mono text-white mt-0.5 block">
-                    {ledgerBreakdown.wasted}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* ── SORT & GROUPING CONTROLS ── */}
-            <div className="flex items-center justify-between gap-2 px-1">
-              {/* Group By Mode: Time vs Category */}
-              <div className="inline-flex p-0.5 bg-slate-200/80 rounded-xl text-xs font-bold">
-                <button
-                  onClick={() => { sounds.playTap(); setLedgerGroupMode('time') }}
-                  className={`px-3 py-1 rounded-lg flex items-center gap-1.5 transition ${
-                    ledgerGroupMode === 'time'
-                      ? 'bg-white text-violet-900 shadow-2xs font-black'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  <Clock className="w-3.5 h-3.5" />
-                  <span>By Time</span>
-                </button>
-                <button
-                  onClick={() => { sounds.playTap(); setLedgerGroupMode('category') }}
-                  className={`px-3 py-1 rounded-lg flex items-center gap-1.5 transition ${
-                    ledgerGroupMode === 'category'
-                      ? 'bg-white text-violet-900 shadow-2xs font-black'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  <Folder className="w-3.5 h-3.5 text-amber-500" />
-                  <span>By Category</span>
-                </button>
-              </div>
-
-              {/* Sort Order Toggle (Only for Chronological Mode) */}
-              {ledgerGroupMode === 'time' && (
-                <button
-                  onClick={() => {
-                    sounds.playTap()
-                    setLedgerSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')
-                  }}
-                  className="px-2.5 py-1 rounded-xl bg-white border border-slate-200 text-slate-600 hover:text-slate-900 text-[11px] font-bold flex items-center gap-1 shadow-2xs active:scale-95 transition"
-                  title="Toggle Sort Order"
-                >
-                  <ArrowUpDown className="w-3 h-3 text-violet-600" />
-                  <span>{ledgerSortOrder === 'desc' ? 'Newest ↓' : 'Oldest ↑'}</span>
-                </button>
-              )}
-            </div>
-
-            {/* Transaction Stream / Grouped Stream */}
-            {logs.length === 0 ? (
-              <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-2xs text-center text-slate-400 space-y-2">
-                <Clock className="w-8 h-8 mx-auto opacity-30 text-violet-600" />
-                <p className="text-xs font-bold text-slate-600">
-                  No time logs recorded for {ledgerDate}
-                </p>
-                <button
-                  onClick={() => { sounds.playTap(); setShowManualModal(true) }}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-violet-50 text-violet-700 text-xs font-bold hover:bg-violet-100 transition active:scale-95 mt-1 border border-violet-200"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Add Time Log</span>
-                </button>
-              </div>
-            ) : ledgerGroupMode === 'time' ? (
-              /* Chronological Stream */
-              <div className="bg-white rounded-3xl p-2 sm:p-3 border border-slate-200 shadow-2xs">
-                <div className="divide-y divide-slate-100">
-                  {sortedLogs.map(log => renderLogCard(log))}
-                </div>
-              </div>
-            ) : (
-              /* Category Folder Grouped View */
-              <div className="space-y-3">
-                {categoryGroupedLogs.map(group => {
-                  const durStr = formatDurationDisplay(group.totalDurationSeconds)
-                  const typeLabel = group.categoryType === 'wasted' ? '🔴 Wasted' : group.categoryType === 'neutral' ? '🔵 Neutral' : '🟢 Productive'
-                  
-                  return (
-                    <div
-                      key={`cat_group_${group.categoryId || 'none'}`}
-                      className="bg-white rounded-3xl border border-slate-200/90 shadow-2xs overflow-hidden"
-                    >
-                      {/* Category Header Card */}
-                      <div className="p-3.5 bg-slate-50/80 border-b border-slate-100 flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <div
-                            className="w-4 h-4 rounded-full shrink-0 shadow-2xs"
-                            style={{ backgroundColor: group.categoryColor }}
-                          />
-                          <span className="text-xs sm:text-sm font-black text-slate-900 truncate">
-                            {group.categoryName}
-                          </span>
-                          <span className="text-[9px] font-bold text-slate-500 bg-white px-1.5 py-0.5 rounded border border-slate-200 shrink-0">
-                            {typeLabel}
-                          </span>
-                        </div>
-
-                        <div className="text-right shrink-0">
-                          <div className="text-xs sm:text-sm font-black font-mono text-violet-700">
-                            +{durStr}
-                          </div>
-                          <span className="text-[9px] font-bold text-slate-400 block font-mono">
-                            {group.logs.length} logs
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Items under this category */}
-                      <div className="p-1 sm:p-2 divide-y divide-slate-100">
-                        {group.logs.map(log => renderLogCard(log))}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-        )}
       </main>
 
       {/* ── 2. NATURAL BOTTOM DOCKED CONTROLS ── */}
@@ -1042,7 +822,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                 onChange={e => setQuickCategoryId(e.target.value ? Number(e.target.value) : null)}
                 className="px-2 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 outline-none focus:bg-white focus:border-violet-500 transition shrink-0 max-w-[120px]"
               >
-                <option value="">📁 No Category</option>
+                <option value="">📁 Không danh mục</option>
                 {(categories || []).map(c => (
                   <option key={c.id} value={c.id}>
                     {c.name}
@@ -1054,7 +834,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                 type="text"
                 value={quickTitle}
                 onChange={e => setQuickTitle(e.target.value)}
-                placeholder="Enter activity (e.g. Coding, Meeting, Workout...)"
+                placeholder="Nhập hoạt động (Code, Học bài, Họp, Gym...)"
                 className="flex-1 px-3 py-2 rounded-xl bg-slate-100 border border-slate-200 text-xs font-bold text-slate-900 placeholder:text-slate-400 outline-none focus:bg-white focus:border-violet-500 transition shadow-inner min-w-0"
                 onKeyDown={e => {
                   if (e.key === 'Enter') handleStartTrack()
@@ -1063,19 +843,19 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
 
               <button
                 onClick={() => handleStartTrack()}
-                className="px-3.5 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-black flex items-center justify-center gap-1 shadow-md shadow-violet-600/30 active:scale-95 transition shrink-0"
+                className="px-3.5 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-black flex items-center justify-center gap-1 shadow-md shadow-violet-600/30 active:scale-95 transition shrink-0 cursor-pointer"
               >
                 <Play className="w-3.5 h-3.5 fill-current" />
-                <span>Track</span>
+                <span>Bấm giờ</span>
               </button>
             </div>
           )}
 
-          {/* 3 Primary Tabs Switcher */}
-          <div className="grid grid-cols-3 gap-1 bg-slate-100 p-1 rounded-2xl border border-slate-200 text-xs font-bold">
+          {/* 2 Primary Tabs Switcher: Active Timers vs Ready Queue */}
+          <div className="grid grid-cols-2 gap-1 bg-slate-100 p-1 rounded-2xl border border-slate-200 text-xs font-bold">
             <button
               onClick={() => { sounds.playTap(); setActiveTab('active') }}
-              className={`py-1.5 px-2 rounded-xl flex items-center justify-center gap-1.5 transition ${
+              className={`py-1.5 px-2 rounded-xl flex items-center justify-center gap-1.5 transition cursor-pointer ${
                 activeTab === 'active'
                   ? 'bg-white text-violet-950 shadow-xs border border-slate-200/80 font-black'
                   : 'text-slate-600 hover:text-slate-900'
@@ -1087,7 +867,7 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
                 )}
                 <span className={`relative inline-flex rounded-full h-2 w-2 ${(activeTracks || []).length > 0 ? 'bg-emerald-500' : 'bg-slate-400'}`}></span>
               </span>
-              <span>Active</span>
+              <span>Đang chạy</span>
               {(activeTracks || []).length > 0 && (
                 <span className="text-[10px] font-mono font-bold bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded-full">
                   {activeTracks.length}
@@ -1097,34 +877,17 @@ export const LiveTrackingHub: React.FC<Props> = ({ onOpenFullscreenFocus }) => {
 
             <button
               onClick={() => { sounds.playTap(); setActiveTab('ready') }}
-              className={`py-1.5 px-2 rounded-xl flex items-center justify-center gap-1.5 transition ${
+              className={`py-1.5 px-2 rounded-xl flex items-center justify-center gap-1.5 transition cursor-pointer ${
                 activeTab === 'ready'
                   ? 'bg-white text-violet-950 shadow-xs border border-slate-200/80 font-black'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               <Target className="w-3.5 h-3.5 text-violet-600" />
-              <span>Ready</span>
+              <span>Sẵn sàng</span>
               <span className="text-[10px] font-mono font-bold bg-violet-100 text-violet-800 px-1.5 py-0.2 rounded-full">
                 {(activeTasks || []).length + (habits || []).length}
               </span>
-            </button>
-
-            <button
-              onClick={() => { sounds.playTap(); setActiveTab('history') }}
-              className={`py-1.5 px-2 rounded-xl flex items-center justify-center gap-1.5 transition ${
-                activeTab === 'history'
-                  ? 'bg-white text-violet-950 shadow-xs border border-slate-200/80 font-black'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Wallet className="w-3.5 h-3.5 text-indigo-600" />
-              <span>Ledger</span>
-              {(logs || []).length > 0 && (
-                <span className="text-[10px] font-mono font-bold bg-slate-200 text-slate-700 px-1.5 py-0.2 rounded-full">
-                  {logs.length}
-                </span>
-              )}
             </button>
           </div>
         </div>

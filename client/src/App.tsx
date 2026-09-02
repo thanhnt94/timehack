@@ -101,26 +101,12 @@ const AppShell: React.FC = () => {
             </div>
           </div>
 
-          {/* Right Header Actions: Analytics & User Profile Avatar */}
+          {/* Right Header Actions: User Profile Avatar */}
           <div className="flex items-center gap-2 shrink-0">
-            {/* Analytics Shortcut */}
-            <Link
-              to="/analytics"
-              onClick={() => sounds.playTap()}
-              className={`w-8 h-8 rounded-xl flex items-center justify-center border transition active:scale-90 ${
-                location.pathname === '/analytics'
-                  ? 'bg-violet-600 text-white border-violet-600 shadow-sm shadow-violet-600/25'
-                  : 'bg-slate-100/90 hover:bg-slate-200/90 border-slate-200/80 text-slate-600 hover:text-slate-900'
-              }`}
-              title="Productivity Analytics"
-            >
-              <BarChart3 className="w-4 h-4 stroke-[2.2]" />
-            </Link>
-
             {/* User Profile Avatar (1-Tap opens Settings Modal) */}
             <button
               onClick={() => { sounds.playTap(); setSettingsOpen(true) }}
-              className="relative w-8 h-8 rounded-xl bg-gradient-to-tr from-violet-600 via-indigo-600 to-purple-700 text-white font-black text-xs shadow-sm shadow-violet-600/25 flex items-center justify-center border border-white/40 ring-1 ring-slate-200 active:scale-90 transition-transform"
+              className="relative w-8 h-8 rounded-xl bg-gradient-to-tr from-violet-600 via-indigo-600 to-purple-700 text-white font-black text-xs shadow-sm shadow-violet-600/25 flex items-center justify-center border border-white/40 ring-1 ring-slate-200 active:scale-90 transition-transform cursor-pointer"
               title="User Settings, Timezone & Telegram"
               aria-label="User Settings"
             >
@@ -137,6 +123,7 @@ const AppShell: React.FC = () => {
             <Route path="/calendar" element={<TimeHub onOpenFullscreenFocus={() => setFocusOpen(true)} />} />
             <Route path="/schedule" element={<TimeHub onOpenFullscreenFocus={() => setFocusOpen(true)} />} />
             <Route path="/tracking" element={<TimeHub onOpenFullscreenFocus={() => setFocusOpen(true)} />} />
+            <Route path="/ledger" element={<TimeHub onOpenFullscreenFocus={() => setFocusOpen(true)} />} />
             <Route path="/tasks" element={<TasksAndHabitsHub />} />
             <Route path="/habits" element={<TasksAndHabitsHub />} />
             <Route path="/plans" element={<TasksAndHabitsHub />} />

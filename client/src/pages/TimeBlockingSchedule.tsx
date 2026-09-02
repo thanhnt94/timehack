@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useRef } from 'react'
+import React, { useEffect, useLayoutEffect, useState, useMemo, useRef } from 'react'
 import axios from 'axios'
 import {
   Calendar as CalendarIcon, Plus, Check, Clock, Trash2, X,
@@ -17,8 +17,8 @@ import { sounds } from '../utils/soundEffects'
 type ViewMode = 'timeline' | 'blocks'
 type BlockFilter = 'all' | 'plan' | 'habit' | 'deadline'
 
-// Start from 06:00 (6 AM) to 23:00 (11 PM) for high-density daily schedule
-const START_HOUR = 6
+// Full 24-hour daily schedule from 00:00 (12 AM) to 23:00 (11 PM)
+const START_HOUR = 0
 const END_HOUR = 23
 const HOUR_HEIGHT = 64 // pixels per hour block
 const TIMELINE_HOURS = END_HOUR - START_HOUR + 1
@@ -75,50 +75,95 @@ const TimelineItemPopover: React.FC<TimelineItemPopoverProps> = ({
   onToggleDone,
   onDelete
 }) => {
+  const popoverRef = useRef<HTMLDivElement>(null)
+  const [placeBelow, setPlaceBelow] = useState(false)
+  const [alignRight, setAlignRight] = useState(false)
+
+  useLayoutEffect(() => {
+    if (!popoverRef.current) return
+    const parent = popoverRef.current.parentElement
+    const container = popoverRef.current.closest('.overflow-y-auto')
+    if (parent && container) {
+      const parentRect = parent.getBoundingClientRect()
+      const containerRect = container.getBoundingClientRect()
+      // If space above inside the scroll container is less than 135px, flip to place below the card
+      if (parentRect.top - containerRect.top < 135) {
+        setPlaceBelow(true)
+      } else {
+        setPlaceBelow(false)
+      }
+      // If card is placed on the right half of the container, align right to prevent horizontal overflow
+      if (parentRect.left - containerRect.left > containerRect.width / 2) {
+        setAlignRight(true)
+      } else {
+        setAlignRight(false)
+      }
+    }
+  }, [])
+
   return (
     <div
+      ref={popoverRef}
       onClick={(e) => e.stopPropagation()}
-      className="absolute bottom-[calc(100%+8px)] left-0 sm:left-1/2 sm:-translate-x-1/2 z-50 min-w-[240px] max-w-[320px] sm:max-w-[360px] bg-slate-900/95 text-white rounded-2xl shadow-2xl p-3 border border-slate-700/80 backdrop-blur-md pointer-events-auto transition-all animate-in fade-in zoom-in-95 duration-150 text-left cursor-default select-text"
+      className={`absolute z-50 min-w-[200px] max-w-[270px] bg-white/98 dark:bg-slate-900/98 text-slate-900 dark:text-slate-100 rounded-xl shadow-xl shadow-slate-300/40 dark:shadow-slate-950/70 p-2.5 border border-slate-200/90 dark:border-slate-700/90 backdrop-blur-md pointer-events-auto transition-all animate-in fade-in zoom-in-95 duration-150 text-left cursor-default select-text ${
+        placeBelow ? 'top-[calc(100%+6px)]' : 'bottom-[calc(100%+6px)]'
+      } ${
+        alignRight
+          ? 'right-0 sm:right-1/2 sm:translate-x-1/2'
+          : 'left-0 sm:left-1/2 sm:-translate-x-1/2'
+      }`}
     >
-      {/* Down Arrow pointing to card */}
-      <div className="absolute top-full left-6 sm:left-1/2 sm:-translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-900 pointer-events-none" />
+      {/* Arrow pointing to card */}
+      {placeBelow ? (
+        <div
+          className={`absolute bottom-full -mb-1 border-4 border-transparent border-b-white dark:border-b-slate-900 pointer-events-none drop-shadow-xs ${
+            alignRight ? 'right-6 sm:right-1/2 sm:translate-x-1/2' : 'left-6 sm:left-1/2 sm:-translate-x-1/2'
+          }`}
+        />
+      ) : (
+        <div
+          className={`absolute top-full -mt-1 border-4 border-transparent border-t-white dark:border-t-slate-900 pointer-events-none drop-shadow-xs ${
+            alignRight ? 'right-6 sm:right-1/2 sm:translate-x-1/2' : 'left-6 sm:left-1/2 sm:-translate-x-1/2'
+          }`}
+        />
+      )}
 
       {/* Header Info */}
-      <div className="flex items-center justify-between gap-2 mb-1.5">
+      <div className="flex items-center justify-between gap-1.5 mb-1">
         <div className="flex items-center gap-1.5 flex-wrap">
-          <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded ${
-            type === 'habit' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' :
-            type === 'deadline' ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' :
-            'bg-sky-500/20 text-sky-300 border border-sky-500/30'
+          <span className={`text-[8.5px] font-black uppercase px-1.5 py-0.5 rounded ${
+            type === 'habit' ? 'bg-emerald-100/90 text-emerald-800 border border-emerald-300/80 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30' :
+            type === 'deadline' ? 'bg-rose-100/90 text-rose-800 border border-rose-300/80 dark:bg-rose-500/20 dark:text-rose-300 dark:border-rose-500/30' :
+            'bg-sky-100/90 text-sky-800 border border-sky-300/80 dark:bg-sky-500/20 dark:text-sky-300 dark:border-sky-500/30'
           }`}>
             {type === 'habit' ? '⚡ Habit' : type === 'deadline' ? '🎯 Deadline' : '📅 Plan'}
           </span>
-          <span className="text-[10px] font-mono font-bold text-slate-300">
+          <span className="text-[9.5px] font-mono font-bold text-slate-500 dark:text-slate-400">
             {timeStr}
           </span>
         </div>
 
         {category && (
-          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 truncate max-w-[100px]">
+          <span className="text-[8.5px] font-bold px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 truncate max-w-[85px]">
             {category.name}
           </span>
         )}
       </div>
 
-      {/* Full Title (No truncation!) */}
-      <div className="text-xs sm:text-sm font-bold text-white leading-snug break-words mb-1.5">
+      {/* Full Title */}
+      <div className="text-[11.5px] font-bold text-slate-900 dark:text-white leading-tight break-words mb-1">
         {title}
       </div>
 
       {/* Notes / Description */}
       {notes && (
-        <div className="text-[11px] text-slate-400 font-medium mb-2 leading-tight break-words line-clamp-2">
+        <div className="text-[10px] text-slate-500 dark:text-slate-400 font-medium mb-1.5 leading-tight break-words line-clamp-2">
           {notes}
         </div>
       )}
 
       {/* Action Buttons Toolbar */}
-      <div className="flex items-center justify-between gap-1.5 pt-2 border-t border-slate-800">
+      <div className="flex items-center justify-between gap-1 pt-1.5 border-t border-slate-100 dark:border-slate-800">
         <div className="flex items-center gap-1">
           {/* Edit Button */}
           <button
@@ -127,10 +172,10 @@ const TimelineItemPopover: React.FC<TimelineItemPopoverProps> = ({
               e.stopPropagation()
               onEdit()
             }}
-            className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white text-[11px] font-bold flex items-center gap-1 border border-slate-700 transition active:scale-95 cursor-pointer shadow-2xs"
+            className="px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-[10px] font-bold flex items-center gap-1 border border-slate-200/80 dark:border-slate-700 transition active:scale-95 cursor-pointer shadow-2xs"
             title="Edit"
           >
-            <Edit3 className="w-3 h-3 text-violet-400" />
+            <Edit3 className="w-2.5 h-2.5 text-violet-600 dark:text-violet-400" />
             <span>Edit</span>
           </button>
 
@@ -141,10 +186,10 @@ const TimelineItemPopover: React.FC<TimelineItemPopoverProps> = ({
               e.stopPropagation()
               onPlay()
             }}
-            className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold flex items-center gap-1 transition active:scale-95 cursor-pointer shadow-2xs"
+            className="px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold flex items-center gap-1 transition active:scale-95 cursor-pointer shadow-2xs"
             title="Start focus timer"
           >
-            <Play className="w-3 h-3 fill-current" />
+            <Play className="w-2.5 h-2.5 fill-current" />
             <span>Focus</span>
           </button>
 
@@ -155,14 +200,14 @@ const TimelineItemPopover: React.FC<TimelineItemPopoverProps> = ({
               e.stopPropagation()
               onToggleDone()
             }}
-            className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold flex items-center gap-1 transition active:scale-95 cursor-pointer shadow-2xs border ${
+            className={`px-2 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 transition active:scale-95 cursor-pointer shadow-2xs border ${
               isDone
-                ? 'bg-emerald-600/30 border-emerald-500/50 text-emerald-300'
-                : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-300'
+                ? 'bg-emerald-100/90 border-emerald-300 text-emerald-800 dark:bg-emerald-950/60 dark:border-emerald-700 dark:text-emerald-300'
+                : 'bg-slate-100 hover:bg-slate-200 border-slate-200/80 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 dark:text-slate-300'
             }`}
             title={isDone ? 'Mark Incomplete' : 'Mark Done'}
           >
-            <Check className="w-3 h-3" />
+            <Check className="w-2.5 h-2.5" />
             <span>{isDone ? 'Done' : 'Check'}</span>
           </button>
         </div>
@@ -174,10 +219,10 @@ const TimelineItemPopover: React.FC<TimelineItemPopoverProps> = ({
             e.stopPropagation()
             onDelete()
           }}
-          className="p-1.5 rounded-lg hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 transition active:scale-95 cursor-pointer"
+          className="p-1 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/50 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition active:scale-95 cursor-pointer"
           title="Delete"
         >
-          <Trash2 className="w-3.5 h-3.5" />
+          <Trash2 className="w-3 h-3" />
         </button>
       </div>
     </div>
@@ -356,12 +401,10 @@ export const TimeBlockingSchedule: React.FC = () => {
     return () => clearInterval(interval)
   }, [])
 
-  // Auto-scroll timeline to current hour on load
+  // Scroll timeline to start of day (00:00) on load or date switch
   useEffect(() => {
     if (viewMode === 'timeline' && timelineScrollRef.current) {
-      const currentHour = new Date().getHours()
-      const scrollOffset = Math.max(0, (currentHour - START_HOUR - 1) * HOUR_HEIGHT)
-      timelineScrollRef.current.scrollTo({ top: scrollOffset, behavior: 'smooth' })
+      timelineScrollRef.current.scrollTo({ top: 0, behavior: 'instant' })
     }
   }, [viewMode, selectedDate])
 
@@ -1690,7 +1733,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                       isBeingDragged
                         ? 'ring-2 ring-emerald-500 shadow-2xl z-40 scale-[1.01] bg-emerald-100/95 border-emerald-400 text-emerald-950'
                         : isPopoverActive
-                        ? 'ring-2 ring-emerald-400 bg-emerald-50/95 border-emerald-400 text-emerald-950 shadow-md z-35'
+                        ? 'ring-2 ring-emerald-400 bg-emerald-50/95 border-emerald-400 text-emerald-950 shadow-2xl z-50'
                         : isDone
                         ? 'bg-emerald-50/95 border-emerald-300 text-emerald-950 opacity-80 z-20'
                         : 'bg-emerald-50/95 border-emerald-300 text-emerald-950 hover:border-emerald-500 z-20'
@@ -1727,9 +1770,14 @@ export const TimeBlockingSchedule: React.FC = () => {
                     )}
 
                     <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                      <span className="text-[9px] font-mono font-black px-1.5 py-0.5 rounded bg-white border border-emerald-200 shrink-0 text-emerald-700">
-                        ⚡ {displayReminderTime}
+                      <span className="p-1 rounded bg-white border border-emerald-200 shrink-0 text-emerald-700 flex items-center justify-center shadow-2xs">
+                        <Zap className="w-3 h-3 text-emerald-600 fill-emerald-600/20" />
                       </span>
+                      {isBeingDragged && (
+                        <span className="text-[9px] font-mono font-black px-1.5 py-0.5 rounded bg-white border border-emerald-300 text-emerald-800 shrink-0 shadow-2xs">
+                          {displayReminderTime}
+                        </span>
+                      )}
                       <span className={`text-xs font-bold truncate ${isDone ? 'opacity-80 text-slate-800' : 'text-slate-900'}`}>
                         {habit.title}
                       </span>
@@ -1800,7 +1848,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                       isBeingDragged
                         ? 'ring-2 ring-rose-500 shadow-2xl z-40 scale-[1.01] bg-rose-100/95 border-rose-400 text-rose-950'
                         : isPopoverActive
-                        ? 'ring-2 ring-rose-400 bg-rose-50/95 border-rose-400 text-rose-950 shadow-md z-35'
+                        ? 'ring-2 ring-rose-400 bg-rose-50/95 border-rose-400 text-rose-950 shadow-2xl z-50'
                         : isDone
                         ? 'bg-rose-50/70 border-rose-200 text-rose-950 opacity-75'
                         : 'bg-rose-50/95 border-rose-300 text-rose-950 hover:border-rose-500'
@@ -1837,10 +1885,14 @@ export const TimeBlockingSchedule: React.FC = () => {
                     )}
 
                     <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                      <span className="text-[9px] font-mono font-black px-1.5 py-0.5 rounded bg-white border border-rose-200 text-rose-700 shrink-0 flex items-center gap-0.5">
-                        <Target className="w-2.5 h-2.5 text-rose-600" />
-                        <span>{displayDueTime}</span>
+                      <span className="p-1 rounded bg-white border border-rose-200 text-rose-700 shrink-0 flex items-center justify-center shadow-2xs">
+                        <Target className="w-3 h-3 text-rose-600" />
                       </span>
+                      {isBeingDragged && (
+                        <span className="text-[9px] font-mono font-black px-1.5 py-0.5 rounded bg-white border border-rose-300 text-rose-800 shrink-0 shadow-2xs">
+                          {displayDueTime}
+                        </span>
+                      )}
                       <span className={`text-xs font-bold truncate ${isDone ? 'opacity-80 text-slate-800' : 'text-slate-900'}`}>
                         {task.title}
                       </span>
@@ -1921,7 +1973,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                       isBeingDragged
                         ? 'ring-2 ring-violet-500 shadow-2xl z-40 scale-[1.01] bg-sky-100/95 border-sky-400 text-sky-950'
                         : isPopoverActive
-                        ? 'ring-2 ring-sky-400 bg-sky-50/95 border-sky-400 text-sky-950 shadow-md z-35'
+                        ? 'ring-2 ring-sky-400 bg-sky-50/95 border-sky-400 text-sky-950 shadow-2xl z-50'
                         : slot.is_done
                         ? 'bg-sky-50/90 border-sky-300 text-sky-950 opacity-80 z-10'
                         : 'bg-sky-50/95 border-sky-300 text-sky-950 hover:border-sky-500 hover:shadow-md z-10'
@@ -1965,11 +2017,16 @@ export const TimeBlockingSchedule: React.FC = () => {
                               handleOpenEditSlot(slot)
                             }
                           }}
-                          className="flex items-center gap-2 min-w-0 flex-1 cursor-pointer"
+                          className="flex items-center gap-1.5 min-w-0 flex-1 cursor-pointer"
                         >
-                          <span className="text-[9px] font-mono font-black px-1.5 py-0.5 rounded bg-white/90 border border-sky-200 shrink-0 shadow-2xs">
-                            {displayStartTime} - {displayEndTime}
+                          <span className="p-1 rounded bg-white/90 border border-sky-200 shrink-0 flex items-center justify-center shadow-2xs">
+                            <CalendarIcon className="w-3 h-3 text-sky-600" />
                           </span>
+                          {isBeingDragged && (
+                            <span className="text-[9px] font-mono font-black px-1.5 py-0.5 rounded bg-white border border-sky-300 text-sky-800 shrink-0 shadow-2xs">
+                              {displayStartTime} - {displayEndTime}
+                            </span>
+                          )}
                           <span className={`text-xs font-bold truncate ${slot.is_done ? 'opacity-80 text-slate-800' : 'text-slate-900'}`}>
                             {slot.title}
                           </span>
@@ -2025,9 +2082,14 @@ export const TimeBlockingSchedule: React.FC = () => {
                             className="min-w-0 flex-1 cursor-pointer"
                           >
                             <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="text-[9px] font-mono font-black px-1.5 py-0.5 rounded bg-white/90 border border-sky-200 shadow-2xs">
-                                {displayStartTime} - {displayEndTime}
+                              <span className="p-1 rounded bg-white/90 border border-sky-200 shrink-0 flex items-center justify-center shadow-2xs">
+                                <CalendarIcon className="w-3 h-3 text-sky-600" />
                               </span>
+                              {isBeingDragged && (
+                                <span className="text-[9px] font-mono font-black px-1.5 py-0.5 rounded bg-white border border-sky-300 text-sky-800 shrink-0 shadow-2xs">
+                                  {displayStartTime} - {displayEndTime}
+                                </span>
+                              )}
                               {slot.is_done && (
                                 <span className="text-[9px] font-bold text-emerald-700 bg-emerald-100 px-1 rounded">✓ Done</span>
                               )}

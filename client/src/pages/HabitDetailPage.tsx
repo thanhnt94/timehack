@@ -10,6 +10,7 @@ import { useHabitStore, type HabitDetail, type HabitLogEntry } from '../store/us
 import { useTaskStore } from '../store/useTaskStore'
 import { useTimerStore } from '../store/useTimerStore'
 import { sounds } from '../utils/soundEffects'
+import { renderAppIcon } from '../utils/iconHelper'
 
 const MOODS = [
   { id: 'energized', label: 'Energized', icon: '⚡', color: 'bg-amber-50 text-amber-700 border-amber-200' },
@@ -283,7 +284,7 @@ export const HabitDetailPage: React.FC = () => {
                 className="w-8 h-8 rounded-xl flex items-center justify-center text-base shrink-0 shadow-2xs"
                 style={{ backgroundColor: `${activeDetail.color || '#7C3AED'}15`, border: `1px solid ${activeDetail.color || '#7C3AED'}40` }}
               >
-                {activeDetail.icon || '⚡'}
+                {renderAppIcon(activeDetail.icon, 'w-4 h-4 text-violet-700')}
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5 flex-wrap">

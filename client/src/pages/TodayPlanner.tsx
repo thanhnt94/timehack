@@ -12,6 +12,7 @@ import { useScheduleStore, type ScheduleSlot } from '../store/useScheduleStore'
 import { useTimeLogStore } from '../store/useTimeLogStore'
 import { useTimerStore } from '../store/useTimerStore'
 import { sounds } from '../utils/soundEffects'
+import { renderAppIcon } from '../utils/iconHelper'
 
 interface Props {
   onOpenFocus: () => void
@@ -459,7 +460,7 @@ export const TodayPlanner: React.FC<Props> = ({ onOpenFocus }) => {
                     {checked ? (
                       <Check className="w-4 h-4 text-white stroke-[3]" />
                     ) : (
-                      <span className="text-sm">{h.icon || '⚡'}</span>
+                      renderAppIcon(h.icon, 'w-4 h-4 text-slate-700')
                     )}
                   </button>
 

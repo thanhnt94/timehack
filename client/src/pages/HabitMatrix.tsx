@@ -11,6 +11,7 @@ import { useTaskStore } from '../store/useTaskStore'
 import { useTimerStore } from '../store/useTimerStore'
 import { TaskPagination } from '../components/TaskPagination'
 import { sounds } from '../utils/soundEffects'
+import { renderAppIcon } from '../utils/iconHelper'
 
 const HABIT_COLORS = ['#7C3AED', '#0284C7', '#10B981', '#D97706', '#E11D48', '#6366F1', '#EC4899', '#059669']
 
@@ -387,7 +388,7 @@ export const HabitMatrix: React.FC = () => {
                             {currentPeriodCount}/{targetCount}
                           </span>
                         ) : (
-                          <span className="text-xl leading-none">{h.icon || '⚡'}</span>
+                          renderAppIcon(h.icon, 'w-5 h-5 text-slate-700 group-hover:text-violet-600 transition')
                         )}
                       </button>
 

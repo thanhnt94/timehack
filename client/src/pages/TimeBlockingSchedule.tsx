@@ -990,7 +990,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                       className={`bg-white rounded-2xl p-3 border transition shadow-2xs ${
                         isDone
                           ? 'opacity-75 bg-emerald-50/40 border-emerald-200'
-                          : 'border-fuchsia-200 hover:border-fuchsia-400'
+                          : 'border-emerald-200/90 hover:border-emerald-400 bg-emerald-50/15'
                       }`}
                     >
                       <div className="flex items-center justify-between gap-3">
@@ -1003,17 +1003,17 @@ export const TimeBlockingSchedule: React.FC = () => {
                           className={`w-6 h-6 rounded-xl border flex items-center justify-center shrink-0 transition active:scale-90 ${
                             isDone
                               ? 'bg-emerald-500 border-emerald-500 text-white shadow-2xs'
-                              : 'border-fuchsia-300 hover:border-fuchsia-500 bg-white'
+                              : 'border-emerald-300 hover:border-emerald-500 bg-white'
                           }`}
-                          title={isDone ? 'Đã điểm danh' : 'Điểm danh thói quen'}
+                          title={isDone ? 'Habit checked-in' : 'Check-in habit'}
                         >
                           {isDone && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                         </button>
 
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-[10px] font-mono font-bold text-fuchsia-800 bg-fuchsia-50 px-2 py-0.5 rounded-md border border-fuchsia-200">
-                              ⚡ {habit.reminder_time || 'Thói quen'}
+                            <span className="text-[10px] font-mono font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                              ⚡ {habit.reminder_time || 'Habit'}
                             </span>
                             {habit.target_count && (
                               <span className="text-[9px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.2 rounded">
@@ -1038,7 +1038,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                         </div>
 
                         <div className="flex items-center gap-1 shrink-0">
-                          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-lg">
+                          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-lg border border-emerald-200/60 font-mono">
                             🔥 {habit.current_streak || 0}d
                           </span>
                         </div>
@@ -1198,12 +1198,12 @@ export const TimeBlockingSchedule: React.FC = () => {
                     className={`absolute left-14 right-2 sm:right-3 rounded-xl px-2.5 py-1.5 border flex items-center justify-between gap-2 shadow-2xs transition z-20 backdrop-blur-xs ${
                       isDone
                         ? 'bg-emerald-50/95 border-emerald-300 text-emerald-950 opacity-80'
-                        : 'bg-fuchsia-50/95 border-fuchsia-300 text-fuchsia-950 hover:border-fuchsia-500'
+                        : 'bg-emerald-50/95 border-emerald-300 text-emerald-950 hover:border-emerald-500'
                     }`}
                     style={{ top: `${top}px`, height: '36px' }}
                   >
                     <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                      <span className="text-[9px] font-mono font-black px-1.5 py-0.5 rounded bg-white border border-fuchsia-200 shrink-0 text-fuchsia-700">
+                      <span className="text-[9px] font-mono font-black px-1.5 py-0.5 rounded bg-white border border-emerald-200 shrink-0 text-emerald-700">
                         ⚡ {habit.reminder_time}
                       </span>
                       <span className={`text-xs font-bold truncate ${isDone ? 'line-through text-slate-400' : 'text-slate-900'}`}>
@@ -1226,7 +1226,7 @@ export const TimeBlockingSchedule: React.FC = () => {
                       className={`h-6 px-2 rounded-lg border text-[10px] font-bold flex items-center gap-1 shrink-0 transition active:scale-90 ${
                         isDone
                           ? 'bg-emerald-500 border-emerald-600 text-white shadow-2xs'
-                          : 'bg-white border-fuchsia-300 text-fuchsia-700 hover:bg-fuchsia-100'
+                          : 'bg-white border-emerald-300 text-emerald-700 hover:bg-emerald-100'
                       }`}
                       title={isDone ? 'Habit checked-in' : 'Check-in habit'}
                     >

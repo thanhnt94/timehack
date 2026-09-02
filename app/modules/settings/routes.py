@@ -81,7 +81,52 @@ async def save_user_settings(payload: Dict[str, Any], request: Request, db: Asyn
 
 from datetime import date, datetime
 from sqlalchemy import delete
-from app.models import Category, Task, Habit, HabitLog, ScheduleSlot, TimeLog
+from app.models import Category, Task, Subtask, Habit, HabitLog, ScheduleSlot, TimeLog, ActiveTrack, UserNotification
+
+@router.post("/wipe-all-data")
+async def wipe_user_all_data(request: Request, db: AsyncSession = Depends(get_db)):
+    """Completely wipe all user data (tasks, habits, slots, logs, active tracks, notifications)
+    and reset clean default categories for a fresh start.
+    """
+    user_id = get_current_user_id(request)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Unauthenticated")
+
+    # 1. Clear all user tracks, slots, logs, habits, tasks
+    await db.execute(delete(ActiveTrack).where(ActiveTrack.user_id == user_id))
+    await db.execute(delete(TimeLog).where(TimeLog.user_id == user_id))
+    await db.execute(delete(ScheduleSlot).where(ScheduleSlot.user_id == user_id))
+    await db.execute(delete(HabitLog).where(HabitLog.user_id == user_id))
+    await db.execute(delete(Habit).where(Habit.user_id == user_id))
+
+    task_ids_res = await db.execute(select(Task.id).where(Task.user_id == user_id))
+    task_ids = [r[0] for r in task_ids_res.fetchall()]
+    if task_ids:
+        await db.execute(delete(Subtask).where(Subtask.task_id.in_(task_ids)))
+
+    await db.execute(delete(Task).where(Task.user_id == user_id))
+    await db.execute(delete(UserNotification).where(UserNotification.user_id == user_id))
+    await db.execute(delete(Category).where(Category.user_id == user_id))
+
+    # 2. Reset clean default categories
+    cat_work = Category(user_id=user_id, name="Công việc", color="#3B82F6", category_type="productive", icon="briefcase", is_default=True)
+    cat_study = Category(user_id=user_id, name="Học tập", color="#10B981", category_type="productive", icon="book", is_default=True)
+    cat_health = Category(user_id=user_id, name="Sức khỏe", color="#F59E0B", category_type="productive", icon="activity", is_default=True)
+    cat_life = Category(user_id=user_id, name="Đời sống", color="#EC4899", category_type="productive", icon="smile", is_default=True)
+    db.add_all([cat_work, cat_study, cat_health, cat_life])
+
+    # 3. Reset settings
+    sett_res = await db.execute(select(UserSettings).where(UserSettings.user_id == user_id))
+    user_sett = sett_res.scalar_one_or_none()
+    if user_sett:
+        user_sett.settings = dict(DEFAULT_POMODORO_SETTINGS)
+
+    await db.commit()
+
+    return {
+        "status": "ok",
+        "message": "All data wiped cleanly. Ready for a fresh start."
+    }
 
 @router.post("/reset-sample-data")
 async def reset_user_sample_data(request: Request, db: AsyncSession = Depends(get_db)):

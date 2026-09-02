@@ -100,10 +100,38 @@ export const SettingsHub: React.FC = () => {
     auto_start_breaks: false,
     auto_start_pomodoros: false,
     sound_enabled: true,
+    ambient_sound: 'none',
+    theme: 'dark',
     timezone: user?.timezone || 'Asia/Ho_Chi_Minh'
   })
   const [prefSaving, setPrefSaving] = useState(false)
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false)
+
+  // Wipe All Data States
+  const [isWipingData, setIsWipingData] = useState(false)
+  const [wipeSuccessMsg, setWipeSuccessMsg] = useState<string | null>(null)
+
+  const handleWipeAllData = async () => {
+    if (!window.confirm('⚠️ WARNING: This will permanently delete ALL your tasks, habits, schedule blocks, time logs, and active timers to start completely fresh. Are you sure?')) {
+      return
+    }
+    sounds.playTap()
+    setIsWipingData(true)
+    setWipeSuccessMsg(null)
+    try {
+      await axios.post('/api/v1/user/settings/wipe-all-data')
+      sounds.playSuccess()
+      setWipeSuccessMsg('All data has been completely wiped. Your account is now fresh and ready!')
+      setTimeout(() => {
+        window.location.href = '/'
+      }, 1200)
+    } catch (e) {
+      console.error('Wipe data error', e)
+      alert('Failed to wipe data. Please try again.')
+    } finally {
+      setIsWipingData(false)
+    }
+  }
 
   // Load configs
   const loadTelegramConfig = async () => {
@@ -606,9 +634,35 @@ export const SettingsHub: React.FC = () => {
                 </div>
               </div>
 
+              {/* Danger Zone: Wipe All Data */}
+              <div className="p-3.5 bg-rose-50/70 rounded-2xl border border-rose-200 text-left space-y-2">
+                <div className="flex items-center gap-2 text-rose-800 font-bold text-xs">
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Start Fresh (Xoá toàn bộ dữ liệu)</span>
+                </div>
+                <p className="text-[11px] text-rose-600 leading-relaxed font-medium">
+                  Permanently delete all tasks, habits, schedule slots, and time tracking sessions for this account to start completely from scratch.
+                </p>
+                {wipeSuccessMsg && (
+                  <div className="p-2 rounded-xl bg-emerald-100 text-emerald-800 text-xs font-bold flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>{wipeSuccessMsg}</span>
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={handleWipeAllData}
+                  disabled={isWipingData}
+                  className="w-full py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs flex items-center justify-center gap-2 active:scale-95 transition cursor-pointer shadow-xs shadow-rose-600/30"
+                >
+                  <RotateCcw className={`w-3.5 h-3.5 ${isWipingData ? 'animate-spin' : ''}`} />
+                  <span>{isWipingData ? 'Wiping Data...' : 'Wipe All Data & Start Fresh'}</span>
+                </button>
+              </div>
+
               <button
                 onClick={() => { sounds.playTap(); logout() }}
-                className="w-full py-3 rounded-2xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs flex items-center justify-center gap-2 active:scale-95 transition cursor-pointer"
+                className="w-full py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 font-bold text-xs flex items-center justify-center gap-2 active:scale-95 transition cursor-pointer"
               >
                 <LogOut className="w-4 h-4" />
                 <span>Log Out Account</span>

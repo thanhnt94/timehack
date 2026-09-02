@@ -102,16 +102,28 @@ app.mount("/assets", StaticFiles(directory=str(ASSETS_DIR)), name="assets")
 @app.get("/login")
 @app.get("/tasks")
 @app.get("/habits")
+@app.get("/plans")
 @app.get("/calendar")
 @app.get("/schedule")
+@app.get("/tracking")
 @app.get("/categories")
+@app.get("/settings")
 @app.get("/analytics")
 @app.get("/admin")
-@app.get("/admin/{path:path}")
+async def serve_spa_root(request: Request):
+    index_path = STATIC_DIR / "index.html"
+    if index_path.exists():
+        response = FileResponse(str(index_path))
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        return response
+    return {"message": "TimeHack API is running. Build client to view UI."}
+
 @app.get("/{full_path:path}")
-async def serve_spa(full_path: str = ""):
-    # Ignore API requests that reach here so they return proper 404 JSON
-    if full_path.startswith("api/"):
+async def catch_all_spa(request: Request, full_path: str = ""):
+    # Ignore API or static assets that reach here so they return proper 404 JSON
+    if full_path.startswith("api/") or full_path.startswith("assets/"):
         raise HTTPException(status_code=404, detail="Not Found")
         
     file_path = STATIC_DIR / full_path
@@ -126,7 +138,7 @@ async def serve_spa(full_path: str = ""):
         response.headers["Expires"] = "0"
         return response
     
-    return {"message": "TimeHack API is running. Build client to view UI."}
+    raise HTTPException(status_code=404, detail="Not Found")
 
 if __name__ == "__main__":
     import uvicorn

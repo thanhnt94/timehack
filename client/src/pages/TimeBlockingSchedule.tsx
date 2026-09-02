@@ -259,6 +259,139 @@ export const TimeBlockingSchedule: React.FC = () => {
     return '18:00'
   }
 
+  // ── Smart Overlap Layout Engine (Google Calendar / Outlook Multi-Column Clustering) ──
+  const timelineLayoutMap = useMemo(() => {
+    interface RawTimelineItem {
+      id: string
+      startMins: number
+      endMins: number
+    }
+
+    const items: RawTimelineItem[] = []
+
+    // 1. Planned Slots
+    visibleSlots.forEach(slot => {
+      const isBeingDragged = draggingSlot?.itemType === 'slot' && draggingSlot?.itemId === slot.id
+      const startMins = isBeingDragged ? draggingSlot.currentStartMins : timeToMinutes(slot.start_time)
+      let endMins = isBeingDragged ? draggingSlot.currentEndMins : timeToMinutes(slot.end_time)
+      if (endMins <= startMins) {
+        endMins = slot.end_time === '00:00' ? 24 * 60 : startMins + 30
+      }
+      items.push({
+        id: `slot-${slot.id}`,
+        startMins,
+        endMins: Math.max(startMins + 20, endMins)
+      })
+    })
+
+    // 2. Habits (rendered height ~36px corresponds to ~35 minutes)
+    visibleHabits.forEach(habit => {
+      const isBeingDragged = draggingSlot?.itemType === 'habit' && draggingSlot?.itemId === habit.id
+      const reminderMins = timeToMinutes(habit.reminder_time || '08:00')
+      const startMins = isBeingDragged ? draggingSlot.currentStartMins : reminderMins
+      items.push({
+        id: `habit-${habit.id}`,
+        startMins,
+        endMins: startMins + 35
+      })
+    })
+
+    // 3. Deadlines (rendered height ~36px corresponds to ~35 minutes)
+    visibleDeadlines.forEach(task => {
+      const isBeingDragged = draggingSlot?.itemType === 'deadline' && draggingSlot?.itemId === task.id
+      const dueTime = extractTaskDueTime(task.due_date)
+      const dueMins = timeToMinutes(dueTime)
+      const startMins = isBeingDragged ? draggingSlot.currentStartMins : dueMins
+      items.push({
+        id: `deadline-${task.id}`,
+        startMins,
+        endMins: startMins + 35
+      })
+    })
+
+    // Sort items by startMins ASC, then duration DESC
+    items.sort((a, b) => {
+      if (a.startMins !== b.startMins) return a.startMins - b.startMins
+      return (b.endMins - b.startMins) - (a.endMins - a.startMins)
+    })
+
+    // Group items into clusters of overlapping time intervals
+    const clusters: RawTimelineItem[][] = []
+    let currentCluster: RawTimelineItem[] = []
+    let clusterMaxEnd = -1
+
+    for (const item of items) {
+      if (currentCluster.length === 0) {
+        currentCluster.push(item)
+        clusterMaxEnd = item.endMins
+      } else if (item.startMins < clusterMaxEnd) {
+        currentCluster.push(item)
+        clusterMaxEnd = Math.max(clusterMaxEnd, item.endMins)
+      } else {
+        clusters.push(currentCluster)
+        currentCluster = [item]
+        clusterMaxEnd = item.endMins
+      }
+    }
+    if (currentCluster.length > 0) {
+      clusters.push(currentCluster)
+    }
+
+    // Assign greedy column slots inside each cluster
+    const layoutMap = new Map<string, { colIndex: number; totalCols: number }>()
+
+    for (const cluster of clusters) {
+      const columns: number[] = []
+      const assignments: { id: string; colIndex: number }[] = []
+
+      for (const item of cluster) {
+        let placedCol = -1
+        for (let c = 0; c < columns.length; c++) {
+          if (columns[c] <= item.startMins) {
+            placedCol = c
+            columns[c] = item.endMins
+            break
+          }
+        }
+        if (placedCol === -1) {
+          placedCol = columns.length
+          columns.push(item.endMins)
+        }
+        assignments.push({ id: item.id, colIndex: placedCol })
+      }
+
+      const totalCols = Math.max(1, columns.length)
+      for (const assign of assignments) {
+        layoutMap.set(assign.id, {
+          colIndex: assign.colIndex,
+          totalCols
+        })
+      }
+    }
+
+    return layoutMap
+  }, [visibleSlots, visibleHabits, visibleDeadlines, draggingSlot])
+
+  const getItemHorizontalStyle = (itemId: string, isBeingDragged: boolean) => {
+    const layout = timelineLayoutMap.get(itemId) || { colIndex: 0, totalCols: 1 }
+    const { colIndex, totalCols } = layout
+
+    if (totalCols <= 1 || isBeingDragged) {
+      return {
+        left: '3.5rem',
+        right: '0.75rem',
+        width: 'auto'
+      }
+    }
+
+    const gap = 6 // px gap between side-by-side columns
+    return {
+      left: `calc(3.5rem + (${colIndex} * (100% - 4.25rem) / ${totalCols}) + ${colIndex * gap}px)`,
+      width: `calc(((100% - 4.25rem) / ${totalCols}) - ${gap}px)`,
+      right: 'auto'
+    }
+  }
+
   // Combined and sorted list of Blocks for Blocks View
   const combinedBlocks = useMemo(() => {
     const list: CombinedBlockItem[] = []
@@ -1298,19 +1431,20 @@ export const TimeBlockingSchedule: React.FC = () => {
                 const top = Math.max(0, ((activeStart - START_HOUR * 60) / 60) * HOUR_HEIGHT)
                 const displayReminderTime = isBeingDragged ? minutesToTimeStr(activeStart) : (habit.reminder_time || '08:00')
                 const isDone = !!habit.today_completed
+                const layoutStyle = getItemHorizontalStyle(`habit-${habit.id}`, isBeingDragged)
 
                 return (
                   <div
                     key={`habit-rem-${habit.id}`}
                     onPointerDown={(e) => handleStartHabitMove(e, habit)}
-                    className={`absolute left-14 right-2 sm:right-3 rounded-xl px-2.5 py-1.5 border flex items-center justify-between gap-2 shadow-2xs transition select-none touch-none cursor-grab active:cursor-grabbing backdrop-blur-xs ${
+                    className={`absolute rounded-xl px-2 py-1.5 border flex items-center justify-between gap-1 shadow-2xs transition select-none touch-none cursor-grab active:cursor-grabbing backdrop-blur-xs ${
                       isBeingDragged
                         ? 'ring-2 ring-emerald-500 shadow-2xl z-30 scale-[1.01] bg-emerald-100/95 border-emerald-400 text-emerald-950'
                         : isDone
                         ? 'bg-emerald-50/95 border-emerald-300 text-emerald-950 opacity-80 z-20'
                         : 'bg-emerald-50/95 border-emerald-300 text-emerald-950 hover:border-emerald-500 z-20'
                     }`}
-                    style={{ top: `${top}px`, height: '36px' }}
+                    style={{ top: `${top}px`, height: '36px', ...layoutStyle }}
                   >
                     <div className="flex items-center gap-1.5 min-w-0 flex-1">
                       <span className="text-[9px] font-mono font-black px-1.5 py-0.5 rounded bg-white border border-emerald-200 shrink-0 text-emerald-700">
@@ -1367,19 +1501,20 @@ export const TimeBlockingSchedule: React.FC = () => {
                 const top = Math.max(0, ((activeStart - START_HOUR * 60) / 60) * HOUR_HEIGHT)
                 const displayDueTime = isBeingDragged ? minutesToTimeStr(activeStart) : dueTime
                 const isDone = task.status === 'completed'
+                const layoutStyle = getItemHorizontalStyle(`deadline-${task.id}`, isBeingDragged)
 
                 return (
                   <div
                     key={`deadline-line-${task.id}`}
                     onPointerDown={(e) => handleStartDeadlineMove(e, task)}
-                    className={`absolute left-14 right-2 sm:right-3 rounded-xl px-2.5 py-1.5 border flex items-center justify-between gap-2 shadow-2xs transition select-none touch-none cursor-grab active:cursor-grabbing z-20 ${
+                    className={`absolute rounded-xl px-2 py-1.5 border flex items-center justify-between gap-1 shadow-2xs transition select-none touch-none cursor-grab active:cursor-grabbing z-20 ${
                       isBeingDragged
                         ? 'ring-2 ring-rose-500 shadow-2xl z-30 scale-[1.01] bg-rose-100/95 border-rose-400 text-rose-950'
                         : isDone
                         ? 'bg-rose-50/70 border-rose-200 text-rose-950 opacity-75'
                         : 'bg-rose-50/95 border-rose-300 text-rose-950 hover:border-rose-500'
                     }`}
-                    style={{ top: `${top}px`, height: '36px' }}
+                    style={{ top: `${top}px`, height: '36px', ...layoutStyle }}
                   >
                     <div className="flex items-center gap-1.5 min-w-0 flex-1">
                       <span className="text-[9px] font-mono font-black px-1.5 py-0.5 rounded bg-white border border-rose-200 text-rose-700 shrink-0 flex items-center gap-0.5">
@@ -1447,19 +1582,20 @@ export const TimeBlockingSchedule: React.FC = () => {
                   : (slot.end_time === '00:00' ? '23:59' : slot.end_time)
 
                 const isCompact = height < 50
+                const layoutStyle = getItemHorizontalStyle(`slot-${slot.id}`, isBeingDragged)
 
                 return (
                   <div
                     key={`slot-${slot.id}`}
                     onPointerDown={(e) => handleStartMove(e, slot)}
-                    className={`absolute left-14 right-2 sm:right-3 rounded-2xl p-2.5 border transition select-none touch-none cursor-grab active:cursor-grabbing flex flex-col justify-between overflow-hidden ${
+                    className={`absolute rounded-2xl p-2.5 border transition select-none touch-none cursor-grab active:cursor-grabbing flex flex-col justify-between overflow-hidden ${
                       isBeingDragged
                         ? 'ring-2 ring-violet-500 shadow-2xl z-30 scale-[1.01] bg-sky-100/95 border-sky-400 text-sky-950'
                         : slot.is_done
                         ? 'bg-sky-50/90 border-sky-300 text-sky-950 opacity-80 z-10'
                         : 'bg-sky-50/95 border-sky-300 text-sky-950 hover:border-sky-500 hover:shadow-md z-10'
                     }`}
-                    style={{ top: `${top}px`, height: `${height}px` }}
+                    style={{ top: `${top}px`, height: `${height}px`, ...layoutStyle }}
                   >
                     {/* Dynamic Content layout depending on height */}
                     {isCompact ? (

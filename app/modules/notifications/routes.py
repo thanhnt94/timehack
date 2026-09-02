@@ -69,18 +69,18 @@ async def get_telegram_config(request: Request, db: AsyncSession = Depends(get_d
                 if ca_res.status_code == 200:
                     ca_data = ca_res.json()
                     # If CentralAuth has linked chat_id, sync locally
-                    if ca_data.get("is_linked") and ca_data.get("telegram_chat_id"):
-                        if existing_settings.get("telegram_chat_id") != ca_data.get("telegram_chat_id"):
-                            existing_settings["telegram_chat_id"] = ca_data.get("telegram_chat_id")
-                            if not user_sett:
-                                user_sett = UserSettings(user_id=user_id, settings=existing_settings)
-                                db.add(user_sett)
-                            else:
-                                user_sett.settings = existing_settings
-                            await db.commit()
+                    chat_id = ca_data.get("telegram_chat_id")
+                    if chat_id:
+                        existing_settings["telegram_chat_id"] = str(chat_id)
+                        if not user_sett:
+                            user_sett = UserSettings(user_id=user_id, settings=existing_settings)
+                            db.add(user_sett)
+                        else:
+                            user_sett.settings = existing_settings
+                        await db.commit()
                     return {
-                        "is_linked": ca_data.get("is_linked", False),
-                        "telegram_chat_id": ca_data.get("telegram_chat_id") or existing_settings.get("telegram_chat_id"),
+                        "is_linked": bool(chat_id or ca_data.get("is_linked")),
+                        "telegram_chat_id": chat_id or existing_settings.get("telegram_chat_id"),
                         "connect_token": ca_data.get("connect_token"),
                         "bot_username": ca_data.get("bot_username", "InMindBot"),
                         "reminder_time": existing_settings.get("reminder_time", ca_data.get("reminder_time", "20:00")),
@@ -185,11 +185,11 @@ async def link_telegram_chat(payload: dict, request: Request, db: AsyncSession =
     sett_res = await db.execute(select(UserSettings).where(UserSettings.user_id == user_id))
     user_sett = sett_res.scalar_one_or_none()
     if not user_sett:
-        user_sett = UserSettings(user_id=user_id, settings={"telegram_chat_id": chat_id})
+        user_sett = UserSettings(user_id=user_id, settings={"telegram_chat_id": str(chat_id)})
         db.add(user_sett)
     else:
-        existing = dict(user_sett.settings) if user_sett.settings else {}
-        existing["telegram_chat_id"] = chat_id
+        existing = dict(user_sett.settings) if user_sett and user_sett.settings else {}
+        existing["telegram_chat_id"] = str(chat_id)
         user_sett.settings = existing
 
     await db.commit()
@@ -198,16 +198,41 @@ async def link_telegram_chat(payload: dict, request: Request, db: AsyncSession =
 @router.post("/telegram/test")
 async def send_test_telegram(request: Request, db: AsyncSession = Depends(get_db)):
     user_id = get_current_user_id(request)
+    user_res = await db.execute(select(User).where(User.id == user_id))
+    user = user_res.scalar_one_or_none()
+
     sett_res = await db.execute(select(UserSettings).where(UserSettings.user_id == user_id))
     user_sett = sett_res.scalar_one_or_none()
     chat_id = user_sett.settings.get("telegram_chat_id") if user_sett and user_sett.settings else None
     
+    # Auto-resolve chat_id from CentralAuth if not cached locally
+    if not chat_id and settings.CENTRAL_AUTH_URL and user and user.central_auth_id:
+        try:
+            queue_token = getattr(settings, "QUEUE_API_SECRET", "super-secret-token-123")
+            async with httpx.AsyncClient(timeout=6.0) as client:
+                ca_url = f"{settings.CENTRAL_AUTH_URL.rstrip('/')}/api/queue/telegram/config/{user.central_auth_id}"
+                ca_res = await client.get(ca_url, headers={"X-Queue-Token": queue_token, "X-Queue-Secret": queue_token})
+                if ca_res.status_code == 200:
+                    ca_data = ca_res.json()
+                    chat_id = ca_data.get("telegram_chat_id")
+                    if chat_id:
+                        existing = dict(user_sett.settings) if user_sett and user_sett.settings else {}
+                        existing["telegram_chat_id"] = str(chat_id)
+                        if not user_sett:
+                            user_sett = UserSettings(user_id=user_id, settings=existing)
+                            db.add(user_sett)
+                        else:
+                            user_sett.settings = existing
+                        await db.commit()
+        except Exception as e:
+            logger.warning(f"Error fetching CentralAuth chat_id during test message: {e}")
+
     if not chat_id:
-        raise HTTPException(status_code=400, detail="Chưa liên kết Telegram Bot trong Cài đặt")
+        raise HTTPException(status_code=400, detail="Chưa tìm thấy Telegram Chat ID trong tài khoản CentralAuth. Vui lòng liên kết Bot qua mã token.")
         
     sent = await TelegramService.send_message(
         chat_id=str(chat_id),
-        text="<b>🔔 [TimeHack] Thông báo thử nghiệm</b>\n\n🎉 Kết nối Telegram Bot với TimeHack thành công! Bạn sẽ nhận được các thông báo nhắc việc & thói quen tại đây.",
-        user_id=user_id
+        text="<b>🔔 [TimeHack] Thông báo thử nghiệm</b>\n\n🎉 Kết nối Telegram Bot với TimeHack thành công (đồng bộ tự động từ tài khoản CentralAuth SSO)! Bạn sẽ nhận được các thông báo lịch trình & thói quen tại đây.",
+        user_id=user.central_auth_id if user and user.central_auth_id else user_id
     )
-    return {"status": "ok" if sent else "failed", "sent": sent}
+    return {"status": "ok" if sent else "failed", "sent": sent, "telegram_chat_id": chat_id}

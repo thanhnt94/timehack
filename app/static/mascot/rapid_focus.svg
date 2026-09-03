@@ -1,0 +1,114 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <filter id="focus-shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#4C1D95" flood-opacity="0.3" />
+    </filter>
+    <filter id="goggle-glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="8" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+    <linearGradient id="fur-body" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="75%" stop-color="#F8FAFC" />
+      <stop offset="100%" stop-color="#E2E8F0" />
+    </linearGradient>
+    <linearGradient id="inner-ear" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FDA4AF" />
+      <stop offset="60%" stop-color="#F472B6" />
+      <stop offset="100%" stop-color="#FB7185" />
+    </linearGradient>
+    <linearGradient id="watch-gold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FEF08A" />
+      <stop offset="30%" stop-color="#F59E0B" />
+      <stop offset="70%" stop-color="#D97706" />
+      <stop offset="100%" stop-color="#92400E" />
+    </linearGradient>
+    <linearGradient id="laser-lens" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#E879F9" />
+      <stop offset="50%" stop-color="#C084FC" />
+      <stop offset="100%" stop-color="#7C3AED" />
+    </linearGradient>
+  </defs>
+
+  <!-- Speed Energy Streaks -->
+  <g opacity="0.75">
+    <path d="M 50 200 L 130 215" stroke="#8B5CF6" stroke-width="3.5" stroke-linecap="round" />
+    <path d="M 30 235 L 120 242" stroke="#A78BFA" stroke-width="2.5" stroke-linecap="round" />
+    <path d="M 460 200 L 380 215" stroke="#8B5CF6" stroke-width="3.5" stroke-linecap="round" />
+    <path d="M 480 235 L 390 242" stroke="#A78BFA" stroke-width="2.5" stroke-linecap="round" />
+    <!-- Electric Fire Sparks -->
+    <polygon points="115,105 118,114 127,117 118,120 115,129 112,120 103,117 112,114" fill="#F59E0B" />
+    <polygon points="395,105 398,114 407,117 398,120 395,129 392,120 383,117 392,114" fill="#F59E0B" />
+  </g>
+
+  <!-- Agile Mischievous Focus Mascot -->
+  <g filter="url(#focus-shadow)">
+    <!-- Ears (Perked & Dynamic) -->
+    <g transform="rotate(-12 185 130)">
+      <path d="M 185 155 C 145 95, 140 20, 185 8 C 225 -2, 235 68, 215 155 Z" fill="url(#fur-body)" stroke="#94A3B8" stroke-width="2.5" />
+      <path d="M 185 140 C 160 90, 158 35, 185 22 C 210 14, 218 68, 205 140 Z" fill="url(#inner-ear)" opacity="0.9" />
+    </g>
+    <g transform="translate(315, 55)">
+      <path d="M 0 85 C 18 45, 40 22, 65 18 L 85 42 C 60 52, 35 78, 18 90 Z" fill="url(#fur-body)" stroke="#94A3B8" stroke-width="2.5" />
+      <path d="M 65 18 C 90 12, 110 32, 100 60 C 92 78, 70 72, 55 60 Z" fill="url(#fur-body)" stroke="#94A3B8" stroke-width="2.5" />
+      <path d="M 70 25 C 88 22, 100 38, 92 55 C 85 68, 72 65, 62 52 Z" fill="url(#inner-ear)" opacity="0.9" />
+    </g>
+
+    <!-- Slender Forward-Leaning Body -->
+    <path d="M 200 270 C 185 315, 190 365, 215 395 C 238 422, 282 422, 305 395 C 328 365, 332 315, 318 270 Z" fill="url(#fur-body)" stroke="#CBD5E1" stroke-width="2" />
+
+    <!-- Feet -->
+    <ellipse cx="185" cy="450" rx="30" ry="18" transform="rotate(-20 185 450)" fill="url(#fur-body)" stroke="#94A3B8" stroke-width="2" />
+    <ellipse cx="330" cy="450" rx="30" ry="18" transform="rotate(20 330 450)" fill="url(#fur-body)" stroke="#94A3B8" stroke-width="2" />
+
+    <!-- Head -->
+    <g transform="rotate(-3 256 195)">
+      <path d="M 160 200 C 135 220, 138 245, 160 260 C 148 268, 155 280, 175 278 C 210 305, 302 305, 337 278 C 357 280, 364 268, 352 260 C 374 245, 377 220, 352 200 C 352 140, 160 140, 160 200 Z" fill="url(#fur-body)" stroke="#94A3B8" stroke-width="2.5" />
+
+      <!-- Cheeks Blush & Lightning -->
+      <ellipse cx="180" cy="245" rx="16" ry="9" fill="#FDA4AF" opacity="0.6" />
+      <ellipse cx="332" cy="245" rx="16" ry="9" fill="#FDA4AF" opacity="0.6" />
+      <polygon points="172,238 178,238 174,248 181,248 168,260 171,250 166,250" fill="#F59E0B" />
+
+      <!-- High-Tech Glowing Aviator Goggles Pulled Over Eyes (Cyber Laser Focus) -->
+      <g transform="translate(0, 10)">
+        <path d="M 150 180 Q 256 168, 362 180" stroke="#4C1D95" stroke-width="12" stroke-linecap="round" fill="none" />
+        <circle cx="205" cy="188" r="28" fill="url(#watch-gold)" stroke="#78350F" stroke-width="3" />
+        <circle cx="205" cy="188" r="23" fill="url(#laser-lens)" filter="url(#goggle-glow)" />
+        <!-- Digital Tech Focus Reticle in Left Lens -->
+        <circle cx="205" cy="188" r="14" fill="none" stroke="#FFFFFF" stroke-dasharray="3 3" stroke-width="1.8" />
+        <line x1="205" y1="170" x2="205" y2="206" stroke="#FFFFFF" stroke-width="1.8" />
+        <line x1="187" y1="188" x2="223" y2="188" stroke="#FFFFFF" stroke-width="1.8" />
+
+        <rect x="228" y="184" width="16" height="8" rx="2" fill="url(#watch-gold)" />
+
+        <circle cx="267" cy="188" r="28" fill="url(#watch-gold)" stroke="#78350F" stroke-width="3" />
+        <circle cx="267" cy="188" r="23" fill="url(#laser-lens)" filter="url(#goggle-glow)" />
+        <!-- Digital Tech Focus Reticle in Right Lens -->
+        <circle cx="267" cy="188" r="14" fill="none" stroke="#FFFFFF" stroke-dasharray="3 3" stroke-width="1.8" />
+        <line x1="267" y1="170" x2="267" y2="206" stroke="#FFFFFF" stroke-width="1.8" />
+        <line x1="249" y1="188" x2="285" y2="188" stroke="#FFFFFF" stroke-width="1.8" />
+      </g>
+
+      <!-- Nose & Confident Grin with Buck Tooth -->
+      <polygon points="256,238 249,246 263,246" fill="#F43F5E" />
+      <path d="M 246 250 Q 256 256 266 250 Q 276 244 282 254" stroke="#1E293B" stroke-width="3" stroke-linecap="round" fill="none" />
+      <rect x="254" y="251" width="8" height="8" rx="2" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.2" />
+    </g>
+
+    <!-- Supercharged Ticking Pocket Watch -->
+    <g transform="translate(256, 350) rotate(5)">
+      <circle cx="0" cy="0" r="74" fill="url(#watch-gold)" stroke="#78350F" stroke-width="3" />
+      <circle cx="0" cy="0" r="64" fill="#FAF5FF" />
+      <!-- Fire/Energy Arc -->
+      <path d="M 0 -58 A 58 58 0 0 1 58 0" stroke="#EF4444" stroke-width="7" fill="none" stroke-linecap="round" />
+      <path d="M 0 0 L 0 -50" stroke="#EF4444" stroke-width="4" stroke-linecap="round" />
+      <path d="M 0 0 L 48 0" stroke="#7C3AED" stroke-width="5" stroke-linecap="round" />
+      <circle cx="0" cy="0" r="6" fill="#F59E0B" />
+    </g>
+
+    <!-- Paws Gripping Watch Firmly -->
+    <ellipse cx="185" cy="355" rx="18" ry="14" transform="rotate(-15 185 355)" fill="url(#fur-body)" stroke="#94A3B8" stroke-width="2" />
+    <ellipse cx="325" cy="355" rx="18" ry="14" transform="rotate(15 325 355)" fill="url(#fur-body)" stroke="#94A3B8" stroke-width="2" />
+  </g>
+</svg>

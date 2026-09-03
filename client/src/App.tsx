@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Link } from 'react-router-dom'
 import { Sparkles, BarChart3, Clock, CheckSquare, Zap, FolderTree } from 'lucide-react'
+import { TimeHackLogo } from './components/TimeHackLogo'
 import { Sidebar } from './components/Sidebar'
 import { BottomNav } from './components/BottomNav'
 import { QuickActionSheet } from './components/QuickActionSheet'
@@ -54,34 +55,31 @@ const AppShell: React.FC = () => {
         <header className="md:hidden shrink-0 flex items-center justify-between px-3.5 h-12 bg-white/90 backdrop-blur-2xl border-b border-slate-200/80 z-20 shadow-2xs">
           {/* Left: Brand Identity & Live Context Pill */}
           <div className="flex items-center gap-2.5 min-w-0">
-            {/* Gem Mascot Brand Logo */}
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-violet-600 via-indigo-600 to-fuchsia-600 flex items-center justify-center text-white shadow-sm shadow-violet-600/30 ring-1 ring-white/30 shrink-0">
-              <Sparkles className="w-4 h-4 fill-white/20 text-white stroke-[2.2]" />
-            </div>
-            
-            {/* Brand Title in Crisp Sans-Serif Typography */}
-            <div className="flex items-center gap-2">
+            {/* Rapid the Mascot Brand Icon */}
+            <Link to="/" onClick={() => sounds.playTap()} className="flex items-center gap-1.5 shrink-0">
+              <TimeHackLogo mode="icon" height="sm" />
               <span className="text-sm font-black tracking-tight font-sans text-slate-900">
                 Time<span className="bg-gradient-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent">Hack</span>
               </span>
+            </Link>
 
-              {/* Dynamic Context Pill */}
-              {isTimePage ? (
-                totalTrackedSec > 0 ? (
-                  <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-900 text-white shadow-xs border border-slate-800">
-                    <span className="relative flex h-1.5 w-1.5">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
-                    </span>
-                    <span className="text-[10px] font-black font-mono text-emerald-400 tracking-tight">{formattedTracked}</span>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-violet-50 border border-violet-200/70 text-violet-700 text-[10px] font-black">
-                    <Clock className="w-2.5 h-2.5 text-violet-600" />
-                    <span>Time</span>
-                  </div>
-                )
-              ) : isActionsPage ? (
+            {/* Dynamic Context Pill */}
+            {isTimePage ? (
+              totalTrackedSec > 0 ? (
+                <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-900 text-white shadow-xs border border-slate-800">
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                  </span>
+                  <span className="text-[10px] font-black font-mono text-emerald-400 tracking-tight">{formattedTracked}</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-violet-50 border border-violet-200/70 text-violet-700 text-[10px] font-black">
+                  <Clock className="w-2.5 h-2.5 text-violet-600" />
+                  <span>Time</span>
+                </div>
+              )
+            ) : isActionsPage ? (
                 <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200/80 text-[10px] font-mono font-bold">
                   <span className="text-violet-700">{doneTasks}/{(tasks || []).length} tasks</span>
                   <span className="text-slate-300">•</span>
@@ -98,7 +96,6 @@ const AppShell: React.FC = () => {
                   <span>Insights</span>
                 </div>
               )}
-            </div>
           </div>
 
           {/* Right Header Actions: User Profile Avatar */}
@@ -187,10 +184,10 @@ export const App: React.FC = () => {
     return (
       <div className="h-[100dvh] flex items-center justify-center bg-[#F8FAFC]">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-violet-600 text-white flex items-center justify-center shadow-lg shadow-violet-600/30 animate-pulse">
-            <Sparkles className="w-5 h-5" />
+          <div className="w-16 h-16 relative flex items-center justify-center animate-bounce-subtle">
+            <TimeHackLogo mode="icon" height="lg" state="focus" />
           </div>
-          <span className="text-xs font-bold text-slate-500 font-mono tracking-wider">SYNCING TIMEHACK...</span>
+          <span className="text-xs font-bold text-violet-700 font-mono tracking-wider">SYNCING TIMEHACK...</span>
         </div>
       </div>
     )

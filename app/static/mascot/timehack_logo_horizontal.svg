@@ -1,0 +1,131 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 200" width="100%" height="100%">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@800;900&amp;family=Fredoka:wght@700;900&amp;display=swap');
+      .brand-title {
+        font-family: 'Plus Jakarta Sans', 'Fredoka', system-ui, -apple-system, sans-serif;
+        font-weight: 900;
+        font-size: 88px;
+        letter-spacing: -2px;
+      }
+      .brand-sub {
+        font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+        font-weight: 800;
+        font-size: 19px;
+        letter-spacing: 5px;
+      }
+    </style>
+
+    <filter id="logo-shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#4C1D95" flood-opacity="0.18" />
+    </filter>
+
+    <linearGradient id="text-hack-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#7C3AED" />
+      <stop offset="60%" stop-color="#6366F1" />
+      <stop offset="100%" stop-color="#4F46E5" />
+    </linearGradient>
+
+    <linearGradient id="badge-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FAF5FF" />
+      <stop offset="100%" stop-color="#EDE9FE" />
+    </linearGradient>
+
+    <linearGradient id="goggle-lens" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#C084FC" />
+      <stop offset="100%" stop-color="#6B21A8" />
+    </linearGradient>
+  </defs>
+
+  <g filter="url(#logo-shadow)">
+    <!-- ── LEFT: MISCHIEVOUS RAPID MASCOT BADGE ── -->
+    <g transform="translate(15, 10)">
+      <!-- Soft Gradient Badge Circle -->
+      <circle cx="90" cy="90" r="82" fill="url(#badge-bg)" stroke="#DDD6FE" stroke-width="3" />
+      <circle cx="90" cy="90" r="76" fill="#FFFFFF" />
+
+      <!-- Embedded Mischievous Rapid Illustration Scale -->
+      <g transform="translate(-14, -8) scale(0.4)">
+        <!-- 1. Playful Ears: Left straight, Right folded -->
+        <g transform="rotate(-18 190 120)">
+          <path d="M 190 145 C 150 90, 140 15, 190 2 C 230 -8, 240 65, 220 145 Z" fill="#FFFFFF" stroke="#94A3B8" stroke-width="4" />
+          <path d="M 192 130 C 165 85, 160 30, 192 16 C 215 8, 222 65, 210 130 Z" fill="#F472B6" opacity="0.9" />
+        </g>
+        <g transform="translate(305, 50)">
+          <path d="M 0 90 C 15 50, 35 25, 60 20 L 80 45 C 55 55, 30 85, 20 95 Z" fill="#FFFFFF" stroke="#94A3B8" stroke-width="4" />
+          <path d="M 60 20 C 85 15, 105 35, 95 65 C 88 85, 65 80, 50 65 Z" fill="#FFFFFF" stroke="#94A3B8" stroke-width="4" />
+          <path d="M 65 28 C 82 25, 95 40, 88 60 C 82 72, 68 70, 58 58 Z" fill="#F472B6" opacity="0.9" />
+        </g>
+
+        <!-- 2. Slender Body & Head with Tilt -->
+        <g transform="rotate(-6 256 195)">
+          <path d="M 160 200 C 135 220, 138 245, 160 260 C 148 268, 155 280, 175 278 C 210 305, 302 305, 337 278 C 357 280, 364 268, 352 260 C 374 245, 377 220, 352 200 C 352 140, 160 140, 160 200 Z" fill="#FFFFFF" stroke="#94A3B8" stroke-width="4" />
+
+          <!-- Goggles on forehead -->
+          <path d="M 155 172 Q 256 158, 357 172" stroke="#4C1D95" stroke-width="12" stroke-linecap="round" fill="none" />
+          <circle cx="210" cy="165" r="26" fill="#F59E0B" stroke="#78350F" stroke-width="3" />
+          <circle cx="210" cy="165" r="21" fill="url(#goggle-lens)" />
+          <circle cx="270" cy="165" r="26" fill="#F59E0B" stroke="#78350F" stroke-width="3" />
+          <circle cx="270" cy="165" r="21" fill="url(#goggle-lens)" />
+
+          <!-- Cheeky Face: Left big anime eye, Right WINK 😉 -->
+          <g transform="translate(195, 210)">
+            <ellipse cx="6" cy="6" rx="19" ry="24" fill="#4C1D95" />
+            <polygon points="12,-4 14,3 21,5 14,7 12,14 10,7 3,5 10,3" fill="#FFFFFF" />
+            <circle cx="-2" cy="16" r="4.5" fill="#FFFFFF" />
+          </g>
+          <g transform="translate(305, 214)">
+            <path d="M -16 6 Q 4 -6, 20 8" stroke="#1E1B4B" stroke-width="6" stroke-linecap="round" fill="none" />
+            <polygon points="26,0 28,5 33,7 28,9 26,14 24,9 19,7 24,5" fill="#F59E0B" />
+          </g>
+
+          <!-- Nose & Cheeky Smirk with Buck Tooth -->
+          <polygon points="256,234 249,242 263,242" fill="#F43F5E" />
+          <path d="M 244 245 Q 252 250, 260 245 Q 275 240, 282 252" stroke="#1E293B" stroke-width="4" stroke-linecap="round" fill="none" />
+          <rect x="254" y="247" width="8" height="9" rx="2" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.5" />
+          <path d="M 264 248 Q 272 260, 278 250 Z" fill="#FB7185" />
+        </g>
+
+        <!-- 3. Golden Pocket Watch (Held with tilt) -->
+        <g transform="translate(256, 350) rotate(8)">
+          <ellipse cx="0" cy="-78" rx="14" ry="9" fill="none" stroke="#F59E0B" stroke-width="6" />
+          <circle cx="0" cy="0" r="74" fill="#F59E0B" stroke="#78350F" stroke-width="5" />
+          <circle cx="0" cy="0" r="62" fill="#FAF5FF" stroke="#DDD6FE" stroke-width="2.5" />
+          <path d="M 0 0 L -24 -24" stroke="#6D28D9" stroke-width="7" stroke-linecap="round" />
+          <path d="M 0 0 L 32 -38" stroke="#7C3AED" stroke-width="6" stroke-linecap="round" />
+          <circle cx="0" cy="0" r="7" fill="#F59E0B" />
+        </g>
+
+        <!-- 4. Paws: Left gripping watch, Right Victory ✌️ -->
+        <g transform="translate(180, 310)">
+          <ellipse cx="15" cy="15" rx="18" ry="14" fill="#FFFFFF" stroke="#94A3B8" stroke-width="3" />
+        </g>
+        <g transform="translate(325, 290)">
+          <ellipse cx="20" cy="25" rx="16" ry="14" fill="#FFFFFF" stroke="#94A3B8" stroke-width="3" />
+          <rect x="12" y="-2" width="8" height="20" rx="4" transform="rotate(-12 16 8)" fill="#FFFFFF" stroke="#94A3B8" stroke-width="2.5" />
+          <rect x="23" y="2" width="8" height="18" rx="4" transform="rotate(10 27 11)" fill="#FFFFFF" stroke="#94A3B8" stroke-width="2.5" />
+        </g>
+      </g>
+    </g>
+
+    <!-- ── RIGHT: TYPOGRAPHY ── -->
+    <g transform="translate(205, 115)">
+      <!-- Main Brand Text -->
+      <text x="0" y="0" class="brand-title">
+        <tspan fill="#0F172A">Time</tspan>
+        <tspan fill="url(#text-hack-grad)">Hack</tspan>
+      </text>
+
+      <!-- Golden Sparkle on the "k" -->
+      <g transform="translate(425, -60)">
+        <polygon points="14,0 17,9 26,12 17,15 14,24 11,15 2,12 11,9" fill="#F59E0B" />
+      </g>
+
+      <!-- Subtitle Badge: PRODUCTIVITY & FOCUS HUB -->
+      <g transform="translate(4, 28)">
+        <rect x="0" y="-18" width="375" height="24" rx="12" fill="#F1F5F9" />
+        <text x="14" y="0" class="brand-sub" fill="#64748B">PRODUCTIVITY &amp; FOCUS HUB</text>
+      </g>
+    </g>
+  </g>
+</svg>

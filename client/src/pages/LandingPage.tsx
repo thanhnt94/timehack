@@ -33,8 +33,18 @@ export const LandingPage: React.FC = () => {
     <div className="h-[100dvh] flex flex-col bg-[#F8FAFC] overflow-hidden select-none">
       {/* ── Top: Hero ─────────────────── */}
       <div className="flex-1 flex flex-col items-center justify-center px-6 relative">
-        <div className="w-16 h-16 rounded-3xl bg-violet-600 flex items-center justify-center shadow-xl shadow-violet-600/25 mb-6">
-          <Sparkles className="w-8 h-8 text-white" />
+        {/* Rapid the Mascot 3D Hero Illustration */}
+        <div className="relative mb-5 group">
+          <div className="h-44 sm:h-52 relative flex items-center justify-center transition-transform duration-500 hover:scale-105 active:scale-95">
+            <img
+              src="/mascot/rapid_3d_mascot.png"
+              alt="Rapid the Bunny - TimeHack Mascot"
+              className="h-full w-auto object-contain drop-shadow-xl"
+            />
+          </div>
+          <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full bg-violet-600 text-white text-[11px] font-black tracking-wide shadow-md shadow-violet-600/30 whitespace-nowrap">
+            Meet Rapid 🐰⚡
+          </div>
         </div>
 
         <h1 className="text-3xl font-black text-slate-900 tracking-tight text-center font-mono">
@@ -42,7 +52,7 @@ export const LandingPage: React.FC = () => {
         </h1>
         <p className="text-sm text-slate-500 mt-2 text-center max-w-xs font-medium">
           Personal time management & focus hub.<br />
-          Deep focus. Build habits. Master your time.
+          Beat the clock. Deep focus. Master your time.
         </p>
       </div>
 

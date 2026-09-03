@@ -205,7 +205,7 @@ export const PomodoroFocus: React.FC<Props> = ({ onClose }) => {
             {categoryPickerOpen && (
               <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-72 max-h-60 overflow-y-auto bg-white rounded-2xl shadow-xl border border-slate-200 p-2 z-50 text-left space-y-1 anim-scale-in">
                 <div className="px-2 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                  Gắn nhãn thời gian Focus
+                  Tag Focus Category
                 </div>
                 <button
                   onClick={() => handleSelectCategory(null)}
@@ -213,7 +213,7 @@ export const PomodoroFocus: React.FC<Props> = ({ onClose }) => {
                     !activeCategoryId ? 'bg-violet-50 text-violet-700' : 'text-slate-600 hover:bg-slate-50'
                   }`}
                 >
-                  <span>Chưa phân loại</span>
+                  <span>Uncategorized</span>
                   {!activeCategoryId && <Check className="w-3.5 h-3.5 text-violet-600" />}
                 </button>
 
@@ -256,7 +256,7 @@ export const PomodoroFocus: React.FC<Props> = ({ onClose }) => {
             )}
           </div>
 
-          <h2 className="text-xl font-black text-slate-900 truncate">{activeTitle || 'Phiên tập trung chuyên sâu'}</h2>
+          <h2 className="text-xl font-black text-slate-900 truncate">{activeTitle || 'Deep Focus Session'}</h2>
         </div>
 
         {/* SVG Progress Circle */}
@@ -292,13 +292,28 @@ export const PomodoroFocus: React.FC<Props> = ({ onClose }) => {
             </defs>
           </svg>
 
-          {/* Time text centered inside circle */}
-          <div className="absolute flex flex-col items-center justify-center">
+          {/* Time text & Rapid Mascot centered inside circle */}
+          <div className="absolute flex flex-col items-center justify-center pointer-events-none">
+            {/* Mascot State Avatar */}
+            <div className="w-12 h-12 mb-0.5 relative flex items-center justify-center">
+              <img
+                src={
+                  currentPhase === 'short_break' || currentPhase === 'long_break'
+                    ? '/mascot/rapid_sleepy.svg'
+                    : isRunning && !isPaused
+                    ? '/mascot/rapid_focus.svg'
+                    : '/mascot/rapid_3d_mascot.png'
+                }
+                alt="Rapid the Mascot"
+                className={`w-full h-full object-contain drop-shadow-xs ${isRunning && !isPaused ? 'animate-pulse' : ''}`}
+              />
+            </div>
+
             <span className="text-5xl font-black text-slate-900 font-mono tracking-tight">
               {mode === 'pomodoro' ? formatTime(secondsRemaining) : formatTime(elapsedSeconds)}
             </span>
             {mode === 'pomodoro' && (
-              <span className="text-xs text-slate-500 font-bold mt-1.5 flex items-center gap-1">
+              <span className="text-xs text-slate-500 font-bold mt-1 flex items-center gap-1">
                 <Flame className="w-3.5 h-3.5 text-amber-500" />
                 <span>{completedPomodoros} Pomodoro completed</span>
               </span>

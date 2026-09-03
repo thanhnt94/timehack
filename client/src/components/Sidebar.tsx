@@ -1,5 +1,6 @@
 import React from 'react'
 import { Link, useLocation } from 'react-router-dom'
+import { TimeHackLogo } from './TimeHackLogo'
 import {
   Sparkles, Clock, CheckSquare, BarChart3,
   FolderTree, LogOut, ShieldAlert, Settings
@@ -25,13 +26,10 @@ export const Sidebar: React.FC<Props> = ({ user, onLogout, onOpenSettings }) => 
   return (
     <aside className="hidden md:flex w-60 shrink-0 h-[100dvh] flex-col bg-white border-r border-slate-200 fixed left-0 top-0 z-20">
       {/* Brand */}
-      <div className="flex items-center gap-2.5 px-5 h-14 border-b border-slate-200">
-        <div className="w-8 h-8 rounded-xl bg-violet-600 flex items-center justify-center shadow-sm">
-          <Sparkles className="w-4 h-4 text-white" />
-        </div>
-        <span className="font-black text-sm tracking-wider font-mono text-slate-900">
-          TIME<span className="text-violet-600">HACK</span>
-        </span>
+      <div className="flex items-center px-4 h-14 border-b border-slate-200">
+        <Link to="/" onClick={() => sounds.playTap()} className="hover:opacity-95 transition-opacity">
+          <TimeHackLogo mode="horizontal" height="md" />
+        </Link>
       </div>
 
       {/* Nav links */}

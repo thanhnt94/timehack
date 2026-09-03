@@ -106,11 +106,17 @@
   100% { transform: scale(1); }
 }
 
+@keyframes bounce-subtle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
 .anim-pop { animation: pop 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
 .anim-slide-up { animation: slide-up 0.3s cubic-bezier(0.32, 0.72, 0, 1); }
 .anim-fade-in { animation: fade-in 0.2s ease-out; }
 .anim-pulse-ring { animation: pulse-ring 2.5s infinite ease-in-out; }
 .anim-check { animation: check-bounce 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+.animate-bounce-subtle { animation: bounce-subtle 2s infinite ease-in-out; }
 
 /* ── Scrollbar ─────────────────────────── */
 .no-scrollbar::-webkit-scrollbar { display: none; }
